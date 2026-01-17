@@ -32,9 +32,11 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade mypy
-          stubgen complexint/__init__.py
-          mkdir -p complexint-stubs
-          mv out/complexint/__init__.pyi complexint-stubs/__init__.pyi
+          stubgen quadint/__init__.py
+          stubgen quadint/eisenstein.py
+          mkdir -p quadint-stubs
+          mv out/quadint/__init__.pyi quadint-stubs/__init__.pyi
+          mv out/quadint/eisenstein.pyi quadint-stubs/eisenstein.pyi
           rm -rf out
 
       - name: Install dependencies
@@ -60,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/complexint
+      url: https://pypi.org/p/quadint
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:

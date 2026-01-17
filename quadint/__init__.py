@@ -1,0 +1,347 @@
+from typing import Iterator, Optional, Tuple, Union
+
+OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
+_OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
+OP_TYPES = Union['QuadInt', OTHER_OP_TYPES]
+
+
+def _round_div_ties_away_from_zero(n: int, d: int) -> int:
+    """Round n/d to nearest int; ties go away from 0. d must be > 0."""
+    if d <= 0:
+        raise ValueError("d must be > 0")
+    if n >= 0:
+        return (n + d // 2) // d
+    return -((-n + d // 2) // d)
+
+
+class QuadraticRing:
+    """
+    The quadratic integer ring (order) with basis (1, sqrt(D)) and fixed denominator den in {1,2}.
+
+    Elements are represented as:
+        (a + b*sqrt(D)) / den
+
+    where a,b are integers stored as numerators.
+    When den==2, integrality requires a ≡ b (mod 2).
+
+    This object is *not* a type factory (no nested classes) — it just carries parameters.
+    """
+
+    __slots__ = ("D", "den", "absD")
+
+    D: int
+    den: int
+    absD: int
+
+    def __init__(self, D: int) -> None:
+        self.D = int(D)
+        self.den = 2 if (self.D % 4) == 1 else 1
+        self.absD = -self.D if self.D < 0 else self.D
+
+    def __repr__(self) -> str:
+        return f"QuadraticRing(D={self.D}, den={self.den})"
+
+    def __call__(self, a: int = 0, b: int = 0) -> "QuadInt":
+        """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
+        return QuadInt(self, int(a), int(b))
+
+    def from_obj(self, n: complex) -> "QuadInt":
+        """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
+        if isinstance(n, (int, float)):
+            a = int(n)
+            b = 0
+        elif isinstance(n, complex):
+            if self.D != -1:
+                raise TypeError("Cannot mix QuadInt from different rings")
+
+            a = int(n.real)
+            b = int(n.imag)
+        else:
+            return NotImplemented
+
+        # The only time b is not 0 is if self.den is 1 anyway... No need to multiply
+        return QuadInt(self, a * self.den, b)
+
+    def from_ab(self, a: int, b: int) -> "QuadInt":
+        """Create an integer keeping in mind the denominator"""
+        da = int(a) * self.den
+        db = int(b) * self.den
+        return QuadInt(self, da, db)
+
+
+class QuadInt:
+    """
+    Element of a specific QuadraticRing.
+
+    Stored as numerators a,b for (a + b*sqrt(D)) / den.
+    """
+
+    __slots__ = ("ring", "a", "b")
+
+    ring: QuadraticRing
+    a: int
+    b: int
+
+    def __init__(self, ring: QuadraticRing, a: int = 0, b: int = 0) -> None:
+        """Init and validate the integer works for this ring"""
+        self.ring = ring
+        self.a = int(a)
+        self.b = int(b)
+
+        den = self.ring.den
+        if den == 2 and ((self.a ^ self.b) & 1):
+            raise ValueError("For den=2, a and b must have the same parity")
+
+    @property
+    def real(self) -> int:
+        """Alias for complexint"""
+        if self.ring.D != -1:
+            raise AttributeError
+
+        return self.a
+
+    @property
+    def imag(self) -> int:
+        """Alias for complexint"""
+        if self.ring.D != -1:
+            raise AttributeError
+
+        return self.b
+
+    def assert_same_ring(self, other: "QuadInt"):
+        """Raise an error if other is not in the same ring as self"""
+        if self.ring is not other.ring:
+            # identity is fastest; if you want structural equality use (D,den)
+            raise TypeError("Cannot mix QuadInt from different rings")
+
+    def __add__(self, other: OP_TYPES) -> "QuadInt":
+        if isinstance(other, _OTHER_OP_TYPES):
+            other = self.ring.from_obj(other)
+
+        if isinstance(other, QuadInt):
+            self.assert_same_ring(other)
+            return QuadInt(self.ring, self.a + other.a, self.b + other.b)
+
+        return NotImplemented
+
+    def __radd__(self, other: OTHER_OP_TYPES) -> "QuadInt":
+        return self.__add__(other)
+
+    def __sub__(self, other: OP_TYPES) -> "QuadInt":
+        if isinstance(other, _OTHER_OP_TYPES):
+            other = self.ring.from_obj(other)
+
+        if isinstance(other, QuadInt):
+            self.assert_same_ring(other)
+            return QuadInt(self.ring, self.a - other.a, self.b - other.b)
+
+        return NotImplemented
+
+    def __rsub__(self, other: OTHER_OP_TYPES) -> 'QuadInt':
+        return self.__neg__().__add__(other)
+
+    def __neg__(self) -> "QuadInt":
+        return QuadInt(self.ring, -self.a, -self.b)
+
+    def __pos__(self) -> 'QuadInt':
+        return QuadInt(self.ring, self.a, self.b)
+
+    def __mul__(self, other: OP_TYPES) -> "QuadInt":
+        if isinstance(other, _OTHER_OP_TYPES):
+            other = self.ring.from_obj(other)
+
+        if isinstance(other, QuadInt):
+            self.assert_same_ring(other)
+
+            # Numerator algebra:
+            # (a+b√D)(c+d√D) = (ac + bdD) + (ad+bc)√D
+            # But values are /den. If both are (..)/den then product is (..)/den^2.
+            # We keep representation /den by dividing numerator by den once:
+            # (xy)/den^2 == (xy/den)/den  -> require xy divisible by den.
+            D = self.ring.D
+            den = self.ring.den
+
+            a1, b1 = self.a, self.b
+            a2, b2 = other.a, other.b
+
+            A = a1 * a2 + b1 * b2 * D
+            B = a1 * b2 + a2 * b1
+
+            if den != 1:
+                if (A % den) != 0 or (B % den) != 0:
+                    raise ArithmeticError("Non-integral product; check ring parameters / parity")
+
+                A //= den
+                B //= den
+
+            return QuadInt(self.ring, A, B)
+
+        return NotImplemented
+
+    def __rmul__(self, other: OTHER_OP_TYPES) -> "QuadInt":
+        return self.__mul__(other)
+
+    # ---- Euclidean-ish division (no Fraction; small neighborhood search in integer metric) ----
+    def __divmod__(self, other: OP_TYPES) -> Tuple["QuadInt", "QuadInt"]:
+        """
+        Nearest-lattice division for D < 0 (imaginary quadratic).
+
+        Intended for Euclidean rings (e.g., D=-1, -2, -3, -7, -11 in the maximal order).
+
+        Returns:
+            tuple: The quotient and remainder of the division with other.
+
+        Raises:
+            ZeroDivisionError: For division by zero.
+        """
+        if isinstance(other, _OTHER_OP_TYPES):
+            other = self.ring.from_obj(other)
+
+        if not isinstance(other, QuadInt):
+            raise NotImplementedError
+
+        self.assert_same_ring(other)
+
+        D = self.ring.D
+        if D >= 0:
+            raise NotImplementedError("divmod implemented only for D<0 (imaginary quadratic)")
+
+        n = abs(other)
+        if n == 0:
+            raise ZeroDivisionError
+
+        num = self * other.conjugate()  # still in numerator-units for /den representation
+
+        # We want q ≈ num / n, rounding in the (1, sqrt(D)) lattice.
+        # Use integer rounding for coefficients (still numerator-units).
+        A0 = _round_div_ties_away_from_zero(num.a, n)
+        B0 = _round_div_ties_away_from_zero(num.b, n)
+
+        # Choose best among a tiny neighborhood using a metric derived from complex embedding.
+        # Compare squared distance in scaled integers:
+        # da = (A*n - num.a), db = (B*n - num.b)
+        # metric ~ da^2 + |D|*db^2  (scaled by n^2; scale irrelevant for argmin)
+        absD = -D
+        bestA, bestB = A0, B0
+        best_metric: Optional[int] = None
+
+        for A in (A0 - 1, A0, A0 + 1):
+            da = A * n - num.a
+            da2 = da * da
+            for B in (B0 - 1, B0, B0 + 1):
+                db = B * n - num.b
+                metric = da2 + absD * (db * db)
+                if best_metric is None or metric < best_metric:
+                    best_metric = metric
+                    bestA, bestB = A, B
+
+        q = QuadInt(self.ring, bestA, bestB)
+        r = self - q * other
+        return q, r
+
+    def __truediv__(self, other: OP_TYPES) -> 'QuadInt':
+        return self.__floordiv__(other)
+
+    def __rtruediv__(self, other: OTHER_OP_TYPES) -> 'QuadInt':
+        if isinstance(other, _OTHER_OP_TYPES):
+            new_other = self.ring.from_obj(other)
+            return new_other.__truediv__(self)
+
+        return NotImplemented
+
+    def __floordiv__(self, other: OP_TYPES) -> "QuadInt":
+        q, _ = divmod(self, other)
+        return q
+
+    def __rfloordiv__(self, other: OTHER_OP_TYPES) -> 'QuadInt':
+        if isinstance(other, _OTHER_OP_TYPES):
+            new_other = self.ring.from_obj(other)
+            return new_other.__floordiv__(self)
+
+        return NotImplemented
+
+    def __mod__(self, other: "QuadInt") -> "QuadInt":
+        _, r = divmod(self, other)
+        return r
+
+    def __pow__(self, exp: float) -> "QuadInt":
+        e = int(exp)
+        if e < 0:
+            raise ValueError("Negative powers not supported in quadratic integer rings")
+
+        # exponentiation by squaring
+        result = self.ring(1)
+        base = self
+        while e:
+            if e & 1:
+                result = result * base
+
+            e >>= 1
+            if e:
+                base = base * base
+
+        return result
+
+    def conjugate(self) -> "QuadInt":
+        """(a + b√D)/den -> (a - b√D)/den."""
+        return QuadInt(self.ring, self.a, -self.b)
+
+    def __abs__(self) -> int:
+        """
+        N((a+b√D)/den) = (a^2 - D*b^2) / den^2
+
+        Always an integer for valid ring elements.
+
+        Returns:
+            int: The norm for the ring.
+
+        Raises:
+            ArithmeticError: If there is a non-integral norm for the ring.
+        """
+        D = self.ring.D
+        den = self.ring.den
+        num = self.a * self.a - D * self.b * self.b
+        dd = den * den
+        if (num % dd) != 0:
+            raise ArithmeticError("Non-integral norm; check ring parameters / parity")
+        return num // dd
+
+    def __iter__(self) -> Iterator[int]:
+        return iter((self.a, self.b))
+
+    def __bool__(self) -> bool:
+        return (self.a | self.b) != 0
+
+    def __repr__(self) -> str:
+        D = self.ring.D
+        den = self.ring.den
+        if self.b == 0:
+            return f"{self.a / den}"
+
+        parens = self.a == 0
+
+        lead = "(" if parens else ""
+        tail = ")" if parens else ""
+        op = ("+" if self.b >= 0 else "-") if parens else ""
+        a = self.a or ""
+        b = abs(self.b)
+        symbol = f"*sqrt({D})" if D != -1 else "j"
+
+        core = f"{lead}{a}{op}{b}{symbol}{tail}"
+        return f"{core}/{den}" if den != 1 else core
+
+
+def make_quadint(D: int) -> QuadraticRing:
+    """
+    Returns a *ring instance* you can keep around:
+
+        Q = make_quadint(-3)
+        z = Q.from_ab(5, 2)   # (10 + 4*sqrt(-3))/2
+
+    Returns:
+        QuadraticRing: The ring instance which can be used almost as a type.
+    """
+    return QuadraticRing(D)
+
+
+complexint = make_quadint(-1)

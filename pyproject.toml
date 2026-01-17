@@ -5,13 +5,13 @@ requires = [
 ]
 
 [project]
-name = "complexint"
-version = "0.0.6"
+name = "quadint"
+version = "0.0.2"
 dynamic = ["license"]
 authors = [
   { name="Ryan Heard", email="ryanwheard@gmail.com" },
 ]
-description = "A complexint class, for using large complex numbers which exceed the precision offered by the builtin complex which uses doubles."
+description = "A quadint class, for using quadratic integers."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
 classifiers = [
@@ -27,14 +27,14 @@ classifiers = [
 keywords = ["complex", "math"]
 
 [project.urls]
-Repository = "https://github.com/rheard/complexint"
+Repository = "https://github.com/rheard/quadint"
 
 [tool.cibuildwheel]
 build = "cp3{8,9,10,11,12,13}-{win,macosx,manylinux}*"
 
 before-test = [
     'mkdir "{project}/temp"',
-    'mv "{project}/complexint" "{project}/temp/complexint"',  # Move the .py files away so they are not used in testing
+    'mv "{project}/quadint" "{project}/temp/quadint"',  # Move the .py files away so they are not used in testing
 ]
 test-requires=["ruff", "pylint", "pytest"]
 test-command=[
@@ -43,13 +43,13 @@ test-command=[
 
     # Require docstrings on all unit tests!
     'python -m pylint {project}/tests --disable=all --enable=C0115,C0116 --no-docstring-rgx="^(?!(test_|Test)).*"',
-    'mv "{project}/temp/complexint" "{project}/complexint"',  # Move the .py files back so they are ready for the next build
+    'mv "{project}/temp/quadint" "{project}/quadint"',  # Move the .py files back so they are ready for the next build
     'rm -rf "{project}/temp"',
 ]
 
 [tool.ruff]
 line-length = 120
-extend-exclude=["complexint-stubs"]
+extend-exclude=["quadint-stubs"]
 
 [tool.ruff.lint]
 preview = true
@@ -129,4 +129,4 @@ force-wrap-aliases = true
 combine-as-imports = true
 lines-after-imports = 1
 lines-between-types = 1
-known-first-party = ["complexint"]
+known-first-party = ["quadint"]

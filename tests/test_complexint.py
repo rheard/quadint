@@ -3,13 +3,16 @@
 from pathlib import Path
 from typing import Union
 
-import complexint
+import quadint
 
-from complexint import complexint as complexi
+from quadint import (
+    QuadInt,
+    complexint as complexi,
+)
 
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of complexint"""
-    path = Path(complexint.__file__)
+    path = Path(quadint.__file__)
     assert path.suffix.lower() != '.py'
 
 
@@ -56,7 +59,7 @@ class ComplexIntTests:
         self.b_int = complexi(3, 6)
 
     @staticmethod
-    def assert_complex_equal(res: Union[complex, complexi], res_int: complexi):
+    def assert_complex_equal(res: Union[complex, complexi], res_int: QuadInt):
         """Validate the complexint is equal to the validation object, and that it is still backed by integers"""
         assert res.real == res_int.real
         assert res.imag == res_int.imag
@@ -88,6 +91,22 @@ class TestAdd(ComplexIntTests):
         for i in range(100):
             res = i + self.a
             res_int = i + self.a_int
+
+            self.assert_complex_equal(res, res_int)
+
+    def test_add_float(self):
+        """Test complexint + float"""
+        for i in range(100):
+            res = self.a + float(i)
+            res_int = self.a_int + float(i)
+
+            self.assert_complex_equal(res, res_int)
+
+    def test_add_float_reversed(self):
+        """Test float + complexint"""
+        for i in range(100):
+            res = float(i) + self.a
+            res_int = float(i) + self.a_int
 
             self.assert_complex_equal(res, res_int)
 
@@ -129,6 +148,22 @@ class TestSub(ComplexIntTests):
         for i in range(100):
             res = i - self.a
             res_int = i - self.a_int
+
+            self.assert_complex_equal(res, res_int)
+
+    def test_sub_float(self):
+        """Test complexint - float"""
+        for i in range(100):
+            res = self.a - float(i)
+            res_int = self.a_int - float(i)
+
+            self.assert_complex_equal(res, res_int)
+
+    def test_sub_float_reversed(self):
+        """Test float - complexint"""
+        for i in range(100):
+            res = float(i) - self.a
+            res_int = float(i) - self.a_int
 
             self.assert_complex_equal(res, res_int)
 
@@ -191,6 +226,22 @@ class TestMul(ComplexIntTests):
 
             self.assert_complex_equal(res, res_int)
 
+    def test_mul_float(self):
+        """Test complexint * float"""
+        for i in range(100):
+            res = self.a * float(i)
+            res_int = self.a_int * float(i)
+
+            self.assert_complex_equal(res, res_int)
+
+    def test_mul_float_reversed(self):
+        """Test float * complexint"""
+        for i in range(100):
+            res = float(i) * self.a
+            res_int = float(i) * self.a_int
+
+            self.assert_complex_equal(res, res_int)
+
     def test_mul_complex(self):
         """Test complexint * complex"""
         res = self.a * (2 + 1j)
@@ -204,6 +255,24 @@ class TestMul(ComplexIntTests):
         res_int = (2 + 1j) * self.a_int
 
         self.assert_complex_equal(res, res_int)
+
+    def test_rotations(self):
+        """Validate multiplying by i to rotate around the origin"""
+        # This is just a logical test that is satisfying to me geometrically
+        n = complexi(1, 0)
+        imag = complexi(0, 1)
+
+        n *= imag
+        assert n.real == 0
+        assert n.imag == 1
+
+        n *= imag
+        assert n.real == -1
+        assert n.imag == 0
+
+        n *= imag
+        assert n.real == 0
+        assert n.imag == -1
 
 
 class TestDiv(ComplexIntTests):
@@ -277,16 +346,16 @@ class TestPow(ComplexIntTests):
     #
     #     self.assertComplexEqual(res, res_int)
 
-    def test_power_int_negative(self):
-        """Test complexint ** -int"""
-        # This works, but... for anything other than (-1+0j) and (0-1j) it doesn't mean much to do this with integers,
-        #   as that basically means to create a fraction, and this is for discrete maths!
-        #
-        # I'll leave this for now but I almost want to raise an error in this case (other than NotImplementedError)
-        res = complex(0, -1) ** -5
-        res_int = complexi(0, -1) ** -5
-
-        self.assert_complex_equal(res, res_int)
+    # TODO:
+    # This is kinda pointless as for anything other than (-1+0j) and (0-1j)
+    #   it doesn't mean much to do this with integers, as that basically means to create a fraction,
+    #   and this is for discrete maths!
+    # def test_power_int_negative(self):
+    #     """Test complexint ** -int"""
+    #     res = complex(0, -1) ** -5
+    #     res_int = complexi(0, -1) ** -5
+    #
+    #     self.assert_complex_equal(res, res_int)
 
     # TODO:
     #   This seems about as pointless as negative number powers
