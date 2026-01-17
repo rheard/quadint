@@ -39,7 +39,7 @@ def _nearest_eisenstein(a: Fraction, b: Fraction) -> Tuple[int, int]:
     target_X, target_Y = 2 * a - b, b
 
     best_u, best_v = u0, v0
-    best_metric = None
+    best_metric: Union[Fraction, None] = None
 
     # Small exact neighborhood search (3x3 = 9 candidates).
     for u in (u0 - 1, u0, u0 + 1):
