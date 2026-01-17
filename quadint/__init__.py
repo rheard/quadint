@@ -34,6 +34,7 @@ class QuadraticRing:
     absD: int
 
     def __init__(self, D: int) -> None:
+        """Initialize the ring settings"""
         self.D = int(D)
         self.den = 2 if (self.D % 4) == 1 else 1
         self.absD = -self.D if self.D < 0 else self.D
