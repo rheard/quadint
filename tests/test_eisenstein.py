@@ -12,6 +12,12 @@ def test_compiled_tests():
     assert path.suffix.lower() != '.py'
 
 
+def test_is_instance():
+    """Verify that basic isinstance checks work"""
+    assert isinstance(eisenstein(1, 2), eisenstein)
+    assert not isinstance(complex(1, 2), eisenstein)
+
+
 class EisensteinIntTests:
     """Support methods for testing eisensteinint"""
     a, b, a_int, b_int = None, None, None, None
@@ -21,6 +27,17 @@ class EisensteinIntTests:
         self.a_int = eisenstein(5, 2)
         self.b_int = eisenstein(3, -2)
 
+    @staticmethod
+    def assert_eisenstein_equal(res: tuple[int, int], res_int: eisenstein):
+        """Validate the complexint is equal to the validation object, and that it is still backed by integers"""
+        assert res[0] == res_int.real
+        assert res[1] == res_int.omega
+
+        assert isinstance(res_int.real, int)
+        assert isinstance(res_int.omega, int)
+
+        assert isinstance(res_int, eisenstein)
+
 
 class TestAdd(EisensteinIntTests):
     """Tests for __add__"""
@@ -29,40 +46,36 @@ class TestAdd(EisensteinIntTests):
         """Test eisensteinint + eisensteinint"""
         res_int = self.a_int + self.b_int
 
-        assert res_int.real == self.a_int.real + self.b_int.real
-        assert res_int.omega == self.a_int.omega + self.b_int.omega
+        self.assert_eisenstein_equal((self.a_int.real + self.b_int.real, self.a_int.omega + self.b_int.omega),
+                                     res_int)
 
     def test_add_int(self):
         """Test eisensteinint + int"""
         for i in range(100):
             res_int = self.a_int + i
 
-            assert res_int.real == self.a_int.real + i
-            assert res_int.omega == self.a_int.omega
+            self.assert_eisenstein_equal((self.a_int.real + i, self.a_int.omega), res_int)
 
     def test_add_int_reversed(self):
         """Test int + eisensteinint"""
         for i in range(100):
             res_int = i + self.a_int
 
-            assert res_int.real == self.a_int.real + i
-            assert res_int.omega == self.a_int.omega
+            self.assert_eisenstein_equal((self.a_int.real + i, self.a_int.omega), res_int)
 
     def test_add_float(self):
         """Test eisensteinint + float"""
         for i in range(100):
             res_int = self.a_int + float(i)
 
-            assert res_int.real == self.a_int.real + i
-            assert res_int.omega == self.a_int.omega
+            self.assert_eisenstein_equal((self.a_int.real + i, self.a_int.omega), res_int)
 
     def test_add_float_reversed(self):
         """Test float + eisensteinint"""
         for i in range(100):
             res_int = float(i) + self.a_int
 
-            assert res_int.real == self.a_int.real + i
-            assert res_int.omega == self.a_int.omega
+            self.assert_eisenstein_equal((self.a_int.real + i, self.a_int.omega), res_int)
 
 
 class TestSub(EisensteinIntTests):
@@ -72,40 +85,36 @@ class TestSub(EisensteinIntTests):
         """Test eisensteinint - eisensteinint"""
         res_int = self.a_int - self.b_int
 
-        assert res_int.real == self.a_int.real - self.b_int.real
-        assert res_int.omega == self.a_int.omega - self.b_int.omega
+        self.assert_eisenstein_equal((self.a_int.real - self.b_int.real, self.a_int.omega - self.b_int.omega),
+                                     res_int)
 
     def test_sub_int(self):
         """Test eisensteinint - int"""
         for i in range(100):
             res_int = self.a_int - i
 
-            assert res_int.real == self.a_int.real - i
-            assert res_int.omega == self.a_int.omega
+            self.assert_eisenstein_equal((self.a_int.real - i, self.a_int.omega), res_int)
 
     def test_sub_int_reversed(self):
         """Test int - eisensteinint"""
         for i in range(100):
             res_int = i - self.a_int
 
-            assert res_int.real == i - self.a_int.real
-            assert res_int.omega == -self.a_int.omega
+            self.assert_eisenstein_equal((i - self.a_int.real, -self.a_int.omega), res_int)
 
     def test_sub_float(self):
         """Test eisensteinint - float"""
         for i in range(100):
             res_int = self.a_int - float(i)
 
-            assert res_int.real == self.a_int.real - i
-            assert res_int.omega == self.a_int.omega
+            self.assert_eisenstein_equal((self.a_int.real - i, self.a_int.omega), res_int)
 
     def test_sub_float_reversed(self):
         """Test float - eisensteinint"""
         for i in range(100):
             res_int = float(i) - self.a_int
 
-            assert res_int.real == i - self.a_int.real
-            assert res_int.omega == -self.a_int.omega
+            self.assert_eisenstein_equal((i - self.a_int.real, -self.a_int.omega), res_int)
 
 
 class TestNegPos(EisensteinIntTests):
@@ -115,15 +124,13 @@ class TestNegPos(EisensteinIntTests):
         """Test -eisensteinint"""
         res_int = -self.a_int
 
-        assert res_int.real == -self.a_int.real
-        assert res_int.omega == -self.a_int.omega
+        self.assert_eisenstein_equal((-self.a_int.real, -self.a_int.omega), res_int)
 
     def test_pos(self):
         """Test +eisensteinint"""
         res_int = +self.a_int
 
-        assert res_int.real == self.a_int.real
-        assert res_int.omega == self.a_int.omega
+        self.assert_eisenstein_equal((self.a_int.real, self.a_int.omega), res_int)
 
 
 class TestMul(EisensteinIntTests):
@@ -133,40 +140,35 @@ class TestMul(EisensteinIntTests):
         """Test eisensteinint * eisensteinint"""
         res_int = self.a_int * self.b_int
 
-        assert res_int.real == 19
-        assert res_int.omega == 0
+        self.assert_eisenstein_equal((19, 0), res_int)
 
     def test_mul_int(self):
         """Test eisensteinint * int"""
         for i in range(100):
             res_int = self.a_int * i
 
-            assert res_int.real == self.a_int.real * i
-            assert res_int.omega == self.a_int.omega * i
+            self.assert_eisenstein_equal((self.a_int.real * i, self.a_int.omega * i), res_int)
 
     def test_mul_int_reversed(self):
         """Test int * eisensteinint"""
         for i in range(100):
             res_int = i * self.a_int
 
-            assert res_int.real == self.a_int.real * i
-            assert res_int.omega == self.a_int.omega * i
+            self.assert_eisenstein_equal((self.a_int.real * i, self.a_int.omega * i), res_int)
 
     def test_mul_float(self):
         """Test eisensteinint * float"""
         for i in range(100):
             res_int = self.a_int * float(i)
 
-            assert res_int.real == self.a_int.real * i
-            assert res_int.omega == self.a_int.omega * i
+            self.assert_eisenstein_equal((self.a_int.real * i, self.a_int.omega * i), res_int)
 
     def test_mul_float_reversed(self):
         """Test float * eisensteinint"""
         for i in range(100):
             res_int = float(i) * self.a_int
 
-            assert res_int.real == self.a_int.real * i
-            assert res_int.omega == self.a_int.omega * i
+            self.assert_eisenstein_equal((self.a_int.real * i, self.a_int.omega * i), res_int)
 
     def test_rotations(self):
         """Validate multiplying by omega to rotate around the origin"""
@@ -175,29 +177,23 @@ class TestMul(EisensteinIntTests):
         omega = eisenstein(0, 1)
 
         n *= omega
-        assert n.real == 0
-        assert n.omega == 1
+        self.assert_eisenstein_equal((0, 1), n)
 
         n *= omega
-        assert n.real == -1
-        assert n.omega == -1
+        self.assert_eisenstein_equal((-1, -1), n)
 
         n *= omega
-        assert n.real == 1
-        assert n.omega == 0
+        self.assert_eisenstein_equal((1, 0), n)
 
         n = eisenstein(1, 1)
         n *= omega
-        assert n.real == -1
-        assert n.omega == 0
+        self.assert_eisenstein_equal((-1, 0), n)
 
         n *= omega
-        assert n.real == 0
-        assert n.omega == -1
+        self.assert_eisenstein_equal((0, -1), n)
 
         n *= omega
-        assert n.real == 1
-        assert n.omega == 1
+        self.assert_eisenstein_equal((1, 1), n)
 
 
 class TestDiv(EisensteinIntTests):
@@ -208,26 +204,22 @@ class TestDiv(EisensteinIntTests):
         mul_int = self.a_int * self.b_int
         res_int = mul_int / self.a_int
 
-        assert res_int.real == self.b_int.real
-        assert res_int.omega == self.b_int.omega
+        self.assert_eisenstein_equal((self.b_int.real, self.b_int.omega), res_int)
 
         res_int = mul_int / self.b_int
 
-        assert res_int.real == self.a_int.real
-        assert res_int.omega == self.a_int.omega
+        self.assert_eisenstein_equal((self.a_int.real, self.a_int.omega), res_int)
 
     def test_div_int(self):
         """Test eisensteinint / int"""
         mul_int = self.a_int * 3
         res_int = mul_int / 3
 
-        assert res_int.real == self.a_int.real
-        assert res_int.omega == self.a_int.omega
+        self.assert_eisenstein_equal((self.a_int.real, self.a_int.omega), res_int)
 
     def test_div_float(self):
         """Test eisensteinint / float"""
         mul_int = self.a_int * 3
         res_int = mul_int / float(3)
 
-        assert res_int.real == self.a_int.real
-        assert res_int.omega == self.a_int.omega
+        self.assert_eisenstein_equal((self.a_int.real, self.a_int.omega), res_int)

@@ -46,6 +46,12 @@ def test_int_precision():
     assert a.real > 100
 
 
+def test_is_instance():
+    """Verify that basic isinstance checks work"""
+    assert isinstance(complexi(1, 2), complexi)
+    assert not isinstance(complex(1, 2), complexi)
+
+
 class ComplexIntTests:
     """Support methods for testing complexint"""
     a, b, a_int, b_int = None, None, None, None
@@ -66,6 +72,8 @@ class ComplexIntTests:
 
         assert isinstance(res_int.real, int)
         assert isinstance(res_int.imag, int)
+
+        assert isinstance(res_int, complexi)
 
 
 class TestAdd(ComplexIntTests):
@@ -371,3 +379,24 @@ class TestPow(ComplexIntTests):
     #     res_int = (36+29j) ** complexint(9, 1)
     #
     #     self.assertComplexEqual(res, res_int)
+
+
+class TestRepr(ComplexIntTests):
+    """Validate the repr matches existing solutions"""
+
+    def test_repr(self):
+        """Basic tests"""
+
+        # assert repr(self.a) == repr(self.a_int)
+        assert repr(complex(1, 2)) == repr(complexi(1, 2))
+        assert str(self.a) == str(self.a_int)
+
+        a = complex(28, 0)
+        b = complexi(28, 0)
+        assert repr(a) == repr(b)
+        assert str(a) == str(b)
+
+        a = complex(0, 28)
+        b = complexi(0, 28)
+        assert repr(a) == repr(b)
+        assert str(a) == str(b)

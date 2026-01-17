@@ -15,6 +15,8 @@ setup(
 
     ext_modules=mypycify([
         "quadint/__init__.py",
+        "quadint/quad.py",
+        "quadint/complex.py",
         "quadint/eisenstein.py",
     ]),
 
