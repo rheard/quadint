@@ -314,8 +314,18 @@ class QuadInt:
     def __iter__(self) -> Iterator[int]:
         return iter((self.a, self.b))
 
-    def __bool__(self) -> bool:
-        return (self.a | self.b) != 0
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _OTHER_OP_TYPES):
+            other = self._from_obj(other)
+
+        if not isinstance(other, QuadInt):
+            return False
+
+        return self.ring.D == other.ring.D and self.ring.den == other.ring.den \
+            and self.a == other.a and self.b == other.b
+
+    def __hash__(self) -> int:
+        return hash((self.a, self.b, self.ring.D))
 
     def __repr__(self) -> str:
         D = self.ring.D

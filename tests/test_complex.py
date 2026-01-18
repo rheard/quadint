@@ -76,6 +76,16 @@ class ComplexIntTests:
         assert isinstance(res_int, complexi)
 
 
+class TestEq(ComplexIntTests):
+    """Tests for __eq__"""
+
+    def test_main(self):
+        """Basic equals tests"""
+        c = complexi(1, 2)
+        assert self.a_int == c
+        assert self.b_int != c
+
+
 class TestAdd(ComplexIntTests):
     """Tests for __add__"""
 

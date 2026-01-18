@@ -4,6 +4,7 @@ from pathlib import Path
 
 import quadint.eisenstein
 
+from quadint import make_quadint
 from quadint.eisenstein import eisensteinint as eisenstein
 
 def test_compiled_tests():
@@ -37,6 +38,27 @@ class EisensteinIntTests:
         assert isinstance(res_int.omega, int)
 
         assert isinstance(res_int, eisenstein)
+
+
+class TestEq(EisensteinIntTests):
+    """Tests for __eq__"""
+
+    def test_main(self):
+        """Basic equals tests"""
+        c = eisenstein(5, 2)
+        assert self.a_int == c
+        assert self.b_int != c
+
+    def test_quadint(self):
+        """Validate that a D=-3 quadint equals an eisenstein int"""
+        # TODO: In the strictest sense this is True, as Eisenstein integers are D=-3 quadratic integers
+        #   with a different basis vector.... However I'm uncomfortable with this.
+        #   I've gone back and forth on if this should work or not.
+        #   For now I'm leaving it... For it to not work will require a new __eq__
+        Z3 = make_quadint(-3)
+        c = Z3(self.a_int.a, self.a_int.b)
+        assert self.a_int == c
+        assert self.b_int != c
 
 
 class TestAdd(EisensteinIntTests):
