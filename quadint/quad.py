@@ -117,6 +117,10 @@ class QuadInt:
             # identity is fastest; if you want structural equality use (D,den)
             raise TypeError("Cannot mix QuadInt from different rings")
 
+    def conjugate(self) -> "QuadInt":
+        """(a + b√D)/den -> (a - b√D)/den."""
+        return self._make(self.a, -self.b)
+
     def __add__(self, other: OP_TYPES) -> "QuadInt":
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
@@ -184,7 +188,25 @@ class QuadInt:
     def __rmul__(self, other: OTHER_OP_TYPES) -> "QuadInt":
         return self.__mul__(other)
 
-    # ---- Euclidean-ish division (no Fraction; small neighborhood search in integer metric) ----
+    def __pow__(self, exp: float) -> "QuadInt":
+        e = int(exp)
+        if e < 0:
+            raise ValueError("Negative powers not supported in quadratic integer rings")
+
+        # exponentiation by squaring
+        result = self._make(self.ring.den, 0)
+        base = self
+        while e:
+            if e & 1:
+                result = result * base
+
+            e >>= 1
+            if e:
+                base = base * base
+
+        return result
+
+    # region Euclidean-ish division (no Fraction; small neighborhood search in integer metric)
     def __divmod__(self, other: OP_TYPES) -> Tuple["QuadInt", "QuadInt"]:
         """
         Nearest-lattice division for D < 0 (imaginary quadratic).
@@ -266,28 +288,7 @@ class QuadInt:
     def __mod__(self, other: "QuadInt") -> "QuadInt":
         _, r = divmod(self, other)
         return r
-
-    def __pow__(self, exp: float) -> "QuadInt":
-        e = int(exp)
-        if e < 0:
-            raise ValueError("Negative powers not supported in quadratic integer rings")
-
-        # exponentiation by squaring
-        result = self._make(self.ring.den, 0)
-        base = self
-        while e:
-            if e & 1:
-                result = result * base
-
-            e >>= 1
-            if e:
-                base = base * base
-
-        return result
-
-    def conjugate(self) -> "QuadInt":
-        """(a + b√D)/den -> (a - b√D)/den."""
-        return self._make(self.a, -self.b)
+    # endregion
 
     def __abs__(self) -> int:
         """
@@ -308,6 +309,9 @@ class QuadInt:
         if (num % dd) != 0:
             raise ArithmeticError("Non-integral norm; check ring parameters / parity")
         return num // dd
+
+    def __bool__(self) -> bool:
+        return (self.a | self.b) != 0
 
     def __iter__(self) -> Iterator[int]:
         return iter((self.a, self.b))
