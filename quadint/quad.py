@@ -334,6 +334,9 @@ class QuadInt:
         return self.ring.D == other.ring.D and self.ring.den == other.ring.den \
             and self.a == other.a and self.b == other.b
 
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+
     def __hash__(self) -> int:
         return hash((self.a, self.b, self.ring.D))
 
