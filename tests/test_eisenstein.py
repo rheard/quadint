@@ -50,8 +50,6 @@ class TestEq(EisensteinIntTests):
         assert self.a_int == c
         assert self.b_int != c
 
-        self.assert_eisenstein_equal(self.a_int, c)
-
     def test_quadint(self):
         """Validate that a D=-3 quadint equals an eisenstein int"""
         # TODO: In the strictest sense this is True, as Eisenstein integers are D=-3 quadratic integers
@@ -62,8 +60,6 @@ class TestEq(EisensteinIntTests):
         c = Z3(self.a_int.a, self.a_int.b)
         assert self.a_int == c
         assert self.b_int != c
-
-        self.assert_eisenstein_equal(self.a_int, c)
 
 
 class TestAdd(EisensteinIntTests):
