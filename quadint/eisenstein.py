@@ -1,4 +1,4 @@
-from quadint import QuadInt, QuadraticRing
+from quadint.quad import QuadInt, QuadraticRing
 
 _ZW = QuadraticRing(-3)
 

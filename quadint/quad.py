@@ -27,17 +27,15 @@ class QuadraticRing:
     This object is *not* a type factory (no nested classes) — it just carries parameters.
     """
 
-    __slots__ = ("D", "den", "absD")
+    __slots__ = ("D", "den")
 
     D: int
     den: int
-    absD: int
 
     def __init__(self, D: int) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
         self.den = 2 if (self.D % 4) == 1 else 1
-        self.absD = -self.D if self.D < 0 else self.D
 
     def __repr__(self) -> str:
         return f"QuadraticRing(D={self.D}, den={self.den})"
