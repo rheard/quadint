@@ -6,7 +6,7 @@ requires = [
 
 [project]
 name = "quadint"
-version = "0.0.4"
+version = "0.0.5"
 dynamic = ["license"]
 authors = [
   { name="Ryan Heard", email="ryanwheard@gmail.com" },
