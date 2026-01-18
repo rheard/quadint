@@ -1,10 +1,11 @@
 """These are simple tests to verify complexint acts very similar to complex, but just with int output"""
 
 from pathlib import Path
+from typing import Union
 
 import quadint.eisenstein
 
-from quadint import make_quadint
+from quadint import QuadInt, make_quadint
 from quadint.eisenstein import eisensteinint as eisenstein
 
 def test_compiled_tests():
@@ -29,7 +30,7 @@ class EisensteinIntTests:
         self.b_int = eisenstein(3, -2)
 
     @staticmethod
-    def assert_eisenstein_equal(res: tuple[int, int], res_int: eisenstein):
+    def assert_eisenstein_equal(res: Union[tuple[int, int], eisenstein], res_int: Union[eisenstein, QuadInt]):
         """Validate the complexint is equal to the validation object, and that it is still backed by integers"""
         assert res[0] == res_int.real
         assert res[1] == res_int.omega
@@ -49,6 +50,8 @@ class TestEq(EisensteinIntTests):
         assert self.a_int == c
         assert self.b_int != c
 
+        self.assert_eisenstein_equal(self.a_int, c)
+
     def test_quadint(self):
         """Validate that a D=-3 quadint equals an eisenstein int"""
         # TODO: In the strictest sense this is True, as Eisenstein integers are D=-3 quadratic integers
@@ -59,6 +62,8 @@ class TestEq(EisensteinIntTests):
         c = Z3(self.a_int.a, self.a_int.b)
         assert self.a_int == c
         assert self.b_int != c
+
+        self.assert_eisenstein_equal(self.a_int, c)
 
 
 class TestAdd(EisensteinIntTests):

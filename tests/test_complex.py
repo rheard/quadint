@@ -85,6 +85,8 @@ class TestEq(ComplexIntTests):
         assert self.a_int == c
         assert self.b_int != c
 
+        self.assert_complex_equal(self.a_int, c)
+
 
 class TestAdd(ComplexIntTests):
     """Tests for __add__"""
