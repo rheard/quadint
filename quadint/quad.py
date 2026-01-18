@@ -314,6 +314,16 @@ class QuadInt:
     def __iter__(self) -> Iterator[int]:
         return iter((self.a, self.b))
 
+    def __len__(self) -> int:
+        return 2
+
+    def __getitem__(self, idx: int) -> int:
+        if idx == 0:
+            return self.a
+        if idx == 1:
+            return self.b
+        raise IndexError("Quadratic integer index out of range (valid: 0 or 1)")
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
