@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 keywords = ["complex", "math"]
@@ -30,7 +31,8 @@ keywords = ["complex", "math"]
 Repository = "https://github.com/rheard/quadint"
 
 [tool.cibuildwheel]
-build = "cp3{8,9,10,11,12,13}-{win,macosx,manylinux}*"
+# TODO: Android, iOS?
+build = "cp3{8,9,10,11,12,13,14}-{win,macosx,manylinux}*"
 
 before-test = [
     'mkdir "{project}/temp"',
