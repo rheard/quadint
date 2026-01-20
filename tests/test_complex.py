@@ -416,7 +416,7 @@ class TestRepr(ComplexIntTests):
     def test_examples(self):
         """Verify some given examples"""
         examples = [
-            (complexi(-9, 12), "(-9+12j)")
+            (complexi(-9, 12), "(-9+12j)"),
         ]
 
         for example, expected in examples:
