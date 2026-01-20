@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade mypy
-          stubgen quadint/__init__.py
+          stubgen quadint/__init__.py --inspect-mode
           stubgen quadint/eisenstein.py
           stubgen quadint/complex.py
           stubgen quadint/quad.py
