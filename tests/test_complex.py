@@ -412,3 +412,12 @@ class TestRepr(ComplexIntTests):
         b = complexi(0, 28)
         assert repr(a) == repr(b)
         assert str(a) == str(b)
+
+    def test_examples(self):
+        """Verify some given examples"""
+        examples = [
+            (complexi(-9, 12), "(-9+12j)")
+        ]
+
+        for example, expected in examples:
+            assert repr(example) == expected
