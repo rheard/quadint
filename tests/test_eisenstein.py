@@ -246,3 +246,21 @@ class TestDiv(EisensteinIntTests):
         res_int = mul_int / float(3)
 
         self.assert_eisenstein_equal((self.a_int.real, self.a_int.omega), res_int)
+
+
+class TestConjugate(EisensteinIntTests):
+    """Tests for conjugate"""
+
+    def test_examples(self):
+        """Test known examples that conceptually make sense to me"""
+        a = eisenstein(1, 1)
+        a_conj = a.conjugate()
+
+        assert a_conj.real == 0
+        assert a_conj.omega == -1
+
+        a = eisenstein(0, 1)
+        a_conj = a.conjugate()
+
+        assert a_conj.real == -1
+        assert a_conj.omega == -1
