@@ -44,6 +44,23 @@ class QuadraticRing:
         """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
         return QuadInt(self, int(a), int(b))
 
+    def __contains__(self, x: object) -> bool:
+        """Return True iff x is a QuadInt element of this ring (by parameters)."""
+        if isinstance(x, int):
+            return True
+
+        if isinstance(x, float):
+            return x.is_integer()
+
+        if isinstance(x, complex):
+            return self.D == -1
+
+        if not isinstance(x, QuadInt):
+            return False
+
+        other = x.ring
+        return (other.D == self.D) and (other.den == self.den)
+
     def from_obj(self, n: OP_TYPES) -> "QuadInt":
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
         if isinstance(n, (int, float)):
