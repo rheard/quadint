@@ -15,7 +15,7 @@ setup(
     include_package_data=True,
     package_data={'quadint-stubs': ["*.pyi"]},
 
-    ext_modules=mypycify(glob("quadint/**/*.py", recursive=True)),
+    ext_modules=mypycify(glob("quadint/**/*.py", recursive=True)),  # noqa: PTH207
 
     license="MIT",
 )

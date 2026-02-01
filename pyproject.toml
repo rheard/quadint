@@ -98,6 +98,9 @@ extend-select = [
 ]
 ignore=[
     "ANN201",  # Missing return type
+    # These next 2 mess with mypyc
+    "ANN202",  # Missing return type annotation for private function
+    "ANN204",  # Missing return type annotation for special method
     "D100",    # Missing docstring in public module
     "D104",    # Missing docstring in public package
     "D105",    # Missing docstring in magic method

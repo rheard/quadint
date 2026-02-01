@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Tuple, Union
+from typing import Iterator, Optional, Union
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
