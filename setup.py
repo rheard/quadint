@@ -1,3 +1,5 @@
+from glob import glob
+
 from mypyc.build import mypycify
 from setuptools import setup
 
@@ -13,12 +15,7 @@ setup(
     include_package_data=True,
     package_data={'quadint-stubs': ["*.pyi"]},
 
-    ext_modules=mypycify([
-        "quadint/__init__.py",
-        "quadint/quad.py",
-        "quadint/complex.py",
-        "quadint/eisenstein.py",
-    ]),
+    ext_modules=mypycify(glob("quadint/**/*.py", recursive=True)),
 
     license="MIT",
 )
