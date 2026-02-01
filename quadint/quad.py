@@ -113,7 +113,7 @@ class QuadInt:
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
         return self.__class__(self.ring, a, b)
 
-    def _from_obj(self, n: OP_TYPES) -> "QuadInt":
+    def _from_obj(self, n: OP_TYPES):
         """Make a QuadInt on the current ring from a given object"""
         if isinstance(n, (int, float)):
             a = int(n)
@@ -132,11 +132,11 @@ class QuadInt:
             # identity is fastest; if you want structural equality use (D,den)
             raise TypeError("Cannot mix QuadInt from different rings")
 
-    def conjugate(self) -> "QuadInt":
+    def conjugate(self):
         """(a + b√D)/den -> (a - b√D)/den."""
         return self._make(self.a, -self.b)
 
-    def __add__(self, other: OP_TYPES) -> "QuadInt":
+    def __add__(self, other: OP_TYPES):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
@@ -146,10 +146,10 @@ class QuadInt:
 
         return NotImplemented
 
-    def __radd__(self, other: OTHER_OP_TYPES) -> "QuadInt":
+    def __radd__(self, other: OTHER_OP_TYPES):
         return self.__add__(other)
 
-    def __sub__(self, other: OP_TYPES) -> "QuadInt":
+    def __sub__(self, other: OP_TYPES):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
@@ -159,16 +159,16 @@ class QuadInt:
 
         return NotImplemented
 
-    def __rsub__(self, other: OTHER_OP_TYPES) -> 'QuadInt':
+    def __rsub__(self, other: OTHER_OP_TYPES):
         return self.__neg__().__add__(other)
 
-    def __neg__(self) -> "QuadInt":
+    def __neg__(self):
         return self._make(-self.a, -self.b)
 
-    def __pos__(self) -> 'QuadInt':
+    def __pos__(self):
         return self._make(self.a, self.b)
 
-    def __mul__(self, other: OP_TYPES) -> "QuadInt":
+    def __mul__(self, other: OP_TYPES):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
@@ -200,10 +200,10 @@ class QuadInt:
 
         return NotImplemented
 
-    def __rmul__(self, other: OTHER_OP_TYPES) -> "QuadInt":
+    def __rmul__(self, other: OTHER_OP_TYPES):
         return self.__mul__(other)
 
-    def __pow__(self, exp: float) -> "QuadInt":
+    def __pow__(self, exp: float):
         e = int(exp)
         if e < 0:
             raise ValueError("Negative powers not supported in quadratic integer rings")
@@ -222,7 +222,7 @@ class QuadInt:
         return result
 
     # region Euclidean-ish division (no Fraction; small neighborhood search in integer metric)
-    def __divmod__(self, other: OP_TYPES) -> Tuple["QuadInt", "QuadInt"]:
+    def __divmod__(self, other: OP_TYPES):
         """
         Nearest-lattice division for D < 0 (imaginary quadratic).
 
@@ -279,28 +279,28 @@ class QuadInt:
         r = self - q * other
         return q, r
 
-    def __truediv__(self, other: OP_TYPES) -> 'QuadInt':
+    def __truediv__(self, other: OP_TYPES):
         return self.__floordiv__(other)
 
-    def __rtruediv__(self, other: OTHER_OP_TYPES) -> 'QuadInt':
+    def __rtruediv__(self, other: OTHER_OP_TYPES):
         if isinstance(other, _OTHER_OP_TYPES):
             new_other = self._from_obj(other)
             return new_other.__truediv__(self)
 
         return NotImplemented
 
-    def __floordiv__(self, other: OP_TYPES) -> "QuadInt":
+    def __floordiv__(self, other: OP_TYPES):
         q, _ = divmod(self, other)
         return q
 
-    def __rfloordiv__(self, other: OTHER_OP_TYPES) -> 'QuadInt':
+    def __rfloordiv__(self, other: OTHER_OP_TYPES):
         if isinstance(other, _OTHER_OP_TYPES):
             new_other = self._from_obj(other)
             return new_other.__floordiv__(self)
 
         return NotImplemented
 
-    def __mod__(self, other: "QuadInt") -> "QuadInt":
+    def __mod__(self, other: "QuadInt"):
         _, r = divmod(self, other)
         return r
     # endregion
