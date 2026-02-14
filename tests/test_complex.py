@@ -1,7 +1,11 @@
 """These are simple tests to verify complexint acts very similar to complex, but just with int output"""
 
+import os
+
 from pathlib import Path
 from typing import Union
+
+import pytest
 
 import quadint
 
@@ -10,6 +14,8 @@ from quadint import (
     complexint as complexi,
 )
 
+@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
+                    reason="Compiled-only test")
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of complexint"""
     path = Path(quadint.__file__)

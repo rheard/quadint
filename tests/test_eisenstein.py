@@ -1,13 +1,19 @@
 """These are simple tests to verify complexint acts very similar to complex, but just with int output"""
 
+import os
+
 from pathlib import Path
 from typing import Union
+
+import pytest
 
 import quadint.eisenstein
 
 from quadint import QuadInt, make_quadint
 from quadint.eisenstein import eisensteinint as eisenstein
 
+@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
+                    reason="Compiled-only test")
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of eisensteinint"""
     path = Path(quadint.eisenstein.__file__)

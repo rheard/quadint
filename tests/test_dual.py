@@ -1,13 +1,19 @@
 """These are simple tests to verify complexint acts very similar to complex, but just with int output"""
 
+import os
+
 from pathlib import Path
 from typing import Union
+
+import pytest
 
 import quadint.dual
 
 from quadint import QuadInt, make_quadint
 from quadint.dual import dualint
 
+@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
+                    reason="Compiled-only test")
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of dualint"""
     path = Path(quadint.dual.__file__)
