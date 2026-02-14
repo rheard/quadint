@@ -1,4 +1,4 @@
-from typing import Callable, Iterator, Union
+from typing import Callable, Iterator, Tuple, Union
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
@@ -22,7 +22,7 @@ def _choose_best_in_neighborhood(
     B0_for_A: Callable,
     score_for_AB: Callable,
     den: int,
-) -> tuple[int, int]:
+) -> Tuple[int, int]:
     """
     Search (A0±1) * (B0(A)±1) and return best (A,B).
 
