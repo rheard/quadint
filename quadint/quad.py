@@ -66,10 +66,14 @@ class QuadraticRing:
     D: int
     den: int
 
-    def __init__(self, D: int) -> None:
+    def __init__(self, D: int, den: Union[None, int] = None) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
-        self.den = 2 if (self.D % 4) == 1 else 1
+
+        if den is None:
+            self.den = 2 if (self.D % 4) == 1 else 1
+        else:
+            self.den = den
 
     def __repr__(self) -> str:
         return f"QuadraticRing(D={self.D}, den={self.den})"
