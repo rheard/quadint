@@ -6,6 +6,7 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
 - **`QuadInt` / `QuadraticRing`**: a general quadratic-integer implementation for elements of the form  
   $(a + b\sqrt{D}) / \mathrm{den}$ with $den ∈ {1,2}$.
 - **`eisensteinint`**: Eisenstein integers in the ω-basis (`a + bω`, where `ω = (-1 + √-3)/2`).
+- **`dualint`**: dual integers of the form `a + bε` where **`ε² = 0`** and **`ε != 0`** (useful for exact first-order / automatic-differentiation-style arithmetic).
 
 Designed for discrete math, number theory tooling, and high-throughput exact computations (this project is built to compile cleanly with **mypyc**).
 
