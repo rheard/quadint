@@ -31,7 +31,7 @@ def _choose_best_in_neighborhood(
     Returns:
         (bestA, bestB): The best options found for this search.
     """
-    best_score: Union[Tuple[int], None] = None
+    best_score: Union[Tuple[int, ...], None] = None
     bestA = bestB = 0
 
     for A in (A0 - 1, A0, A0 + 1):
@@ -303,7 +303,7 @@ class QuadInt:
                 return _round_div_ties_away_from_zero(self.b - A * d, c)
 
             # Lexicographic “small remainder”: minimize real remainder first, then ε remainder.
-            def score_for_AB(A: int, B: int) -> Tuple[int]:
+            def score_for_AB(A: int, B: int) -> Tuple[int, ...]:
                 r0 = self.a - A * c
                 r1 = self.b - A * d - B * c
                 return (r0 * r0, r1 * r1)
@@ -314,7 +314,7 @@ class QuadInt:
             def B0_for_A(A: int) -> int:  # noqa: ARG001
                 return B0
 
-            def score_for_AB(A: int, B: int) -> Tuple[int]:
+            def score_for_AB(A: int, B: int) -> Tuple[int, ...]:
                 da = A * n - num.a
                 db = B * n - num.b
                 return (da * da + absD * (db * db), )
