@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Union
+from typing import Callable, Iterator, Union
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
@@ -7,11 +7,45 @@ OP_TYPES = Union['QuadInt', OTHER_OP_TYPES]
 
 def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     """Round n/d to nearest int; ties go away from 0. d must be > 0."""
-    if d <= 0:
-        raise ValueError("d must be > 0")
+    if d == 0:
+        raise ZeroDivisionError
+    if d < 0:
+        n, d = -n, -d
     if n >= 0:
         return (n + d // 2) // d
     return -((-n + d // 2) // d)
+
+
+def _choose_best_in_neighborhood(
+    *,
+    A0: int,
+    B0_for_A: Callable,
+    score_for_AB: Callable,
+    den: int,
+) -> tuple[int, int]:
+    """
+    Search (A0±1) * (B0(A)±1) and return best (A,B).
+
+    Enforces den==2 parity constraint: A == B (mod 2).
+
+    Returns:
+        (bestA, bestB): The best options found for this search.
+    """
+    best_score = None
+    bestA = bestB = 0
+
+    for A in (A0 - 1, A0, A0 + 1):
+        B0 = B0_for_A(A)
+        for B in (B0 - 1, B0, B0 + 1):
+            if den == 2 and ((A ^ B) & 1):
+                continue
+
+            s = score_for_AB(A, B)
+            if best_score is None or s < best_score:
+                best_score = s
+                bestA, bestB = A, B
+
+    return bestA, bestB
 
 
 class QuadraticRing:
@@ -109,7 +143,7 @@ class QuadInt:
         if den == 2 and ((self.a ^ self.b) & 1):
             raise ValueError("For den=2, a and b must have the same parity")
 
-    def _make(self, a: int, b: int) -> "QuadInt":
+    def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
         return self.__class__(self.ring, a, b)
 
@@ -224,7 +258,7 @@ class QuadInt:
     # region Euclidean-ish division (no Fraction; small neighborhood search in integer metric)
     def __divmod__(self, other: OP_TYPES):
         """
-        Nearest-lattice division for D < 0 (imaginary quadratic).
+        Nearest-lattice division for D <= 0 (imaginary quadratic).
 
         Intended for Euclidean rings (e.g., D=-1, -2, -3, -7, -11 in the maximal order).
 
@@ -243,37 +277,51 @@ class QuadInt:
         self.assert_same_ring(other)
 
         D = self.ring.D
-        if D >= 0:
-            raise NotImplementedError("divmod implemented only for D<0 (imaginary quadratic)")
+        den = self.ring.den
 
-        n = abs(other)
+        if D > 0:
+            raise NotImplementedError("divmod implemented only for D<=0 (imaginary quadratic or dual numbers)")
+
+        if D == 0:
+            # In dual numbers, (c + dε) is invertible iff c != 0.
+            n = other.a
+            num = self
+        else:
+            n = abs(other)
+            num = self * other.conjugate()  # still in numerator-units for /den representation
+
         if n == 0:
             raise ZeroDivisionError
 
-        num = self * other.conjugate()  # still in numerator-units for /den representation
-
-        # We want q ≈ num / n, rounding in the (1, sqrt(D)) lattice.
-        # Use integer rounding for coefficients (still numerator-units).
         A0 = _round_div_ties_away_from_zero(num.a, n)
-        B0 = _round_div_ties_away_from_zero(num.b, n)
 
-        # Choose best among a tiny neighborhood using a metric derived from complex embedding.
-        # Compare squared distance in scaled integers:
-        # da = (A*n - num.a), db = (B*n - num.b)
-        # metric ~ da^2 + |D|*db^2  (scaled by n^2; scale irrelevant for argmin)
-        absD = -D
-        bestA, bestB = A0, B0
-        best_metric: Optional[int] = None
+        # Special case: dual numbers (D == 0)
+        if D == 0:
+            c, d = other.a, other.b
 
-        for A in (A0 - 1, A0, A0 + 1):
-            da = A * n - num.a
-            da2 = da * da
-            for B in (B0 - 1, B0, B0 + 1):
+            def B0_for_A(A: int) -> int:
+                return _round_div_ties_away_from_zero(self.b - A * d, c)
+
+            # Lexicographic “small remainder”: minimize real remainder first, then ε remainder.
+            def score_for_AB(A: int, B: int):
+                r0 = self.a - A * c
+                r1 = self.b - A * d - B * c
+                return (r0 * r0, r1 * r1)
+        else:
+            B0 = _round_div_ties_away_from_zero(num.b, n)
+            absD = -D
+
+            def B0_for_A(A: int) -> int:  # noqa: ARG001
+                return B0
+
+            def score_for_AB(A: int, B: int):
+                da = A * n - num.a
                 db = B * n - num.b
-                metric = da2 + absD * (db * db)
-                if best_metric is None or metric < best_metric:
-                    best_metric = metric
-                    bestA, bestB = A, B
+                return da * da + absD * (db * db)
+
+        bestA, bestB = _choose_best_in_neighborhood(
+            A0=A0, B0_for_A=B0_for_A, score_for_AB=score_for_AB, den=den,
+        )
 
         q = self._make(bestA, bestB)
         r = self - q * other
