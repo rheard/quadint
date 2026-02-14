@@ -63,7 +63,7 @@ Common operations include `+`, `-`, `*`, `**` (non-negative powers), `conjugate(
 ## Eisenstein integers: `eisensteinint`
 
 ```python
-from quadint import eisensteinint
+from quadint.eisenstein import eisensteinint
 
 z = eisensteinint(2, 3)   # 2 + 3ω
 w = eisensteinint(1, -1)  # 1 - ω
@@ -74,6 +74,22 @@ print(abs(z))             # norm (integer)
 ```
 
 Use `real` and `omega` to access the ω-basis components.
+
+---
+
+## Dual integers: `dualint`
+
+```python
+from quadint import dualint
+
+z = dualint(2, 3)   # 2 + 3ε
+w = dualint(1, -1)  # 1 - ε
+
+print(z)
+print(z * w)              # (2+1ε)
+```
+
+Use `real` and `dual` (or `epsilon`) to access the ε-basis components.
 
 ---
 
