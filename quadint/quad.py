@@ -128,6 +128,16 @@ class QuadraticRing:
 
         return self.D == other.D and self.den == other.den
 
+    @property
+    def zero(self) -> "QuadInt":
+        """Additive identity (0)."""
+        return QuadInt(self, 0, 0)
+
+    @property
+    def one(self) -> "QuadInt":
+        """Multiplicative identity (1)."""
+        return QuadInt(self, self.den, 0)
+
     def from_obj(self, n: OP_TYPES) -> "QuadInt":
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
         if isinstance(n, (int, float)):
@@ -179,6 +189,16 @@ class QuadInt:
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
         return self.__class__(self.ring, a, b)
+
+    @property
+    def zero(self):
+        """Additive identity (0)."""
+        return self._make(0, 0)
+
+    @property
+    def one(self):
+        """Multiplicative identity (1)."""
+        return self._make(self.ring.den, 0)
 
     def _from_obj(self, n: OP_TYPES):
         """Make a QuadInt on the current ring from a given object"""
@@ -275,7 +295,7 @@ class QuadInt:
             raise ValueError("Negative powers not supported in quadratic integer rings")
 
         # exponentiation by squaring
-        result = self._make(self.ring.den, 0)
+        result = self.one
         base = self
         while e:
             if e & 1:
