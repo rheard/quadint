@@ -15,7 +15,7 @@ import pytest
 import quadint
 
 from quadint import QuadInt
-from quadint.quad import QuadraticRing, make_quadint
+from quadint.quad import QuadraticRing
 
 @pytest.mark.skipif(
     os.getenv("CI", "").lower() not in {"1", "true", "yes"},
@@ -85,12 +85,6 @@ class TestQuadraticRingSingleton(RingTests):
         q1 = QuadraticRing(-1)
         q2 = QuadraticRing(-2)
         self.assert_diff_ring_obj(q1, q2)
-
-    def test_make_quadint(self):
-        """make_quadint(D) should return the same singleton as QuadraticRing(D)"""
-        q1 = QuadraticRing(-1)
-        q2 = make_quadint(-1)
-        self.assert_same_ring_obj(q1, q2)
 
     def test_repeated_calls_do_not_mutate_cached_instance(self):
         """Repeated construction should not corrupt cached fields"""

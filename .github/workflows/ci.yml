@@ -33,18 +33,23 @@ jobs:
         run: |
           python -m pip install --upgrade mypy
           stubgen quadint/__init__.py --inspect-mode
+          stubgen quadint/quad/__init__.py --inspect-mode
           stubgen quadint/eisenstein.py
           stubgen quadint/complex.py
-          stubgen quadint/quad.py
           stubgen quadint/dual.py
           stubgen quadint/split.py
+          stubgen quadint/quad/int.py
+          stubgen quadint/quad/rings.py
           mkdir -p quadint-stubs
+          mkdir -p quadint-stubs/quad
           mv out/quadint/__init__.pyi quadint-stubs/__init__.pyi
+          mv out/quadint/quad/__init__.pyi quadint-stubs/quad/__init__.pyi
           mv out/quadint/eisenstein.pyi quadint-stubs/eisenstein.pyi
           mv out/quadint/complex.pyi quadint-stubs/complex.pyi
-          mv out/quadint/quad.pyi quadint-stubs/quad.pyi
           mv out/quadint/dual.pyi quadint-stubs/dual.pyi
           mv out/quadint/split.pyi quadint-stubs/split.pyi
+          mv out/quadint/quad/int.pyi quadint-stubs/quad/int.pyi
+          mv out/quadint/quad/rings.pyi quadint-stubs/quad/rings.pyi
           rm -rf out
 
       - name: Install dependencies

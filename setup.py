@@ -13,7 +13,7 @@ setup(
     #   because then the python version will be used instead of the mypyc-compiled pyd version.
     packages=["quadint-stubs"],
     include_package_data=True,
-    package_data={'quadint-stubs': ["*.pyi"]},
+    package_data={'quadint-stubs': ["*.pyi", "**/*.pyi"]},
 
     ext_modules=mypycify(glob("quadint/**/*.py", recursive=True)),  # noqa: PTH207
 

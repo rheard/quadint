@@ -9,7 +9,7 @@ import pytest
 
 import quadint.eisenstein
 
-from quadint import QuadInt, QuadraticRing, make_quadint
+from quadint import QuadInt, QuadraticRing
 from quadint.eisenstein import eisensteinint as eisenstein
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
@@ -68,7 +68,7 @@ class TestEq(EisensteinIntTests):
         #   with a different basis vector.... However I'm uncomfortable with this.
         #   I've gone back and forth on if this should work or not.
         #   For now I'm leaving it... For it to not work will require a new __eq__
-        Z3 = make_quadint(-3)
+        Z3 = QuadraticRing(-3)
         c = Z3(self.a_int.a, self.a_int.b)
         assert self.a_int == c
         assert self.b_int != c

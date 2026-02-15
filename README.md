@@ -4,7 +4,8 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
 
 - **`complexint`**: a Gaussian integer type that mirrors Python’s `complex`, but stores **`int`** components (no floating-point drift).
 - **`QuadInt` / `QuadraticRing`**: a general quadratic-integer implementation for elements of the form  
-  $(a + b\sqrt{D}) / \mathrm{den}$ with $den ∈ {1,2}$.
+  $(a + b\sqrt{D}) / \mathrm{den}$ with $den ∈ {1,2}$. 
+  - By default, `QuadraticRing(D)` chooses `den = 2` when `D % 4 == 1`, otherwise `den = 1` (and you can override with `QuadraticRing(D, den=1)` / `den=2` to work in a non-default order).
 - **`eisensteinint`**: Eisenstein integers in the ω-basis (`a + bω`, where `ω = (-1 + √-3)/2`).
 - **`dualint`**: dual integers of the form `a + bε` where **`ε² = 0`** and **`ε != 0`**.
 - **`splitint`**: split-complex (hyperbolic) integers of the form `a + bj` where **`j² = 1`** and **`j != 1`**.
@@ -42,14 +43,14 @@ print(abs(a))     # 1^2 + 2^2 = 5  (norm)
 
 ---
 
-## Quadratic integers: `make_quadint`
+## Quadratic integers: `QuadraticRing`
 
 Create a ring instance for a chosen discriminant parameter `D`, then construct values in that ring:
 
 ```python
-from quadint import make_quadint
+from quadint import QuadraticRing
 
-Q2 = make_quadint(-2)  # Z[√-2]
+Q2 = QuadraticRing(-2)  # Z[√-2]
 
 x = Q2(1, 2)           # (1 + 2*sqrt(-2))
 y = Q2(3, 6)
@@ -143,7 +144,8 @@ print(a + 1.5)   # "(4+6j)"  (1.5 -> 1)
 * `eisensteinint(a: int = 0, b: int = 0)` where `a + bω`
 * `dualint(a: int = 0, b: int = 0)`
 * `splitint(a: int = 0, b: int = 0)`
-* `make_quadint(D: int) -> QuadraticRing`
+* `QuadraticRing(D: int = 0, den: int = None)`
+  * If `den` is omitted (`None`), it defaults to `2` when `D % 4 == 1`, otherwise `1`.
 
 ### Ring instance (`QuadraticRing`)
 
