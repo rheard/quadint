@@ -6,8 +6,9 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
 - **`QuadInt` / `QuadraticRing`**: a general quadratic-integer implementation for elements of the form  
   $(a + b\sqrt{D}) / \mathrm{den}$ with $den ∈ {1,2}$.
 - **`eisensteinint`**: Eisenstein integers in the ω-basis (`a + bω`, where `ω = (-1 + √-3)/2`).
-- **`dualint`**: dual integers of the form `a + bε` where **`ε² = 0`** and **`ε != 0`** (useful for exact first-order / automatic-differentiation-style arithmetic).
-
+- **`dualint`**: dual integers of the form `a + bε` where **`ε² = 0`** and **`ε != 0`**.
+- **`splitint`**: split-complex (hyperbolic) integers of the form `a + bj` where **`j² = 1`** and **`j != 1`**.
+ 
 Designed for discrete math, number theory tooling, and high-throughput exact computations (this project is built to compile cleanly with **mypyc**).
 
 ---
@@ -93,6 +94,24 @@ print(z * w)              # (2+1ε)
 Use `real` and `dual` (or `epsilon`) to access the ε-basis components.
 
 ---
+ 
+## Split-complex integers: `splitint`
+
+Split-complex (a.k.a. *hyperbolic*) integers behave like `complexint`, except the generator satisfies **`j² = 1`** instead of **`j² = -1`**.
+
+Unlike complex numbers, split-complex numbers have an **indefinite norm** and **zero divisors** (e.g. `(1+j)*(1-j) == 0`).
+
+```python
+from quadint.split import splitint
+
+z = splitint(1, 1)    # 1 + 1j
+w = splitint(1, -1)   # 1 - 1j
+
+print(z * w)          # 0j   (zero divisor behavior)
+```
+
+---
+
 
 ## Division & interoperability notes
 
@@ -122,6 +141,8 @@ print(a + 1.5)   # "(4+6j)"  (1.5 -> 1)
 
 * `complexint(a: int = 0, b: int = 0)`
 * `eisensteinint(a: int = 0, b: int = 0)` where `a + bω`
+* `dualint(a: int = 0, b: int = 0)`
+* `splitint(a: int = 0, b: int = 0)`
 * `make_quadint(D: int) -> QuadraticRing`
 
 ### Ring instance (`QuadraticRing`)
