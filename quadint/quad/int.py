@@ -51,6 +51,12 @@ class QuadInt:
             b = 0
         elif isinstance(n, QuadInt):
             return n
+        elif isinstance(n, complex):
+            if self.ring.D != -1 or self.ring.den != 1:
+                raise TypeError("Cannot mix QuadInt from different rings")
+
+            a = int(n.real)
+            b = int(n.imag)
         else:
             return NotImplemented
 
@@ -203,7 +209,7 @@ class QuadInt:
         Always an integer for valid ring elements.
 
         Returns:
-            int: The norm**2 for the ring.
+            int: The norm for the ring.
 
         Raises:
             ArithmeticError: If there is a non-integral norm for the ring.
