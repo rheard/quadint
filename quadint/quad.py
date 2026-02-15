@@ -481,7 +481,7 @@ class QuadInt:
         return not self.__eq__(other)
 
     def __hash__(self) -> int:
-        return hash((self.a, self.b, self.ring.D))
+        return hash((self.a, self.b, self.ring.D, self.ring.den))
 
     def __repr__(self) -> str:
         D = self.ring.D
