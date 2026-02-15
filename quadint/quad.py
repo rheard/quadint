@@ -77,7 +77,7 @@ class QuadraticRing:
     D: int
     den: int
 
-    def __init__(self, D: int, den: Union[None, int] = None) -> None:
+    def __init__(self, D: int, den: Union[int, None] = None) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
 
