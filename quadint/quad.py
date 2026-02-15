@@ -16,6 +16,17 @@ def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     return -((-n + d // 2) // d)
 
 
+def _split_uv(x: "QuadInt") -> tuple[int, int]:
+    """Return (u,v) for D=1 split-complex where u=(a+b)/den, v=(a-b)/den."""
+    den = x.ring.den
+    apb = x.a + x.b
+    amb = x.a - x.b
+    if apb % den or amb % den:
+        # should be impossible if ring invariants hold
+        raise ArithmeticError("Non-integral split-complex coordinates; check ring parameters/parity")
+    return apb // den, amb // den
+
+
 def _choose_best_in_neighborhood(
     *,
     A0: int,
@@ -283,8 +294,54 @@ class QuadInt:
         D = self.ring.D
         den = self.ring.den
 
-        if D > 0:
-            raise NotImplementedError("divmod implemented only for D<=0 (imaginary quadratic or dual numbers)")
+        if D > 1:
+            raise NotImplementedError(
+                "divmod implemented only for D<=1 (imaginary quadratic, dual numbers or split-complex)"
+            )
+
+        if D == 1:
+            u1, v1 = _split_uv(self)
+            u2, v2 = _split_uv(other)
+
+            # Division by zero divisor (u2==0 or v2==0) is not well-defined.
+            if u2 == 0 or v2 == 0:
+                raise ZeroDivisionError("division by zero divisor in split-complex integers (a=±b)")
+
+            qu0 = _round_div_ties_away_from_zero(u1, abs(u2))
+            if u2 < 0:
+                qu0 = -qu0
+
+            qv0 = _round_div_ties_away_from_zero(v1, abs(v2))
+            if v2 < 0:
+                qv0 = -qv0
+
+            def B0_for_A(A: int) -> int:  # A is qu
+                return qv0
+
+            def score_for_AB(A: int, B: int) -> tuple[int]:
+                # remainder in (u,v)
+                ru = u1 - A * u2
+                rv = v1 - B * v2
+                return (ru * ru + rv * rv, )
+
+            # Enforce qu ≡ qv (mod 2) so (qu+qv)/2 and (qu-qv)/2 are integers.
+            best_qu, best_qv = _choose_best_in_neighborhood(
+                A0=qu0,
+                B0_for_A=B0_for_A,
+                score_for_AB=score_for_AB,
+                den=2,  # re-use parity constraint check ((A^B)&1)==0
+            )
+
+            # Convert back: a = den*(qu+qv)/2, b = den*(qu-qv)/2
+            s = best_qu + best_qv
+            t = best_qu - best_qv
+            # s,t are even because qu,qv same parity
+            qa = (s * den) // 2
+            qb = (t * den) // 2
+
+            q = self._make(qa, qb)
+            r = self - q * other
+            return q, r
 
         if D == 0:
             # In dual numbers, (c + dε) is invertible iff c != 0.
