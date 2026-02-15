@@ -32,7 +32,7 @@ class splitint(QuadInt):
 
     @property
     def hyper(self) -> int:
-        """Alias for splitint."""
+        """Alias for splitint"""
         return self.b
 
     @property
