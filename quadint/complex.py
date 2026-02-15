@@ -52,7 +52,7 @@ class complexint(QuadInt):
 
         lead = "(" if parens else ""
         tail = ")" if parens else ""
-        op = ("+" if self.imag >= 0 else "-") if parens else ""
+        op = ("+" if parens else "") if self.imag >= 0 else "-"
         a = self.real or ""
         b = abs(self.imag)
 

@@ -475,7 +475,7 @@ class QuadInt:
 
         lead = "(" if parens else ""
         tail = ")" if parens else ""
-        op = ("+" if self.b >= 0 else "-") if parens else ""
+        op = ("+" if parens else "") if self.b >= 0 else "-"
         a = self.a or ""
         b = abs(self.b)
         symbol = f"*sqrt({D})"

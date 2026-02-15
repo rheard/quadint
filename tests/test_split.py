@@ -247,3 +247,20 @@ class TestConjugate(SplitIntTests):
 
         assert a_conj.real == 0
         assert a_conj.hyper == -1
+
+
+class TestRepr(SplitIntTests):
+    """Validate the repr matches existing solutions"""
+
+    def test_examples(self):
+        """Verify some given examples"""
+        examples = [
+            (splitint(-9, 12), "(-9+12j)"),
+            (splitint(0, -10), "-10j"),
+            (splitint(0, 10), "10j"),
+            (splitint(10, 0), "(10+0j)"),
+            (splitint(5, -5), "(5-5j)"),
+        ]
+
+        for example, expected in examples:
+            assert repr(example) == expected

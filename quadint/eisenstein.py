@@ -42,7 +42,7 @@ class eisensteinint(QuadInt):
 
         lead = "(" if parens else ""
         tail = ")" if parens else ""
-        op = ("+" if self.omega >= 0 else "-") if parens else ""
+        op = ("+" if parens else "") if self.omega >= 0 else "-"
         a = self.real or ""
         b = abs(self.omega)
 

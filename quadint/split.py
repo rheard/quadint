@@ -45,7 +45,7 @@ class splitint(QuadInt):
 
         lead = "(" if parens else ""
         tail = ")" if parens else ""
-        op = ("+" if self.hyper >= 0 else "-") if parens else ""
+        op = ("+" if parens else "") if self.hyper >= 0 else "-"
         a = self.real or ""
         b = abs(self.hyper)
 

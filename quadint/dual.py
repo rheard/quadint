@@ -41,7 +41,7 @@ class dualint(QuadInt):
 
         lead = "(" if parens else ""
         tail = ")" if parens else ""
-        op = ("+" if self.dual >= 0 else "-") if parens else ""
+        op = ("+" if parens else "") if self.dual >= 0 else "-"
         a = self.real or ""
         b = abs(self.dual)
 

@@ -252,3 +252,20 @@ class TestConjugate(DualIntTests):
 
         assert a_conj.real == 0
         assert a_conj.dual == -1
+
+
+class TestRepr(DualIntTests):
+    """Validate the repr matches existing solutions"""
+
+    def test_examples(self):
+        """Verify some given examples"""
+        examples = [
+            (dualint(-9, 12), "(-9+12ε)"),
+            (dualint(0, -10), "-10ε"),
+            (dualint(0, 10), "10ε"),
+            (dualint(10, 0), "(10+0ε)"),
+            (dualint(5, -5), "(5-5ε)"),
+        ]
+
+        for example, expected in examples:
+            assert repr(example) == expected

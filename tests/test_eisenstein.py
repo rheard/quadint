@@ -270,3 +270,20 @@ class TestConjugate(EisensteinIntTests):
 
         assert a_conj.real == -1
         assert a_conj.omega == -1
+
+
+class TestRepr(EisensteinIntTests):
+    """Validate the repr matches existing solutions"""
+
+    def test_examples(self):
+        """Verify some given examples"""
+        examples = [
+            (eisenstein(-9, 12), "(-9+12ω)"),
+            (eisenstein(0, -10), "-10ω"),
+            (eisenstein(0, 10), "10ω"),
+            (eisenstein(10, 0), "(10+0ω)"),
+            (eisenstein(5, -5), "(5-5ω)"),
+        ]
+
+        for example, expected in examples:
+            assert repr(example) == expected
