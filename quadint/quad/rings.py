@@ -88,11 +88,11 @@ class QuadraticRing:
 
         # choose subclass
         new_inst: QuadraticRing
-        if D == 0:
+        if D0 == 0:
             new_inst = DualRing(D0, den0)
-        elif D == 1:
+        elif D0 == 1:
             new_inst = SplitRing(D0, den0)
-        elif D < 0:
+        elif D0 < 0:
             new_inst = ImagRing(D0, den0)
         else:
             new_inst = super().__new__(cls)
