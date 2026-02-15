@@ -13,10 +13,9 @@ authors = [
 ]
 description = "A quadint class, for using quadratic integers."
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -32,7 +31,7 @@ Repository = "https://github.com/rheard/quadint"
 
 [tool.cibuildwheel]
 # TODO: Android, iOS?
-build = "cp3{8,9,10,11,12,13,14}-{win,macosx,manylinux}*"
+build = "cp3{9,10,11,12,13,14}-{win,macosx,manylinux}*"
 
 before-test = [
     'mkdir "{project}/temp"',

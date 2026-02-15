@@ -1,4 +1,4 @@
-from typing import Callable, ClassVar, Dict, Iterator, Tuple, Union
+from typing import Callable, ClassVar, Iterator, Union  # noqa: UP035
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
@@ -16,7 +16,7 @@ def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     return -((-n + d // 2) // d)
 
 
-def _split_uv(x: "QuadInt") -> Tuple[int, int]:
+def _split_uv(x: "QuadInt") -> tuple[int, int]:
     """Return (u,v) for D=1 split-complex where u=(a+b)/den, v=(a-b)/den."""
     den = x.ring.den
     apb = x.a + x.b
@@ -33,7 +33,7 @@ def _choose_best_in_neighborhood(
     B0_for_A: Callable,
     score_for_AB: Callable,
     den: int,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     """
     Search (A0±1) * (B0(A)±1) and return best (A,B).
 
@@ -42,7 +42,7 @@ def _choose_best_in_neighborhood(
     Returns:
         (bestA, bestB): The best options found for this search.
     """
-    best_score: Union[Tuple[int, ...], None] = None
+    best_score: Union[tuple[int, ...], None] = None
     bestA = bestB = 0
 
     for A in (A0 - 1, A0, A0 + 1):
@@ -74,7 +74,7 @@ class QuadraticRing:
 
     __slots__ = ("D", "den")
 
-    _CACHE: ClassVar[Dict[Tuple[int, int], "QuadraticRing"]] = {}
+    _CACHE: ClassVar[dict[tuple[int, int], "QuadraticRing"]] = {}
 
     D: int
     den: int
@@ -335,7 +335,7 @@ class QuadInt:
             def B0_for_A(A: int) -> int:  # noqa: ARG001
                 return qv0
 
-            def score_for_AB(A: int, B: int) -> Tuple[int, ...]:
+            def score_for_AB(A: int, B: int) -> tuple[int, ...]:
                 # remainder in (u,v)
                 ru = u1 - A * u2
                 rv = v1 - B * v2
@@ -381,7 +381,7 @@ class QuadInt:
                 return _round_div_ties_away_from_zero(self.b - A * d, c)
 
             # Lexicographic “small remainder”: minimize real remainder first, then ε remainder.
-            def score_for_AB(A: int, B: int) -> Tuple[int, ...]:
+            def score_for_AB(A: int, B: int) -> tuple[int, ...]:
                 r0 = self.a - A * c
                 r1 = self.b - A * d - B * c
                 return (r0 * r0, r1 * r1)
@@ -392,7 +392,7 @@ class QuadInt:
             def B0_for_A(A: int) -> int:  # noqa: ARG001
                 return B0
 
-            def score_for_AB(A: int, B: int) -> Tuple[int, ...]:
+            def score_for_AB(A: int, B: int) -> tuple[int, ...]:
                 da = A * n - num.a
                 db = B * n - num.b
                 return (da * da + absD * (db * db), )
