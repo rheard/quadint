@@ -16,7 +16,7 @@ def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     return -((-n + d // 2) // d)
 
 
-def _split_uv(x: "QuadInt") -> tuple[int, int]:
+def _split_uv(x: "QuadInt") -> Tuple[int, int]:
     """Return (u,v) for D=1 split-complex where u=(a+b)/den, v=(a-b)/den."""
     den = x.ring.den
     apb = x.a + x.b
@@ -318,7 +318,7 @@ class QuadInt:
             def B0_for_A(A: int) -> int:  # A is qu
                 return qv0
 
-            def score_for_AB(A: int, B: int) -> tuple[int]:
+            def score_for_AB(A: int, B: int) -> Tuple[int, ...]:
                 # remainder in (u,v)
                 ru = u1 - A * u2
                 rv = v1 - B * v2
