@@ -1,4 +1,4 @@
-from quadint.quad import QuadInt, QuadraticRing, _choose_best_in_neighborhood, _round_div_ties_away_from_zero
+from quadint.quad import QuadInt, QuadraticRing
 
 # Split-complex (hyperbolic) integers: a + b*j with j^2 = +1.
 # IMPORTANT: force den=1, otherwise D=1 would default to den=2 under the

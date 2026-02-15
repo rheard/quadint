@@ -296,7 +296,7 @@ class QuadInt:
 
         if D > 1:
             raise NotImplementedError(
-                "divmod implemented only for D<=1 (imaginary quadratic, dual numbers or split-complex)"
+                "divmod implemented only for D<=1 (imaginary quadratic, dual numbers or split-complex)",
             )
 
         if D == 1:
@@ -315,7 +315,7 @@ class QuadInt:
             if v2 < 0:
                 qv0 = -qv0
 
-            def B0_for_A(A: int) -> int:  # A is qu
+            def B0_for_A(A: int) -> int:  # noqa: ARG001
                 return qv0
 
             def score_for_AB(A: int, B: int) -> Tuple[int, ...]:

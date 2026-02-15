@@ -13,7 +13,6 @@ from quadint import QuadInt
 from quadint.quad import QuadraticRing
 from quadint.split import splitint
 
-
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
                     reason="Compiled-only test")
 def test_compiled_tests():
