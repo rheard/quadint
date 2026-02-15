@@ -110,6 +110,12 @@ class QuadraticRing:
         other = x.ring
         return (other.D == self.D) and (other.den == self.den)
 
+    def __eq__(self, other: object):
+        if not isinstance(other, QuadraticRing):
+            return False
+
+        return self.D == other.D and self.den == other.den
+
     def from_obj(self, n: OP_TYPES) -> "QuadInt":
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
         if isinstance(n, (int, float)):
