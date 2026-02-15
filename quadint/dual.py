@@ -1,6 +1,6 @@
 from quadint.quad import QuadInt, QuadraticRing
 
-_ZE = QuadraticRing(0)   # Gaussian integers
+_ZE = QuadraticRing(0)
 
 
 class dualint(QuadInt):
