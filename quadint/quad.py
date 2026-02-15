@@ -102,7 +102,7 @@ class QuadraticRing:
             return x.is_integer()
 
         if isinstance(x, complex):
-            return self.D == -1
+            return self.D == -1 and self.den == 1
 
         if not isinstance(x, QuadInt):
             return False
