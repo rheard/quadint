@@ -36,11 +36,13 @@ jobs:
           stubgen quadint/eisenstein.py
           stubgen quadint/complex.py
           stubgen quadint/quad.py
+          stubgen quadint/dual.py
           mkdir -p quadint-stubs
           mv out/quadint/__init__.pyi quadint-stubs/__init__.pyi
           mv out/quadint/eisenstein.pyi quadint-stubs/eisenstein.pyi
           mv out/quadint/complex.pyi quadint-stubs/complex.pyi
           mv out/quadint/quad.pyi quadint-stubs/quad.pyi
+          mv out/quadint/dual.pyi quadint-stubs/dual.pyi
           rm -rf out
 
       - name: Install dependencies
