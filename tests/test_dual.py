@@ -9,7 +9,7 @@ import pytest
 
 import quadint.dual
 
-from quadint import QuadInt, make_quadint
+from quadint import QuadInt, QuadraticRing, make_quadint
 from quadint.dual import dualint
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
@@ -24,6 +24,12 @@ def test_is_instance():
     """Verify that basic isinstance checks work"""
     assert isinstance(dualint(1, 2), dualint)
     assert not isinstance(complex(1, 2), dualint)
+
+
+def test_ring_is_singleton():
+    """Dualint should use the cached D=0 ring and match QuadraticRing(0)."""
+    w = dualint(1, 2)
+    assert w.ring is QuadraticRing(0)
 
 
 def test_alias():

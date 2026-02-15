@@ -11,6 +11,7 @@ import quadint
 
 from quadint import (
     QuadInt,
+    QuadraticRing,
     complexint as complexi,
 )
 
@@ -56,6 +57,12 @@ def test_is_instance():
     """Verify that basic isinstance checks work"""
     assert isinstance(complexi(1, 2), complexi)
     assert not isinstance(complex(1, 2), complexi)
+
+
+def test_ring_is_singleton():
+    """Complexint should use the cached Gaussian ring and match QuadraticRing(-1)."""
+    z = complexi(1, 2)
+    assert z.ring is QuadraticRing(-1)
 
 
 class ComplexIntTests:

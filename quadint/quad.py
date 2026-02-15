@@ -1,4 +1,4 @@
-from typing import Callable, Iterator, Tuple, Union
+from typing import Callable, ClassVar, Dict, Iterator, Tuple, Union
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
@@ -74,17 +74,29 @@ class QuadraticRing:
 
     __slots__ = ("D", "den")
 
+    _CACHE: ClassVar[Dict[Tuple[int, int], "QuadraticRing"]] = {}
+
     D: int
     den: int
+
+    def __new__(cls, D: int, den: Union[int, None] = None) -> "QuadraticRing":  # noqa: PYI034
+        """Handle singleton logic"""
+        D0 = int(D)
+        den0 = (2 if (D0 % 4) == 1 else 1) if den is None else int(den)
+
+        key = (D0, den0)
+        inst = cls._CACHE.get(key)
+        if inst is not None:
+            return inst
+
+        inst = super().__new__(cls)
+        cls._CACHE[key] = inst
+        return inst
 
     def __init__(self, D: int, den: Union[int, None] = None) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
-
-        if den is None:
-            self.den = 2 if (self.D % 4) == 1 else 1
-        else:
-            self.den = den
+        self.den = (2 if (self.D % 4) == 1 else 1) if den is None else int(den)
 
     def __repr__(self) -> str:
         return f"QuadraticRing(D={self.D}, den={self.den})"
@@ -184,7 +196,6 @@ class QuadInt:
     def assert_same_ring(self, other: "QuadInt"):
         """Raise an error if other is not in the same ring as self"""
         if self.ring is not other.ring:
-            # identity is fastest; if you want structural equality use (D,den)
             raise TypeError("Cannot mix QuadInt from different rings")
 
     def conjugate(self):
@@ -427,7 +438,7 @@ class QuadInt:
         Always an integer for valid ring elements.
 
         Returns:
-            int: The norm for the ring.
+            int: The norm**2 for the ring.
 
         Raises:
             ArithmeticError: If there is a non-integral norm for the ring.
@@ -463,8 +474,7 @@ class QuadInt:
         if not isinstance(other, QuadInt):
             return False
 
-        return self.ring.D == other.ring.D and self.ring.den == other.ring.den \
-            and self.a == other.a and self.b == other.b
+        return self.ring is other.ring and self.a == other.a and self.b == other.b
 
     def __ne__(self, other: object) -> bool:
         # This shouldn't be required but mypyc is really messing this up...

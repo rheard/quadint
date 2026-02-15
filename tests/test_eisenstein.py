@@ -9,7 +9,7 @@ import pytest
 
 import quadint.eisenstein
 
-from quadint import QuadInt, make_quadint
+from quadint import QuadInt, QuadraticRing, make_quadint
 from quadint.eisenstein import eisensteinint as eisenstein
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
@@ -24,6 +24,12 @@ def test_is_instance():
     """Verify that basic isinstance checks work"""
     assert isinstance(eisenstein(1, 2), eisenstein)
     assert not isinstance(complex(1, 2), eisenstein)
+
+
+def test_ring_is_singleton():
+    """Eisensteinint should use the cached D=-3 ring and match QuadraticRing(-3)."""
+    w = eisenstein(1, 2)
+    assert w.ring is QuadraticRing(-3)
 
 
 class EisensteinIntTests:

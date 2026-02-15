@@ -9,8 +9,7 @@ import pytest
 
 import quadint.split
 
-from quadint import QuadInt
-from quadint.quad import QuadraticRing
+from quadint import QuadInt, QuadraticRing
 from quadint.split import splitint
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
@@ -25,6 +24,12 @@ def test_is_instance():
     """Verify that basic isinstance checks work"""
     assert isinstance(splitint(1, 2), splitint)
     assert not isinstance(complex(1, 2), splitint)
+
+
+def test_ring_is_singleton():
+    """Splitint should use the cached D=1 ring and match QuadraticRing(1, den=1)."""
+    w = splitint(1, 2)
+    assert w.ring is QuadraticRing(1, den=1)
 
 
 def test_alias():
