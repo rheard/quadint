@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Iterator, Union  # noqa: UP035
+from typing import TYPE_CHECKING, Iterator, Optional, Union  # noqa: UP035
 
 if TYPE_CHECKING:
     from quadint.quad.rings import QuadraticRing
@@ -139,21 +139,45 @@ class QuadInt:
     def __rmul__(self, other: OTHER_OP_TYPES):
         return self.__mul__(other)
 
-    def __pow__(self, exp: float):
+    def __pow__(self, exp: float, mod: Optional[OP_TYPES] = None):
+        if isinstance(mod, _OTHER_OP_TYPES):
+            mod = self._from_obj(mod)
+
+        if mod is not None:
+            if not isinstance(mod, QuadInt):
+                return NotImplemented
+
+            self.assert_same_ring(mod)
+
+            if mod == 0:
+                raise ZeroDivisionError("pow() 3rd argument cannot be 0")
+
         e = int(exp)
         if e < 0:
             raise ValueError("Negative powers not supported in quadratic integer rings")
 
         # exponentiation by squaring
-        result = self.one
-        base = self
+        if mod is None:
+            result = self.one
+            base = self
+            while e:
+                if e & 1:
+                    result = result * base
+
+                e >>= 1
+                if e:
+                    base = base * base
+
+            return result
+        result = self.one % mod
+        base = self % mod
         while e:
             if e & 1:
-                result = result * base
+                result = (result * base) % mod
 
             e >>= 1
             if e:
-                base = base * base
+                base = (base * base) % mod
 
         return result
 
@@ -197,7 +221,7 @@ class QuadInt:
 
         return NotImplemented
 
-    def __mod__(self, other: "QuadInt"):
+    def __mod__(self, other: OP_TYPES):
         _, r = divmod(self, other)
         return r
     # endregion

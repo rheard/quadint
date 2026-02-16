@@ -223,3 +223,63 @@ class TestDiv:
 
         with pytest.raises(NotImplementedError):
             _ = mul_int / a_int
+
+    def test_pow_mod_matches_pow_then_mod_gaussian(self):
+        """pow(x, e, m) should match (x**e) % m in Gaussian integers."""
+        ZI = QuadraticRing(-1)
+        x = ZI(5, 2)
+        m = ZI(2, 1)
+
+        got = pow(x, 13, m)
+        expected = (x ** 13) % m
+
+        self.assert_quad_equal((expected.a, expected.b), got)
+
+    def test_pow_mod_exponent_zero(self):
+        """pow(x, 0, m) should be 1 % m."""
+        ZI = QuadraticRing(-1)
+        x = ZI(5, 2)
+        m = ZI(2, 1)
+
+        got = pow(x, 0, m)
+        expected = x.one % m
+
+        self.assert_quad_equal((expected.a, expected.b), got)
+
+    def test_pow_mod_accepts_int_modulus(self):
+        """Allow int modulus (it should embed into the same ring)."""
+        ZI = QuadraticRing(-1)
+        x = ZI(5, 2)
+
+        got = pow(x, 20, 7)
+        expected = (x ** 20) % 7
+
+        self.assert_quad_equal((expected.a, expected.b), got)
+
+    def test_pow_mod_requires_same_ring(self):
+        """Modulus must be in the same QuadraticRing (identity check)."""
+        ZI = QuadraticRing(-1)
+        ZS2 = QuadraticRing(-2)
+
+        x = ZI(5, 2)
+        m_other_ring = ZS2(2, 1)
+
+        with pytest.raises(TypeError):
+            pow(x, 5, m_other_ring)
+
+    def test_pow_mod_zero_modulus_raises(self):
+        """pow(x, e, 0) should raise like Python ints."""
+        ZI = QuadraticRing(-1)
+        x = ZI(5, 2)
+
+        with pytest.raises(ZeroDivisionError):
+            pow(x, 5, 0)
+
+    def test_pow_mod_negative_exponent_raises(self):
+        """pow(x, -e, m) should raise."""
+        ZI = QuadraticRing(-1)
+        x = ZI(5, 2)
+        m = ZI(2, 1)
+
+        with pytest.raises(ValueError, match="Negative powers not supported in quadratic integer rings"):
+            pow(x, -1, m)
