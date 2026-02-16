@@ -283,3 +283,28 @@ class TestDiv:
 
         with pytest.raises(ValueError, match="Negative powers not supported in quadratic integer rings"):
             pow(x, -1, m)
+
+    def test_splitring_den2_does_not_force_qu_qv_parity(self):
+        """The parity constraint for split integer division doesn't apply when den=2 (the default). Verify that"""
+        # D=1 defaults to den=2 (maximal-order convention), so this uses SplitRing with den=2.
+        Z = QuadraticRing(1)
+        assert Z.den == 2
+
+        # Counterexample where the best (qu, qv) in the 3x3 neighborhood has opposite parity.
+        # With the current code, SplitRing.divmod forces same parity and picks a worse remainder.
+        x = Z(-15, -15)
+        y = Z(-15, -13)
+
+        q, r = divmod(x, y)
+
+        # sanity
+        assert x == q * y + r
+
+        # measure remainder size in split (u,v) coords: u=(a+b)/den, v=(a-b)/den
+        den = Z.den
+        ru = (r.a + r.b) // den
+        rv = (r.a - r.b) // den
+
+        # The truly-best local choice gives (ru, rv)=(-1, 0) => ru^2+rv^2 == 1.
+        # The current parity-forced choice gives (ru, rv)=(-1, -1) => 2.
+        assert ru * ru + rv * rv == 1

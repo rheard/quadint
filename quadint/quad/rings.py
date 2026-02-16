@@ -274,18 +274,21 @@ class SplitRing(QuadraticRing):
             rv = v1 - B * v2
             return (ru * ru + rv * rv, )
 
+        # We only need qu ≡ qv (mod 2) when self.den is odd (in practice: self.den==1),
+        # because we later divide (qu±qv)*self.den by 2.
+        parity_den = 2 if self.den == 1 else 1
+
         # Enforce qu ≡ qv (mod 2) so (qu+qv)/2 and (qu-qv)/2 are integers.
         best_qu, best_qv = _choose_best_in_neighborhood(
             A0=qu0,
             B0_for_A=B0_for_A,
             score_for_AB=score_for_AB,
-            den=2,  # re-use parity constraint check ((A^B)&1)==0
+            den=parity_den,
         )
 
         # Convert back: a = den*(qu+qv)/2, b = den*(qu-qv)/2
         s = best_qu + best_qv
         t = best_qu - best_qv
-        # s,t are even because qu,qv same parity
         qa = (s * self.den) // 2
         qb = (t * self.den) // 2
 
