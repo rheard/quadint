@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Iterator, Optional, Union  # noqa: UP035
+from typing import TYPE_CHECKING, ClassVar, Iterator, Optional, Union  # noqa: UP035
 
 if TYPE_CHECKING:
     from quadint.quad.rings import QuadraticRing
@@ -19,6 +19,8 @@ class QuadInt:
     ring: "QuadraticRing"
     a: int
     b: int
+
+    SYMBOL: ClassVar[str] = "*sqrt({D})"
 
     def __init__(self, ring: "QuadraticRing", a: int = 0, b: int = 0) -> None:
         """Init and validate the integer works for this ring"""
@@ -289,7 +291,7 @@ class QuadInt:
         op = ("+" if parens else "") if self.b >= 0 else "-"
         a = self.a or ""
         b = abs(self.b)
-        symbol = f"*sqrt({D})"
+        symbol = self.SYMBOL.format(D=D)
 
         core = f"{lead}{a}{op}{b}{symbol}{tail}"
         return f"{core}/{den}" if den != 1 else core

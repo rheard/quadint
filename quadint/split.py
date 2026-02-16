@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from quadint.quad import QuadInt, QuadraticRing
 
 # Split-complex (hyperbolic) integers: a + b*j with j^2 = +1.
@@ -16,6 +18,8 @@ class splitint(QuadInt):
         hyper (int): The hyperbolic (j) component.
     """
     __slots__ = ()
+
+    SYMBOL: ClassVar[str] = 'j'
 
     def __init__(self, a: int = 0, b: int = 0) -> None:
         """Initialize a splitint instance (use the _ZJ ring by default)."""
@@ -39,17 +43,3 @@ class splitint(QuadInt):
     def j(self) -> int:
         """Alias for splitint"""
         return self.b
-
-    def __repr__(self) -> str:
-        parens = self.real != 0
-
-        lead = "(" if parens else ""
-        tail = ")" if parens else ""
-        op = ("+" if parens else "") if self.hyper >= 0 else "-"
-        a = self.real or ""
-        b = abs(self.hyper)
-
-        # Python's complex uses j instead of i, so complexint also does for continuity
-        #   This presents a problem here, as that is the convention for split-complex numbers.
-        #   Thus complexint and splitint have the same string values, even though the `j` in them is different.
-        return f"{lead}{a}{op}{b}j{tail}"

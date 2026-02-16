@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from quadint.quad import QuadInt, QuadraticRing
 
 _ZE = QuadraticRing(0)
@@ -12,6 +14,8 @@ class dualint(QuadInt):
         dual (int): The dual or epsilon component.
     """
     __slots__ = ()
+
+    SYMBOL: ClassVar[str] = 'ε'
 
     def __init__(self, a: int = 0, b: int = 0) -> None:
         """Initialize a dualint instance (use the _ZE ring by default)."""
@@ -35,14 +39,3 @@ class dualint(QuadInt):
     def epsilon(self) -> int:
         """Alias for dualint"""
         return self.b
-
-    def __repr__(self) -> str:
-        parens = self.real != 0
-
-        lead = "(" if parens else ""
-        tail = ")" if parens else ""
-        op = ("+" if parens else "") if self.dual >= 0 else "-"
-        a = self.real or ""
-        b = abs(self.dual)
-
-        return f"{lead}{a}{op}{b}ε{tail}"

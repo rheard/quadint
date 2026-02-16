@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from quadint.quad import OP_TYPES, QuadInt, QuadraticRing
 
 _ZI = QuadraticRing(-1)   # Gaussian integers
@@ -12,6 +14,8 @@ class complexint(QuadInt):
         imag (int): The imaginary component.
     """
     __slots__ = ()
+
+    SYMBOL: ClassVar[str] = "j"
 
     def __init__(self, a: int = 0, b: int = 0) -> None:
         """Initialize a complexint instance (use the _ZI ring by default)."""
@@ -46,14 +50,3 @@ class complexint(QuadInt):
     def imag(self) -> int:
         """Alias for complexint"""
         return self.b
-
-    def __repr__(self) -> str:
-        parens = self.real != 0
-
-        lead = "(" if parens else ""
-        tail = ")" if parens else ""
-        op = ("+" if parens else "") if self.imag >= 0 else "-"
-        a = self.real or ""
-        b = abs(self.imag)
-
-        return f"{lead}{a}{op}{b}j{tail}"
