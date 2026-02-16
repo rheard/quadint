@@ -169,6 +169,10 @@ class TestMul(SplitIntTests):
 
         self.assert_split_equal((11, -4), res_int)
 
+    def test_zero_mul(self):
+        """Split integers have the interesting property of zero divisors. Verify it"""
+        self.assert_split_equal((0, 0), splitint(1, 1) * splitint(1, -1))
+
     def test_mul_int(self):
         """Test splitint * int"""
         for i in range(100):
