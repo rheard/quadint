@@ -117,7 +117,7 @@ print(z * w)          # 0j   (zero divisor behavior)
 ## Division & interoperability notes
 
 * This package is primarily intended for **exact, discrete** arithmetic (`+`, `-`, `*`, `**`, conjugation, norms).
-* Some division helpers exist (e.g. `divmod`, `//`, `%`) for **imaginary** quadratic rings, using a nearest-lattice approach; it may be `NotImplemented` for `D ≥ 0`, and behavior depends on the ring being Euclidean enough for your use case.
+* Division helpers (`divmod`, `//`, `%`, `/`) are implemented for **dual numbers** (`D=0`) and **split-complex integers** (`D=1`), and for the finite set of **norm-Euclidean** quadratic rings (including selected `D<0` and `D>0`) **at the default/maximal denominator**; outside these cases division may raise `NotImplementedError` (and `ZeroDivisionError` for zero divisors).
 * **Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
 
 Example of truncation behavior:
