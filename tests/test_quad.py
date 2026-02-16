@@ -9,6 +9,7 @@ ring identity checks must remain valid.
 import os
 
 from pathlib import Path
+from typing import Union
 
 import pytest
 
@@ -126,3 +127,99 @@ class TestIdentityChecksWithQuadInt(RingTests):
 
         with pytest.raises(TypeError):
             _ = a + b
+
+
+sqrtNeg17 = QuadraticRing(-17)
+sqrtNeg7 = QuadraticRing(-7)
+sqrt2 = QuadraticRing(2)
+sqrt5 = QuadraticRing(5)
+sqrt31 = QuadraticRing(31)
+
+
+class TestDiv:
+    """Tests for __div__"""
+    a, b, a_int, b_int = None, None, None, None
+
+    def setup_method(self, _):
+        """Setup some test data"""
+        self.a_int = sqrt2(5, 2)
+        self.b_int = sqrt2(3, -2)
+
+    @staticmethod
+    def assert_quad_equal(res: Union[tuple, QuadInt], res_int: QuadInt):
+        """Validate the QuadInt is equal to the validation object, and that it is still backed by integers"""
+        assert res[0] == res_int.a
+        assert res[1] == res_int.b
+
+        assert isinstance(res_int.a, int)
+        assert isinstance(res_int.b, int)
+
+        assert isinstance(res_int, QuadInt)
+
+    def test_div(self):
+        """Test QuadInt / QuadInt in QuadraticRing(2)"""
+        mul_int = self.a_int * self.b_int
+
+        res_int = mul_int / self.a_int
+        self.assert_quad_equal((self.b_int.a, self.b_int.b), res_int)
+
+        res_int = mul_int / self.b_int
+        self.assert_quad_equal((self.a_int.a, self.a_int.b), res_int)
+
+    def test_div_int(self):
+        """Test QuadInt / int in QuadraticRing(2)"""
+        mul_int = self.a_int * 3
+        res_int = mul_int / 3
+        self.assert_quad_equal((self.a_int.a, self.a_int.b), res_int)
+
+    def test_div_float(self):
+        """Test QuadInt / float in QuadraticRing(2)"""
+        mul_int = self.a_int * 3
+        res_int = mul_int / float(3)
+        self.assert_quad_equal((self.a_int.a, self.a_int.b), res_int)
+
+    def test_div_ring5(self):
+        """Test QuadInt / QuadInt in QuadraticRing(5)"""
+        a_int = sqrt5(7, 3)
+        b_int = sqrt5(3, -5)
+
+        mul_int = a_int * b_int
+
+        res_int = mul_int / a_int
+        self.assert_quad_equal((b_int.a, b_int.b), res_int)
+
+        res_int = mul_int / b_int
+        self.assert_quad_equal((a_int.a, a_int.b), res_int)
+
+    def test_div_ring31(self):
+        """Test QuadInt / QuadInt in QuadraticRing(31) (31 is not norm-Euclidean so this is not implemented)"""
+        a_int = sqrt31(5, 2)
+        b_int = sqrt31(3, -2)
+
+        mul_int = a_int * b_int
+
+        with pytest.raises(NotImplementedError):
+            _ = mul_int / a_int
+
+    def test_div_ring_neg7(self):
+        """Test QuadInt / QuadInt in QuadraticRing(-7)"""
+        a_int = sqrtNeg7(7, 3)
+        b_int = sqrtNeg7(3, -5)
+
+        mul_int = a_int * b_int
+
+        res_int = mul_int / a_int
+        self.assert_quad_equal((b_int.a, b_int.b), res_int)
+
+        res_int = mul_int / b_int
+        self.assert_quad_equal((a_int.a, a_int.b), res_int)
+
+    def test_div_ring_neg17(self):
+        """Test QuadInt / QuadInt in QuadraticRing(-17) (-17 is not norm-Euclidean so this is not implemented)"""
+        a_int = sqrtNeg17(5, 2)
+        b_int = sqrtNeg17(3, -2)
+
+        mul_int = a_int * b_int
+
+        with pytest.raises(NotImplementedError):
+            _ = mul_int / a_int

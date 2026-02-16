@@ -2,6 +2,9 @@ from typing import Callable, ClassVar, Union
 
 from quadint.quad.int import OP_TYPES, QuadInt
 
+NORM_EUCLID_D: set[int] = {-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13, 17, 19, 21, 29, 33, 37, 41, 57, 73}
+
+
 def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     """Round n/d to nearest int; ties go away from 0. d must be > 0."""
     if d == 0:
@@ -30,21 +33,29 @@ def _choose_best_in_neighborhood(
     B0_for_A: Callable,
     score_for_AB: Callable,
     den: int,
+    radius: int = 1,
 ) -> tuple[int, int]:
     """
-    Search (A0±1) * (B0(A)±1) and return best (A,B).
+    Search (A0±radius) * (B0(A)±radius) and return best (A,B).
 
-    Enforces den==2 parity constraint: A == B (mod 2).
+    This is a tiny local lattice search used by all our divmod implementations.
+
+    Args:
+        A0: Initial guess for A.
+        B0_for_A: Given A, return an initial guess for B (may depend on A).
+        score_for_AB: Lexicographic score; smaller is better.
+        den: Ring denominator (1 or 2). If den==2, enforce parity constraint A ≡ B (mod 2).
+        radius: Search radius around the initial guess(es). radius=1 reproduces the old behavior.
 
     Returns:
-        (bestA, bestB): The best options found for this search.
+        (bestA, bestB): Best candidate found.
     """
     best_score: Union[tuple[int, ...], None] = None
     bestA = bestB = 0
 
-    for A in (A0 - 1, A0, A0 + 1):
+    for A in range(A0 - radius, A0 + radius + 1):
         B0 = B0_for_A(A)
-        for B in (B0 - 1, B0, B0 + 1):
+        for B in range(B0 - radius, B0 + radius + 1):
             if den == 2 and ((A ^ B) & 1):
                 continue
 
@@ -79,7 +90,8 @@ class QuadraticRing:
     def __new__(cls, D: int, den: Union[int, None] = None):
         """Handle singleton logic"""
         D0 = int(D)
-        den0 = (2 if (D0 % 4) == 1 else 1) if den is None else int(den)
+        default_den = 2 if (D0 % 4) == 1 else 1
+        den0 = default_den if den is None else int(den)
 
         key = (D0, den0)
         inst = cls._CACHE.get(key)
@@ -92,8 +104,8 @@ class QuadraticRing:
             new_inst = DualRing(D0, den0)
         elif D0 == 1:
             new_inst = SplitRing(D0, den0)
-        elif D0 < 0:
-            new_inst = ImagRing(D0, den0)
+        elif D0 in NORM_EUCLID_D and den0 == default_den:
+            new_inst = RealNormEuclidRing(D0, den0)
         else:
             new_inst = super().__new__(cls)
 
@@ -176,7 +188,15 @@ class QuadraticRing:
 
 
 class DualRing(QuadraticRing):
-    """Handle overrides for D=0, dual integer solutions"""
+    """
+    Handle overrides for D=0, dual integer solutions
+
+    While the general algorith in RealNormEuclidRing will find a solution for D=0,
+        it does not take into account that the ε part is not part of the norm,
+        so is not relevant in the division algorithm.
+
+    This class will solve division for the real part while trying to minimize the ε part.
+    """
 
     def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
@@ -214,7 +234,15 @@ class DualRing(QuadraticRing):
 
 
 class SplitRing(QuadraticRing):
-    """Handle overrides for D=1, split integer solutions"""
+    """
+    Handle overrides for D=1, split integer solutions
+
+    This class performs division in the split (u, v) coordinates (where multiplication
+        is component-wise), choosing a quotient that reduces both components and yields a
+        more stable, integer-like remainder.
+
+    This structural shortcut is only possible with D=1 (because Z[sqrt(1)]... well, splits.)
+    """
 
     def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
@@ -266,37 +294,77 @@ class SplitRing(QuadraticRing):
         return q, r
 
 
-class ImagRing(QuadraticRing):
-    """Handle overrides for D<0, quadratic imaginary solutions"""
+class RealNormEuclidRing(QuadraticRing):
+    """
+    Handle overrides for D>0 where the ring of integers is norm-Euclidean.
+
+    This is a general algorithm that does a wider search.
+    """
+
+    __slots__ = ()
 
     def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
-        """Don't go to superclass logic, just create the object. Needed for mypyc"""
+        """Don't go to superclass logic, just create the object. Needed for mypyc."""
         return object.__new__(cls)
 
     def divmod(self, x: "QuadInt", y: "QuadInt"):
-        """Division with D<0"""
-        n = abs(y)
-        num = x * y.conjugate()  # still in numerator-units for /den representation
+        """
+        Division in a norm-Euclidean real quadratic ring.
 
-        if n == 0:
+        We use the absolute norm as the Euclidean function:
+            f(z) = |N(z)|.
+
+        For the known finite list of D where the ring of integers is norm-Euclidean,
+        there exists q such that |N(x - qy)| < |N(y)|.
+
+        Raises:
+            ZeroDivisionError: If the magnitude of the divisor is 0.
+
+        Returns:
+            q, r: The quotient and remainder
+        """
+        Ny = abs(y)              # signed norm (may be negative for D>0)
+        absNy = abs(Ny)
+        if absNy == 0:
             raise ZeroDivisionError
 
-        A0 = _round_div_ties_away_from_zero(num.a, n)
-        B0 = _round_div_ties_away_from_zero(num.b, n)
-        absD = -self.D
+        # Candidate center from x/y ≈ (x * conj(y)) / N(y)
+        num = x * y.conjugate()
+
+        A0 = _round_div_ties_away_from_zero(num.a, Ny)
+        B0 = _round_div_ties_away_from_zero(num.b, Ny)
+        dd = self.den ** 2
+        threshold = absNy * absNy * dd
 
         def B0_for_A(A: int) -> int:  # noqa: ARG001
             return B0
 
+        # Prefer any norm-reducing remainder; among those, minimize |N(r)| then distance to (A0,B0).
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
-            da = A * n - num.a
-            db = B * n - num.b
-            return (da * da + absD * (db * db), )
+            da = A * Ny - num.a
+            db = B * Ny - num.b
 
-        bestA, bestB = _choose_best_in_neighborhood(
-            A0=A0, B0_for_A=B0_for_A, score_for_AB=score_for_AB, den=self.den,
+            # numerator of N(w) where w=(da + db*sqrt(D))/den
+            nw_num = da * da - self.D * (db * db)
+            abs_nw_num = abs(nw_num)
+
+            # norm-reducing condition: |N(w)| < |Ny|^2  <=>  |nw_num| < |Ny|^2 * den^2
+            flag = 0 if abs_nw_num < threshold else 1
+
+            dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
+            return flag, abs_nw_num, dist2
+
+        # Expand search radius until we find a norm-reducing remainder.
+        for rad in (1, 2, 3, 4, 6, 8):
+            bestA, bestB = _choose_best_in_neighborhood(
+                A0=A0, B0_for_A=B0_for_A, score_for_AB=score_for_AB, den=self.den, radius=rad,
+            )
+
+            q = x._make(bestA, bestB)
+            r = x - q * y
+            if abs(abs(r)) < absNy:
+                return q, r
+
+        raise NotImplementedError(
+            f"No norm-reducing quotient found for D={self.D}, den={self.den} within search radii",
         )
-
-        q = x._make(bestA, bestB)
-        r = x - q * y
-        return q, r
