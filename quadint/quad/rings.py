@@ -322,6 +322,7 @@ class RealNormEuclidRing(QuadraticRing):
 
         Raises:
             ZeroDivisionError: If the magnitude of the divisor is 0.
+            ArithmeticError: In the event of a parity mismatch.
 
         Returns:
             q, r: The quotient and remainder
@@ -332,10 +333,22 @@ class RealNormEuclidRing(QuadraticRing):
             raise ZeroDivisionError
 
         # Candidate center from x/y ≈ (x * conj(y)) / N(y)
-        num = x * y.conjugate()
+        a1, b1 = x.a, x.b
+        a2, b2 = y.a, y.b
 
-        A0 = _round_div_ties_away_from_zero(num.a, Ny)
-        B0 = _round_div_ties_away_from_zero(num.b, Ny)
+        # num = x * conj(y), but computed in numerators directly
+        # (a1+b1√D)(a2-b2√D) = (a1*a2 - b1*b2*D) + (a2*b1 - a1*b2)√D
+        num_a = a1 * a2 - b1 * b2 * self.D
+        num_b = a2 * b1 - a1 * b2
+
+        if self.den != 1:
+            if (num_a % self.den) != 0 or (num_b % self.den) != 0:
+                raise ArithmeticError("Non-integral product; check ring parameters / parity")
+            num_a //= self.den
+            num_b //= self.den
+
+        A0 = _round_div_ties_away_from_zero(num_a, Ny)
+        B0 = _round_div_ties_away_from_zero(num_b, Ny)
         dd = self.den ** 2
         threshold = absNy * absNy * dd
 
@@ -344,8 +357,8 @@ class RealNormEuclidRing(QuadraticRing):
 
         # Prefer any norm-reducing remainder; among those, minimize |N(r)| then distance to (A0,B0).
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
-            da = A * Ny - num.a
-            db = B * Ny - num.b
+            da = A * Ny - num_a
+            db = B * Ny - num_b
 
             # numerator of N(w) where w=(da + db*sqrt(D))/den
             nw_num = da * da - self.D * (db * db)
@@ -363,9 +376,13 @@ class RealNormEuclidRing(QuadraticRing):
                 A0=A0, B0_for_A=B0_for_A, score_for_AB=score_for_AB, den=self.den, radius=rad,
             )
 
-            q = x._make(bestA, bestB)
-            r = x - q * y
-            if abs(abs(r)) < absNy:
+            da = bestA * Ny - num_a
+            db = bestB * Ny - num_b
+            nw_num = da * da - self.D * (db * db)
+
+            if abs(nw_num) < threshold:
+                q = x._make(bestA, bestB)
+                r = x - q * y
                 return q, r
 
         raise NotImplementedError(
