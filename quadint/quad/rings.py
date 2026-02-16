@@ -163,7 +163,7 @@ class QuadraticRing:
             a = int(n)
             b = 0
         elif isinstance(n, complex):
-            if self.D != -1 and self.den != 1:
+            if self.D != -1 or self.den != 1:
                 raise TypeError("Cannot mix QuadInt from different rings")
 
             a = int(n.real)
