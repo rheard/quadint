@@ -12,12 +12,12 @@ import quadint.dual
 from quadint import QuadInt, QuadraticRing
 from quadint.dual import dualint
 
-@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
-                    reason="Compiled-only test")
+
+@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of dualint"""
     path = Path(quadint.dual.__file__)
-    assert path.suffix.lower() != '.py'
+    assert path.suffix.lower() != ".py"
 
 
 def test_is_instance():
@@ -41,6 +41,7 @@ def test_alias():
 
 class DualIntTests:
     """Support methods for testing dualint"""
+
     a, b, a_int, b_int = None, None, None, None
 
     def setup_method(self, _):
@@ -88,8 +89,7 @@ class TestAdd(DualIntTests):
         """Test dualint + dualint"""
         res_int = self.a_int + self.b_int
 
-        self.assert_dual_equal((self.a_int.real + self.b_int.real, self.a_int.dual + self.b_int.dual),
-                               res_int)
+        self.assert_dual_equal((self.a_int.real + self.b_int.real, self.a_int.dual + self.b_int.dual), res_int)
 
     def test_add_int(self):
         """Test dualint + int"""
@@ -127,8 +127,7 @@ class TestSub(DualIntTests):
         """Test dualint - dualint"""
         res_int = self.a_int - self.b_int
 
-        self.assert_dual_equal((self.a_int.real - self.b_int.real, self.a_int.dual - self.b_int.dual),
-                               res_int)
+        self.assert_dual_equal((self.a_int.real - self.b_int.real, self.a_int.dual - self.b_int.dual), res_int)
 
     def test_sub_int(self):
         """Test dualint - int"""

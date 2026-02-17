@@ -13,9 +13,10 @@ class dualint(QuadInt):
         real (int): The real component.
         dual (int): The dual or epsilon component.
     """
+
     __slots__ = ()
 
-    SYMBOL: ClassVar[str] = 'ε'
+    SYMBOL: ClassVar[str] = "ε"
 
     def __init__(self, a: int = 0, b: int = 0) -> None:
         """Initialize a dualint instance (use the _ZE ring by default)."""

@@ -225,7 +225,10 @@ class DualRing(QuadraticRing):
             return r0 * r0, r1 * r1
 
         bestA, bestB = _choose_best_in_neighborhood(
-            A0=A0, B0_for_A=B0_for_A, score_for_AB=score_for_AB, den=self.den,
+            A0=A0,
+            B0_for_A=B0_for_A,
+            score_for_AB=score_for_AB,
+            den=self.den,
         )
 
         q = x._make(bestA, bestB)
@@ -272,7 +275,7 @@ class SplitRing(QuadraticRing):
             # remainder in (u,v)
             ru = u1 - A * u2
             rv = v1 - B * v2
-            return (ru * ru + rv * rv, )
+            return (ru * ru + rv * rv,)
 
         # We only need qu ≡ qv (mod 2) when self.den is odd (in practice: self.den==1),
         # because we later divide (qu±qv)*self.den by 2.
@@ -327,7 +330,7 @@ class RealNormEuclidRing(QuadraticRing):
         Returns:
             q, r: The quotient and remainder
         """
-        Ny = abs(y)              # signed norm (may be negative for D>0)
+        Ny = abs(y)  # signed norm (may be negative for D>0)
         absNy = abs(Ny)
         if absNy == 0:
             raise ZeroDivisionError
@@ -349,7 +352,7 @@ class RealNormEuclidRing(QuadraticRing):
 
         A0 = _round_div_ties_away_from_zero(num_a, Ny)
         B0 = _round_div_ties_away_from_zero(num_b, Ny)
-        dd = self.den ** 2
+        dd = self.den**2
         threshold = absNy * absNy * dd
 
         def B0_for_A(A: int) -> int:  # noqa: ARG001
@@ -373,7 +376,11 @@ class RealNormEuclidRing(QuadraticRing):
         # Expand search radius until we find a norm-reducing remainder.
         for rad in (1, 2, 3, 4, 6, 8):
             bestA, bestB = _choose_best_in_neighborhood(
-                A0=A0, B0_for_A=B0_for_A, score_for_AB=score_for_AB, den=self.den, radius=rad,
+                A0=A0,
+                B0_for_A=B0_for_A,
+                score_for_AB=score_for_AB,
+                den=self.den,
+                radius=rad,
             )
 
             da = bestA * Ny - num_a

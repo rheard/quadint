@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
-OP_TYPES = Union['QuadInt', OTHER_OP_TYPES]
+OP_TYPES = Union["QuadInt", OTHER_OP_TYPES]
 
 
 class QuadInt:
@@ -14,6 +14,7 @@ class QuadInt:
 
     Stored as numerators a,b for (a + b*sqrt(D)) / den.
     """
+
     __slots__ = ("ring", "a", "b")
 
     ring: "QuadraticRing"
@@ -226,6 +227,7 @@ class QuadInt:
     def __mod__(self, other: OP_TYPES):
         _, r = divmod(self, other)
         return r
+
     # endregion
 
     def __abs__(self) -> int:

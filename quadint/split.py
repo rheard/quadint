@@ -17,9 +17,10 @@ class splitint(QuadInt):
         real (int): The real component.
         hyper (int): The hyperbolic (j) component.
     """
+
     __slots__ = ()
 
-    SYMBOL: ClassVar[str] = 'j'
+    SYMBOL: ClassVar[str] = "j"
 
     def __init__(self, a: int = 0, b: int = 0) -> None:
         """Initialize a splitint instance (use the _ZJ ring by default)."""

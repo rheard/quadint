@@ -11,6 +11,7 @@ class eisensteinint(QuadInt):
         real (int): The real component.
         omega (int): The omega component.
     """
+
     __slots__ = ()
 
     def __init__(self, a: int = 0, b: int = 0) -> None:

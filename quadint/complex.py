@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from quadint.quad import OP_TYPES, QuadInt, QuadraticRing
 
-_ZI = QuadraticRing(-1)   # Gaussian integers
+_ZI = QuadraticRing(-1)  # Gaussian integers
 
 
 class complexint(QuadInt):
@@ -13,6 +13,7 @@ class complexint(QuadInt):
         real (int): The real component.
         imag (int): The imaginary component.
     """
+
     __slots__ = ()
 
     SYMBOL: ClassVar[str] = "j"

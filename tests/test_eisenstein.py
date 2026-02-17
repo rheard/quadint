@@ -12,12 +12,12 @@ import quadint.eisenstein
 from quadint import QuadInt, QuadraticRing
 from quadint.eisenstein import eisensteinint as eisenstein
 
-@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
-                    reason="Compiled-only test")
+
+@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of eisensteinint"""
     path = Path(quadint.eisenstein.__file__)
-    assert path.suffix.lower() != '.py'
+    assert path.suffix.lower() != ".py"
 
 
 def test_is_instance():
@@ -34,6 +34,7 @@ def test_ring_is_singleton():
 
 class EisensteinIntTests:
     """Support methods for testing eisensteinint"""
+
     a, b, a_int, b_int = None, None, None, None
 
     def setup_method(self, _):
@@ -81,8 +82,7 @@ class TestAdd(EisensteinIntTests):
         """Test eisensteinint + eisensteinint"""
         res_int = self.a_int + self.b_int
 
-        self.assert_eisenstein_equal((self.a_int.real + self.b_int.real, self.a_int.omega + self.b_int.omega),
-                                     res_int)
+        self.assert_eisenstein_equal((self.a_int.real + self.b_int.real, self.a_int.omega + self.b_int.omega), res_int)
 
     def test_add_int(self):
         """Test eisensteinint + int"""
@@ -120,8 +120,7 @@ class TestSub(EisensteinIntTests):
         """Test eisensteinint - eisensteinint"""
         res_int = self.a_int - self.b_int
 
-        self.assert_eisenstein_equal((self.a_int.real - self.b_int.real, self.a_int.omega - self.b_int.omega),
-                                     res_int)
+        self.assert_eisenstein_equal((self.a_int.real - self.b_int.real, self.a_int.omega - self.b_int.omega), res_int)
 
     def test_sub_int(self):
         """Test eisensteinint - int"""

@@ -18,6 +18,7 @@ import quadint
 from quadint import QuadInt
 from quadint.quad import QuadraticRing
 
+
 @pytest.mark.skipif(
     os.getenv("CI", "").lower() not in {"1", "true", "yes"},
     reason="Compiled-only test",
@@ -74,8 +75,8 @@ class TestQuadraticRingSingleton(RingTests):
 
     def test_different_den(self):
         """QuadraticRing(D, den=...) must singleton by (D, den) key"""
-        q_default = QuadraticRing(-3)      # default den=2
-        q_other = QuadraticRing(-3, 1)     # non-maximal order (or at least non-default)
+        q_default = QuadraticRing(-3)  # default den=2
+        q_other = QuadraticRing(-3, 1)  # non-maximal order (or at least non-default)
         self.assert_diff_ring_obj(q_default, q_other)
 
         assert q_default.D == q_other.D
@@ -89,7 +90,7 @@ class TestQuadraticRingSingleton(RingTests):
 
     def test_repeated_calls_do_not_mutate_cached_instance(self):
         """Repeated construction should not corrupt cached fields"""
-        q = QuadraticRing(1)          # default den=2
+        q = QuadraticRing(1)  # default den=2
         assert q.D == 1
         assert q.den == 2
 
@@ -119,10 +120,10 @@ class TestIdentityChecksWithQuadInt(RingTests):
 
     def test_elements_from_different_den_do_not_mix(self):
         """Identity checks should still protect against mixing different rings (even with same D)."""
-        Q_default = QuadraticRing(-3)      # den=2
-        Q_other = QuadraticRing(-3, 1)     # den=1
+        Q_default = QuadraticRing(-3)  # den=2
+        Q_other = QuadraticRing(-3, 1)  # den=1
 
-        a = QuadInt(Q_default, 2, 0)       # ok parity for den=2
+        a = QuadInt(Q_default, 2, 0)  # ok parity for den=2
         b = QuadInt(Q_other, 1, 0)
 
         with pytest.raises(TypeError):
@@ -138,6 +139,7 @@ sqrt31 = QuadraticRing(31)
 
 class TestDiv:
     """Tests for __div__"""
+
     a, b, a_int, b_int = None, None, None, None
 
     def setup_method(self, _):
@@ -231,7 +233,7 @@ class TestDiv:
         m = ZI(2, 1)
 
         got = pow(x, 13, m)
-        expected = (x ** 13) % m
+        expected = (x**13) % m
 
         self.assert_quad_equal((expected.a, expected.b), got)
 
@@ -252,7 +254,7 @@ class TestDiv:
         x = ZI(5, 2)
 
         got = pow(x, 20, 7)
-        expected = (x ** 20) % 7
+        expected = (x**20) % 7
 
         self.assert_quad_equal((expected.a, expected.b), got)
 

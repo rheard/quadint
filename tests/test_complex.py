@@ -15,18 +15,18 @@ from quadint import (
     complexint as complexi,
 )
 
-@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"},
-                    reason="Compiled-only test")
+
+@pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
 def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of complexint"""
     path = Path(quadint.__file__)
-    assert path.suffix.lower() != '.py'
+    assert path.suffix.lower() != ".py"
 
 
 def test_precision():
     """Test the purpose of this package: the difference in precision when compared to complex"""
     # This number + 1 has too much precision to be stored in a double
-    LAST_NUM = 2 ** 53
+    LAST_NUM = 2**53
 
     a = complex(LAST_NUM, 1)
     b = complex(LAST_NUM, 1)
@@ -43,7 +43,7 @@ def test_precision():
 
 def test_int_precision():
     """Validate mypyc isn't using limited-precision integers like int64 or something"""
-    LAST_NUM = 2 ** 64
+    LAST_NUM = 2**64
 
     a = complexi(LAST_NUM, 1)
     assert a.real == LAST_NUM
@@ -67,6 +67,7 @@ def test_ring_is_singleton():
 
 class ComplexIntTests:
     """Support methods for testing complexint"""
+
     a, b, a_int, b_int = None, None, None, None
 
     def setup_method(self, _):
@@ -359,16 +360,16 @@ class TestPow(ComplexIntTests):
 
     def test_power_identity(self):
         """Test complexint ** 1"""
-        res = self.b ** 1
-        res_int = self.b_int ** 1
+        res = self.b**1
+        res_int = self.b_int**1
 
         self.assert_complex_equal(res, res_int)
 
     def test_power_int(self):
         """Test complexint ** int"""
         for i in range(3, 20):
-            res = self.b ** i
-            res_int = self.b_int ** i
+            res = self.b**i
+            res_int = self.b_int**i
 
             self.assert_complex_equal(res, res_int)
 
