@@ -38,7 +38,7 @@ jobs:
           stubgen quadint/complex.py
           stubgen quadint/dual.py
           stubgen quadint/split.py
-          stubgen quadint/quad/int.py
+          stubgen quadint/quad/int.py --include-private
           stubgen quadint/quad/rings.py
           mkdir -p quadint-stubs
           mkdir -p quadint-stubs/quad
