@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from quadint.quad import QuadInt, QuadraticRing
 
 _ZW = QuadraticRing(-3)
@@ -14,19 +16,19 @@ class eisensteinint(QuadInt):
 
     __slots__ = ()
 
-    def __init__(self, a: int = 0, b: int = 0) -> None:
+    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = _ZW) -> None:
         """Initialize an eisensteinint instance."""
         # user basis: a + b*ω, where ω = (-1 + sqrt(-3))/2
         # internal numerator basis: (2a - b) + b*sqrt(-3) over den=2
         a, b = int(a), int(b)
-        super().__init__(_ZW, 2 * a - b, b)
+        super().__init__(2 * a - b, b, ring)
 
-    def _make(self, A: int, B: int) -> "eisensteinint":
+    def _make(self, A: int, B: int) -> eisensteinint:
         # A,B are internal numerators for (A + B*sqrt(-3))/2
         # Convert back to ω-basis: a = (A + B)/2, b = B
         a = (A + B) // 2
         b = B
-        return eisensteinint(a, b)
+        return super()._make(a, b)
 
     @property
     def real(self) -> int:

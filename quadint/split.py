@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import ClassVar
 
 from quadint.quad import QuadInt, QuadraticRing
@@ -21,14 +23,7 @@ class splitint(QuadInt):
     __slots__ = ()
 
     SYMBOL: ClassVar[str] = "j"
-
-    def __init__(self, a: int = 0, b: int = 0) -> None:
-        """Initialize a splitint instance (use the _ZJ ring by default)."""
-        super().__init__(_ZJ, int(a), int(b))
-
-    def _make(self, a: int, b: int) -> "splitint":
-        # a,b are internal numerators; for D=+1 with den=1 these match user coords
-        return splitint(a, b)
+    DEFAULT_RING = _ZJ
 
     @property
     def real(self) -> int:

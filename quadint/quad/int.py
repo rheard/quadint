@@ -25,9 +25,14 @@ class QuadInt:
     b: int
 
     SYMBOL: ClassVar[str] = "*sqrt({D})"
+    DEFAULT_RING: ClassVar[QuadraticRing | None] = None
 
-    def __init__(self, ring: QuadraticRing, a: int = 0, b: int = 0) -> None:
+    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = None) -> None:
         """Init and validate the integer works for this ring"""
+        ring = ring or self.DEFAULT_RING
+        if ring is None:
+            raise ValueError("A ring must be specified in some form to use a quadratic integer!")
+
         self.ring = ring
         self.a = int(a)
         self.b = int(b)
@@ -38,7 +43,7 @@ class QuadInt:
 
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
-        return self.__class__(self.ring, a, b)
+        return self.__class__(a, b, self.ring)
 
     @property
     def zero(self) -> QuadInt:

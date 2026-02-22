@@ -147,8 +147,8 @@ class TestIdentityChecksWithQuadInt(RingTests):
         Q2 = QuadraticRing(-1)
 
         # If caching is broken, this would raise TypeError in assert_same_ring (identity mismatch)
-        a = QuadInt(Q1, 1, 2)
-        b = QuadInt(Q2, 3, 4)
+        a = QuadInt(1, 2, Q1)
+        b = QuadInt(3, 4, Q2)
 
         c = a + b
         assert isinstance(c, QuadInt)
@@ -161,8 +161,8 @@ class TestIdentityChecksWithQuadInt(RingTests):
         Q_default = QuadraticRing(-3)  # den=2
         Q_other = QuadraticRing(-3, 1)  # den=1
 
-        a = QuadInt(Q_default, 2, 0)  # ok parity for den=2
-        b = QuadInt(Q_other, 1, 0)
+        a = QuadInt(2, 0, Q_default)  # ok parity for den=2
+        b = QuadInt(1, 0, Q_other)
 
         with pytest.raises(TypeError):
             _ = a + b

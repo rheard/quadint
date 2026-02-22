@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import ClassVar
 
 from quadint.quad import QuadInt, QuadraticRing
@@ -17,14 +19,7 @@ class dualint(QuadInt):
     __slots__ = ()
 
     SYMBOL: ClassVar[str] = "ε"
-
-    def __init__(self, a: int = 0, b: int = 0) -> None:
-        """Initialize a dualint instance (use the _ZE ring by default)."""
-        super().__init__(_ZE, int(a), int(b))
-
-    def _make(self, a: int, b: int) -> "dualint":
-        # a,b are internal numerators; for D=0, den=1 so these match user coords
-        return dualint(a, b)
+    DEFAULT_RING = _ZE
 
     @property
     def real(self) -> int:

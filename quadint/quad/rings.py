@@ -156,7 +156,7 @@ class QuadraticRing:
 
     def __call__(self, a: int = 0, b: int = 0) -> QuadInt:
         """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
-        return QuadInt(self, int(a), int(b))
+        return QuadInt(int(a), int(b), self)
 
     def __contains__(self, x: object) -> bool:
         """Return True iff x is a QuadInt element of this ring (by parameters)."""
@@ -184,12 +184,12 @@ class QuadraticRing:
     @property
     def zero(self) -> QuadInt:
         """Additive identity (0)."""
-        return QuadInt(self, 0, 0)
+        return QuadInt(0, 0, self)
 
     @property
     def one(self) -> QuadInt:
         """Multiplicative identity (1)."""
-        return QuadInt(self, self.den, 0)
+        return QuadInt(self.den, 0, self)
 
     def from_obj(self, n: OP_TYPES) -> QuadInt:
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
@@ -208,13 +208,13 @@ class QuadraticRing:
             return NotImplemented
 
         # The only time b is not 0 is if self.den is 1 anyway... No need to multiply
-        return QuadInt(self, a * self.den, b)
+        return QuadInt(a * self.den, b, self)
 
     def from_ab(self, a: int, b: int) -> QuadInt:
         """Create an integer keeping in mind the denominator"""
         da = int(a) * self.den
         db = int(b) * self.den
-        return QuadInt(self, da, db)
+        return QuadInt(da, db, self)
 
     def divmod(self, x: QuadInt, y: QuadInt):
         """An override for defining division algorithms in subclasses for different D values"""
@@ -258,7 +258,7 @@ class QuadraticRing:
         return factors
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return True
 
@@ -279,7 +279,7 @@ class DualRing(QuadraticRing):
         return object.__new__(cls)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == 0
 
@@ -333,7 +333,7 @@ class SplitRing(QuadraticRing):
         return object.__new__(cls)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == 1
 
@@ -494,7 +494,7 @@ class CornacchiaRing(RealNormEuclidRing):
     SPLIT_K: ClassVar[int]
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         # No, this is purely a sub-abstract base class that needs to be subclassed
         return False
@@ -657,7 +657,7 @@ class GaussianRing(CornacchiaRing):
         return x._make(x0, y0)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -1 and den == 1
 
@@ -685,7 +685,7 @@ class SqrtMinusTwoRing(CornacchiaRing):
         return x._make(x0, y0)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -2 and den == 1
 
@@ -718,7 +718,7 @@ class EisensteinRing(CornacchiaRing):
         return x._make(2 * x0, 2 * y0)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -3 and den == 2
 
@@ -784,7 +784,7 @@ class HeegnerDen2Ring(EisensteinRing):
         return cand
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         # No, this is purely a sub-abstract base class that needs to be subclassed
         return False
@@ -796,7 +796,7 @@ class HeegnerSevenRing(HeegnerDen2Ring):
     RAMIFIED_PRIME = 7
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -7 and den == 2
 
@@ -807,6 +807,6 @@ class HeegnerElevenRing(HeegnerDen2Ring):
     RAMIFIED_PRIME = 11
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -11 and den == 2

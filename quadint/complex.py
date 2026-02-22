@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import ClassVar
 
 from quadint.quad import OP_TYPES, QuadInt, QuadraticRing
@@ -17,16 +19,9 @@ class complexint(QuadInt):
     __slots__ = ()
 
     SYMBOL: ClassVar[str] = "j"
+    DEFAULT_RING = _ZI
 
-    def __init__(self, a: int = 0, b: int = 0) -> None:
-        """Initialize a complexint instance (use the _ZI ring by default)."""
-        super().__init__(_ZI, int(a), int(b))
-
-    def _make(self, a: int, b: int) -> "complexint":
-        # a,b are internal numerators; for D=-1, den=1 so these match user coords
-        return complexint(a, b)
-
-    def _from_obj(self, n: OP_TYPES) -> "complexint":
+    def _from_obj(self, n: OP_TYPES) -> complexint:
         """Make a QuadInt on the current ring from a given object"""
         if isinstance(n, (int, float)):
             a = int(n)
