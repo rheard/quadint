@@ -302,12 +302,11 @@ class SplitRing(QuadraticRing):
 
 class RealNormEuclidRing(QuadraticRing):
     """
-    Handle overrides for D>0 where the ring of integers is norm-Euclidean.
+    Handle overrides where the ring of integers is norm-Euclidean.
 
-    This is a general algorithm that does a wider search.
+    This class provides the general division algorithm used for both positive and negative
+        discriminants in NORM_EUCLID_D (excluding D=0 and D=1 special cases).
     """
-
-    __slots__ = ()
 
     def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc."""
