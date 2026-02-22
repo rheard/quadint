@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from math import gcd
-from typing import TYPE_CHECKING, ClassVar, Iterator, Optional, Union  # noqa: UP035
+from typing import TYPE_CHECKING, ClassVar, Iterator, Union  # noqa: UP035
 
 if TYPE_CHECKING:
     from quadint.quad.rings import Factorization, QuadraticRing
@@ -18,13 +20,13 @@ class QuadInt:
 
     __slots__ = ("ring", "a", "b")
 
-    ring: "QuadraticRing"
+    ring: QuadraticRing
     a: int
     b: int
 
     SYMBOL: ClassVar[str] = "*sqrt({D})"
 
-    def __init__(self, ring: "QuadraticRing", a: int = 0, b: int = 0) -> None:
+    def __init__(self, ring: QuadraticRing, a: int = 0, b: int = 0) -> None:
         """Init and validate the integer works for this ring"""
         self.ring = ring
         self.a = int(a)
@@ -39,17 +41,17 @@ class QuadInt:
         return self.__class__(self.ring, a, b)
 
     @property
-    def zero(self) -> "QuadInt":
+    def zero(self) -> QuadInt:
         """Additive identity (0)."""
         return self._make(0, 0)
 
     @property
-    def one(self) -> "QuadInt":
+    def one(self) -> QuadInt:
         """Multiplicative identity (1)."""
         return self._make(self.ring.den, 0)
 
     @property
-    def units(self) -> tuple["QuadInt", ...]:
+    def units(self) -> tuple[QuadInt, ...]:
         """
         Return the torsion units (roots of unity) in this order.
 
@@ -75,7 +77,7 @@ class QuadInt:
 
         return one, -one
 
-    def _canonical_associate(self) -> "QuadInt":
+    def _canonical_associate(self) -> QuadInt:
         """Return canonical representative among associates for stable factor output."""
 
         def key(w: QuadInt) -> tuple[int, int, int, int, int]:
@@ -110,7 +112,7 @@ class QuadInt:
         # The only time b is not 0 is if self.den is 1 anyway... No need to multiply
         return self._make(a * self.ring.den, b)
 
-    def assert_same_ring(self, other: "QuadInt"):
+    def assert_same_ring(self, other: QuadInt):
         """Raise an error if other is not in the same ring as self"""
         if self.ring is not other.ring:
             raise TypeError("Cannot mix QuadInt from different rings")
@@ -186,7 +188,7 @@ class QuadInt:
     def __rmul__(self, other: OTHER_OP_TYPES):
         return self.__mul__(other)
 
-    def __pow__(self, exp: float, mod: Optional[OP_TYPES] = None):
+    def __pow__(self, exp: float, mod: OP_TYPES | None = None):
         if isinstance(mod, _OTHER_OP_TYPES):
             mod = self._from_obj(mod)
 
@@ -294,11 +296,11 @@ class QuadInt:
             raise ArithmeticError("Non-integral norm; check ring parameters / parity")
         return num // dd
 
-    def factor(self) -> dict["QuadInt", int]:
+    def factor(self) -> dict[QuadInt, int]:
         """Return a plain factor dict whose product is `self`."""
         return self.ring.factor(self)
 
-    def factor_detail(self) -> "Factorization":
+    def factor_detail(self) -> Factorization:
         """Return structured `Factorization(unit, primes)` details."""
         return self.ring.factor_detail(self)
 

@@ -1,9 +1,10 @@
 """These are simple tests to verify splitint acts like split-complex numbers, but with int output"""
 
+from __future__ import annotations
+
 import os
 
 from pathlib import Path
-from typing import Union
 
 import pytest
 
@@ -51,7 +52,7 @@ class SplitIntTests:
         self.b_int = splitint(3, -2)
 
     @staticmethod
-    def assert_split_equal(res: Union[tuple, splitint], res_int: Union[splitint, QuadInt]):
+    def assert_split_equal(res: tuple | splitint, res_int: splitint | QuadInt):
         """Validate the splitint is equal to the validation object, and that it is still backed by integers"""
         assert res[0] == res_int.real
         assert res[1] == res_int.hyper

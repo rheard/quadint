@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import os
 
 from math import gcd, isqrt, prod
 from pathlib import Path
-from typing import Union
 
 import pytest
 
@@ -188,7 +189,7 @@ class QuadIntTests:
         self.b_cint = complexint(3, -2)
 
     @staticmethod
-    def assert_quad_equal(res: Union[tuple, QuadInt], res_int: QuadInt):
+    def assert_quad_equal(res: tuple | QuadInt, res_int: QuadInt):
         """Validate the QuadInt is equal to the validation object, and that it is still backed by integers"""
         assert res[0] == res_int.a
         assert res[1] == res_int.b

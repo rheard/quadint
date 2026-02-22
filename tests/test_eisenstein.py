@@ -1,9 +1,10 @@
 """These are simple tests to verify complexint acts very similar to complex, but just with int output"""
 
+from __future__ import annotations
+
 import os
 
 from pathlib import Path
-from typing import Union
 
 import pytest
 
@@ -44,7 +45,7 @@ class EisensteinIntTests:
         self.b_int = eisenstein(3, -2)
 
     @staticmethod
-    def assert_eisenstein_equal(res: Union[tuple, eisenstein], res_int: Union[eisenstein, QuadInt]):
+    def assert_eisenstein_equal(res: tuple | eisenstein, res_int: eisenstein | QuadInt):
         """Validate the complexint is equal to the validation object, and that it is still backed by integers"""
         assert res[0] == res_int.real
         assert res[1] == res_int.omega

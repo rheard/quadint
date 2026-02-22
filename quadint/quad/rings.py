@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass
 from math import isqrt, prod
-from typing import Callable, ClassVar, Union
+from typing import Callable, ClassVar
 
 from sympy import factorint, sqrt_mod
 
@@ -16,8 +18,8 @@ NORM_EUCLID_D: set[int] = {-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13, 17, 19, 2
 class Factorization:
     """x = unit * P1 * P2 * ... * Pk"""
 
-    unit: "QuadInt"
-    primes: dict["QuadInt", int]
+    unit: QuadInt
+    primes: dict[QuadInt, int]
 
     def prod(self):
         """Recreate the number using prod"""
@@ -35,7 +37,7 @@ def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     return -((-n + d // 2) // d)
 
 
-def _split_uv(x: "QuadInt") -> tuple[int, int]:
+def _split_uv(x: QuadInt) -> tuple[int, int]:
     """Return (u,v) for D=1 split-complex where u=(a+b)/den, v=(a-b)/den."""
     den = x.ring.den
     apb = x.a + x.b
@@ -69,7 +71,7 @@ def _choose_best_in_neighborhood(
     Returns:
         (bestA, bestB): Best candidate found.
     """
-    best_score: Union[tuple[int, ...], None] = None
+    best_score: tuple[int, ...] | None = None
     bestA = bestB = 0
 
     for A in range(A0 - radius, A0 + radius + 1):
@@ -106,7 +108,7 @@ class QuadraticRing:
     D: int
     den: int
 
-    def __new__(cls, D: int, den: Union[int, None] = None):
+    def __new__(cls, D: int, den: int | None = None):
         """Handle singleton logic"""
         D0 = int(D)
         default_den = 2 if (D0 % 4) == 1 else 1
@@ -141,7 +143,7 @@ class QuadraticRing:
         cls._CACHE[key] = new_inst
         return new_inst
 
-    def __init__(self, D: int, den: Union[int, None] = None) -> None:
+    def __init__(self, D: int, den: int | None = None) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
         self.den = (2 if (self.D % 4) == 1 else 1) if den is None else int(den)
@@ -149,7 +151,7 @@ class QuadraticRing:
     def __repr__(self) -> str:
         return f"QuadraticRing(D={self.D}, den={self.den})"
 
-    def __call__(self, a: int = 0, b: int = 0) -> "QuadInt":
+    def __call__(self, a: int = 0, b: int = 0) -> QuadInt:
         """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
         return QuadInt(self, int(a), int(b))
 
@@ -177,16 +179,16 @@ class QuadraticRing:
         return self.D == other.D and self.den == other.den
 
     @property
-    def zero(self) -> "QuadInt":
+    def zero(self) -> QuadInt:
         """Additive identity (0)."""
         return QuadInt(self, 0, 0)
 
     @property
-    def one(self) -> "QuadInt":
+    def one(self) -> QuadInt:
         """Multiplicative identity (1)."""
         return QuadInt(self, self.den, 0)
 
-    def from_obj(self, n: OP_TYPES) -> "QuadInt":
+    def from_obj(self, n: OP_TYPES) -> QuadInt:
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
         if isinstance(n, (int, float)):
             a = int(n)
@@ -205,21 +207,21 @@ class QuadraticRing:
         # The only time b is not 0 is if self.den is 1 anyway... No need to multiply
         return QuadInt(self, a * self.den, b)
 
-    def from_ab(self, a: int, b: int) -> "QuadInt":
+    def from_ab(self, a: int, b: int) -> QuadInt:
         """Create an integer keeping in mind the denominator"""
         da = int(a) * self.den
         db = int(b) * self.den
         return QuadInt(self, da, db)
 
-    def divmod(self, x: "QuadInt", y: "QuadInt"):
+    def divmod(self, x: QuadInt, y: QuadInt):
         """An override for defining division algorithms in subclasses for different D values"""
         raise NotImplementedError
 
-    def factor_detail(self, x: "QuadInt") -> "Factorization":
+    def factor_detail(self, x: QuadInt) -> Factorization:
         """Factor `x` and return structured details when supported by this ring."""
         raise NotImplementedError("Factorization is not implemented for this ring")
 
-    def factor(self, x: "QuadInt") -> dict["QuadInt", int]:
+    def factor(self, x: QuadInt) -> dict[QuadInt, int]:
         """
         Factor x and return a dict of factors whose product is exactly `x`.
 
@@ -264,11 +266,11 @@ class DualRing(QuadraticRing):
     This class will solve division for the real part while trying to minimize the ε part.
     """
 
-    def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
+    def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
         return object.__new__(cls)
 
-    def divmod(self, x: "QuadInt", y: "QuadInt"):
+    def divmod(self, x: QuadInt, y: QuadInt):
         """Division with D=0"""
         # In dual numbers, (c + dε) is invertible iff c != 0.
         n = y.a
@@ -313,11 +315,11 @@ class SplitRing(QuadraticRing):
     This structural shortcut is only possible with D=1 (because Z[sqrt(1)]... well, splits.)
     """
 
-    def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
+    def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
         return object.__new__(cls)
 
-    def divmod(self, x: "QuadInt", y: "QuadInt"):
+    def divmod(self, x: QuadInt, y: QuadInt):
         """Division with D=1"""
         u1, v1 = _split_uv(x)
         u2, v2 = _split_uv(y)
@@ -374,11 +376,11 @@ class RealNormEuclidRing(QuadraticRing):
         discriminants in NORM_EUCLID_D (excluding D=0 and D=1 special cases).
     """
 
-    def __new__(cls, D: int, den: Union[int, None] = None):  # noqa: ARG004
+    def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc."""
         return object.__new__(cls)
 
-    def divmod(self, x: "QuadInt", y: "QuadInt"):
+    def divmod(self, x: QuadInt, y: QuadInt):
         """
         Division in a norm-Euclidean real quadratic ring.
 
@@ -477,15 +479,15 @@ class CornacchiaRing(RealNormEuclidRing):
         raise NotImplementedError
 
     @classmethod
-    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
         raise NotImplementedError
 
     @classmethod
-    def _inert_generator(cls, x: "QuadInt", p: int) -> "QuadInt":
+    def _inert_generator(cls, x: QuadInt, p: int) -> QuadInt:
         return x._make(p, 0)
 
     @classmethod
-    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":
+    def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:
         raise NotImplementedError
 
     @classmethod
@@ -514,7 +516,7 @@ class CornacchiaRing(RealNormEuclidRing):
 
         return b, y
 
-    def factor_detail(self, x: "QuadInt") -> "Factorization":
+    def factor_detail(self, x: QuadInt) -> Factorization:
         """
         Return a structured factorization for Cornacchia-style imaginary quadratic rings.
 
@@ -618,11 +620,11 @@ class GaussianRing(CornacchiaRing):
         return p % 4 == 3
 
     @classmethod
-    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
         return x._make(1, 1)
 
     @classmethod
-    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":  # noqa: ARG003
+    def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:  # noqa: ARG003
         return x._make(x0, y0)
 
 
@@ -641,11 +643,11 @@ class SqrtMinusTwoRing(CornacchiaRing):
         return p % 8 in (5, 7)
 
     @classmethod
-    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
         return x._make(0, 1)
 
     @classmethod
-    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":  # noqa: ARG003
+    def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:  # noqa: ARG003
         return x._make(x0, y0)
 
 
@@ -664,15 +666,15 @@ class EisensteinRing(CornacchiaRing):
         return p % 3 == 2
 
     @classmethod
-    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
         return x._make(3, 1)
 
     @classmethod
-    def _inert_generator(cls, x: "QuadInt", p: int) -> "QuadInt":
+    def _inert_generator(cls, x: QuadInt, p: int) -> QuadInt:
         return x._make(2 * p, 0)
 
     @classmethod
-    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":  # noqa: ARG003
+    def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:  # noqa: ARG003
         # Convert x0**2 + 3*y0**2 = p into internal numerator basis (A + B*sqrt(-3))/2.
         return x._make(2 * x0, 2 * y0)
 
@@ -683,7 +685,7 @@ class HeegnerDen2Ring(EisensteinRing):
     SPLIT_K = 1  # unused by this strategy
 
     @staticmethod
-    def _gcd_ring(a: "QuadInt", b: "QuadInt") -> "QuadInt":
+    def _gcd_ring(a: QuadInt, b: QuadInt) -> QuadInt:
         """Compute a gcd using Euclidean division in norm-Euclidean rings."""
         x, y = a, b
         while y:
@@ -708,7 +710,7 @@ class HeegnerDen2Ring(EisensteinRing):
         return sqrt_mod(-cls.RAMIFIED_PRIME, p, all_roots=False) is None
 
     @classmethod
-    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
         return x._make(0, 2)
 
     @classmethod
@@ -729,7 +731,7 @@ class HeegnerDen2Ring(EisensteinRing):
         return t, t_alt
 
     @classmethod
-    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":
+    def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:
         p_elem = x._make(2 * p, 0)
         cand = cls._gcd_ring(p_elem, x._make(x0, 1))
         if abs(cand) in (1, p * p):

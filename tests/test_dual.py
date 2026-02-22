@@ -1,9 +1,10 @@
 """These are simple tests to verify complexint acts very similar to complex, but just with int output"""
 
+from __future__ import annotations
+
 import os
 
 from pathlib import Path
-from typing import Union
 
 import pytest
 
@@ -51,7 +52,7 @@ class DualIntTests:
         self.b_int = dualint(3, -2)
 
     @staticmethod
-    def assert_dual_equal(res: Union[tuple, dualint], res_int: Union[dualint, QuadInt]):
+    def assert_dual_equal(res: tuple | dualint, res_int: dualint | QuadInt):
         """Validate the complexint is equal to the validation object, and that it is still backed by integers"""
         assert res[0] == res_int.real
         assert res[1] == res_int.dual
