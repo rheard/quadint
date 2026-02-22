@@ -12,6 +12,12 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
  
 Designed for discrete math, number theory tooling, and high-throughput exact computations (this project is built to compile cleanly with **mypyc**).
 
+New helper methods on every quadratic integer value:
+
+* `x.content()` — largest positive integer `n` such that `x = n*y` in the same ring.
+* `x.factor_detail()` — structured factorization as `Factorization(unit, primes)`.
+* `x.factor()` — a plain `{prime_like_factor: exponent}` mapping whose product is exactly `x`.
+
 ---
 
 ## Installation
@@ -118,6 +124,12 @@ print(z * w)          # 0j   (zero divisor behavior)
 
 * This package is primarily intended for **exact, discrete** arithmetic (`+`, `-`, `*`, `**`, conjugation, norms).
 * Division helpers (`divmod`, `//`, `%`, `/`) are implemented for **dual numbers** (`D=0`) and **split-complex integers** (`D=1`), and for the finite set of **norm-Euclidean** quadratic rings (including selected `D<0` and `D>0`) **at the default/maximal denominator**; outside these cases division may raise `NotImplementedError` (and `ZeroDivisionError` for zero divisors).
+* Factorization (`factor` / `factor_detail`) is currently implemented for:
+  * `complexint` (`D=-1, den=1`),
+  * `QuadraticRing(-2, den=1)`,
+  * `eisensteinint` (`D=-3, den=2`),
+  * and the Heegner maximal orders for `D=-7` and `D=-11`.
+  Other rings may raise `NotImplementedError`.
 * **Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
 
 Example of truncation behavior:
@@ -157,5 +169,9 @@ print(a + 1.5)   # "(4+6j)"  (1.5 -> 1)
 
 * `x.conjugate()`
 * `abs(x)` (norm)
+* `x.units` (finite torsion unit subgroup exposed as a tuple)
+* `x.content()`
+* `x.factor_detail()` (returns `Factorization(unit, primes)`)
+* `x.factor()` (returns plain `dict[QuadInt, int]`)
 * `divmod(x, y)`, `x // y`, `x % y` (where supported)
 * Iteration/indexing over the stored coefficients: `list(x)`, `x[0]`, `x[1]`
