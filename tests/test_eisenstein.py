@@ -11,6 +11,7 @@ import quadint.eisenstein
 
 from quadint import QuadInt, QuadraticRing
 from quadint.eisenstein import eisensteinint as eisenstein
+from tests.test_quad import QuadIntTests, id_generator, norm_multiset
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -280,15 +281,113 @@ class TestConjugate(EisensteinIntTests):
 class TestRepr(EisensteinIntTests):
     """Validate the repr matches existing solutions"""
 
-    def test_examples(self):
-        """Verify some given examples"""
-        examples = [
+    @pytest.mark.parametrize(
+        ("x", "expected_repr"),
+        [
             (eisenstein(-9, 12), "(-9+12ω)"),
             (eisenstein(0, -10), "-10ω"),
             (eisenstein(0, 10), "10ω"),
             (eisenstein(10, 0), "(10+0ω)"),
             (eisenstein(5, -5), "(5-5ω)"),
-        ]
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt, expected_repr: str):
+        """Verify some given examples"""
+        assert repr(x) == expected_repr
 
-        for example, expected in examples:
-            assert repr(example) == expected
+
+class TestFactorDetail(QuadIntTests):
+    """Tests for factor_detail for eisensteinint"""
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            eisenstein(1, 0),
+            eisenstein(-1, 0),
+            eisenstein(0, 1),
+            eisenstein(5, 2),
+            eisenstein(4, 53),
+            eisenstein(6, 0),
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt):
+        """Validate some given examples"""
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+    def test_zero_raises(self):
+        """Validate zero cannot be factored"""
+        x = eisenstein(0, 0)
+        with pytest.raises(ValueError, match="0 does not have a finite factorization"):
+            _ = x.factor_detail()
+
+    def test_527_primitive_vs_full(self):
+        """Test factoring with a composite wholly real number"""
+        x = eisenstein(17 * 31, 0)  # 527
+
+        # 31 splits (norm 31 twice), 17 stays Gaussian prime (norm 17^2)
+        f_full = x.factor_detail()
+        self.assert_factoring(x, f_full)
+        assert len(f_full.primes) == 3
+        assert norm_multiset(f_full.primes) == [31, 31, 17 * 17]
+
+    def test_square(self):
+        """
+        This is designed to catch candidate pruning that accidentally drops a needed divisor.
+
+        In Eisenstein ints (D=-3, den=2), z = 2+sqrt(-3) has norm 7 (prime) so it's irreducible.
+        Therefore z^2 must factor into two norm-7 primes (up to associates).
+        """
+        z = eisenstein(1, 3)  # (4+2*sqrt(-3))/2 == 2 + sqrt(-3), norm 7
+        x = z * z
+
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+        norms = norm_multiset(f.primes)
+        assert norms.count(7) == 2, f"expected two norm-7 primes, got norms={norms} primes={f.primes}"
+
+    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
+    @pytest.mark.parametrize("b", [-5, -3, -1, 1, 3, 4])
+    def test_small_grid(self, a: int, b: int):
+        """Check factor_detail().prod() round-trips for a small Gaussian grid."""
+        x = eisenstein(a, b)
+        if not x:
+            return
+
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+    def test_associate_factorization_norm_invariant(self):
+        """Associates should keep the same factor-norm multiset."""
+        x = eisenstein(4, 53)
+        fx = x.factor_detail()
+        base_norms = norm_multiset(fx.primes)
+
+        for u in x.units:
+            y = x * u
+            fy = y.factor_detail()
+            self.assert_factoring(y, fy)
+            assert norm_multiset(fy.primes) == base_norms
+
+
+class TestFactor(QuadIntTests):
+    """Tests for factor for eisensteinint"""
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            eisenstein(4, 53),
+            eisenstein(6, 0),
+            eisenstein(17 * 31, 0),
+            eisenstein(5, 2),
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt):
+        """Validate some given examples"""
+        factors = x.factor()
+        assert isinstance(factors, dict)
+        self.assert_factoring(x, factors)
