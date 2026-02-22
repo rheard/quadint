@@ -1,8 +1,27 @@
+from collections import defaultdict
+from dataclasses import dataclass
+from math import isqrt, prod
 from typing import Callable, ClassVar, Union
+
+from sympy import factorint, sqrt_mod
 
 from quadint.quad.int import OP_TYPES, QuadInt
 
 NORM_EUCLID_D: set[int] = {-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13, 17, 19, 21, 29, 33, 37, 41, 57, 73}
+
+
+# TODO: Once Py3.9 support has been dropped, add slots=True
+# @dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
+class Factorization:
+    """x = unit * P1 * P2 * ... * Pk"""
+
+    unit: "QuadInt"
+    primes: dict["QuadInt", int]
+
+    def prod(self):
+        """Recreate the number using prod"""
+        return prod((p**k for p, k in self.primes.items()), start=self.unit)
 
 
 def _round_div_ties_away_from_zero(n: int, d: int) -> int:
@@ -104,6 +123,16 @@ class QuadraticRing:
             new_inst = DualRing(D0, den0)
         elif D0 == 1:
             new_inst = SplitRing(D0, den0)
+        elif D0 == -1 and den0 == 1:
+            new_inst = GaussianRing(D0, den0)
+        elif D0 == -2 and den0 == 1:
+            new_inst = SqrtMinusTwoRing(D0, den0)
+        elif D0 == -3 and den0 == 2:
+            new_inst = EisensteinRing(D0, den0)
+        elif D0 == -7 and den0 == 2:
+            new_inst = HeegnerSevenRing(D0, den0)
+        elif D0 == -11 and den0 == 2:
+            new_inst = HeegnerElevenRing(D0, den0)
         elif D0 in NORM_EUCLID_D and den0 == default_den:
             new_inst = RealNormEuclidRing(D0, den0)
         else:
@@ -185,6 +214,43 @@ class QuadraticRing:
     def divmod(self, x: "QuadInt", y: "QuadInt"):
         """An override for defining division algorithms in subclasses for different D values"""
         raise NotImplementedError
+
+    def factor_detail(self, x: "QuadInt") -> "Factorization":
+        """Factor `x` and return structured details when supported by this ring."""
+        raise NotImplementedError("Factorization is not implemented for this ring")
+
+    def factor(self, x: "QuadInt") -> dict["QuadInt", int]:
+        """
+        Factor x and return a dict of factors whose product is exactly `x`.
+
+        The unit part is folded into the first factor so users get a simple factor list
+            (matching familiar integer-factorization APIs).
+
+        Returns:
+            dict: A simple dictionary containing the factorization similar to sympy's factorint.
+        """
+        factorization = self.factor_detail(x)
+        unit = factorization.unit
+        factors = factorization.primes
+
+        if not factors:
+            return {x: 1}
+
+        # Pick any factor where factor * unit is already in factors,
+        #   otherwise pick the minimum exponent...
+        first_prime, first_k, first_prime_normed = min(
+            ((x, y, x * unit) for x, y in factors.items()),
+            key=lambda z: (z[2] not in factors, z[1], abs(z[0].b), abs(z[0].a)),
+        )
+
+        if first_k == 1:
+            del factors[first_prime]
+        else:
+            factors[first_prime] -= 1
+
+        folded = first_prime_normed
+        factors[folded] = factors.get(folded, 0) + 1
+        return factors
 
 
 class DualRing(QuadraticRing):
@@ -394,3 +460,291 @@ class RealNormEuclidRing(QuadraticRing):
         raise NotImplementedError(
             f"No norm-reducing quotient found for D={self.D}, den={self.den} within search radii",
         )
+
+
+class CornacchiaRing(RealNormEuclidRing):
+    """Shared split-prime factorization flow for rings with norm form x**2 + k*y**2."""
+
+    RAMIFIED_PRIME: ClassVar[int]
+    SPLIT_K: ClassVar[int]
+
+    @classmethod
+    def _is_split_prime(cls, p: int) -> bool:
+        raise NotImplementedError
+
+    @classmethod
+    def _is_inert_prime(cls, p: int) -> bool:
+        raise NotImplementedError
+
+    @classmethod
+    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+        raise NotImplementedError
+
+    @classmethod
+    def _inert_generator(cls, x: "QuadInt", p: int) -> "QuadInt":
+        return x._make(p, 0)
+
+    @classmethod
+    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":
+        raise NotImplementedError
+
+    @classmethod
+    def _decompose_prime(cls, p: int) -> tuple[int, int]:
+        """Find x,y with p = x**2 + k*y**2 for split primes, where k=SPLIT_K."""
+        if not cls._is_split_prime(p):
+            raise ValueError(f"Could not decompose {p!r}")
+
+        root = sqrt_mod(-cls.SPLIT_K, p, all_roots=False)
+        if root is None:
+            raise ValueError(f"Could not decompose {p!r}")
+
+        a = p
+        b = min(root, p - root)
+        while b * b > p:
+            a, b = b, a % b
+
+        y2_num = p - b * b
+        if y2_num % cls.SPLIT_K:
+            raise ValueError(f"Could not decompose {p!r}")
+
+        y2 = y2_num // cls.SPLIT_K
+        y = isqrt(y2)
+        if y * y != y2:
+            raise ValueError(f"Could not decompose {p!r}")
+
+        return b, y
+
+    def factor_detail(self, x: "QuadInt") -> "Factorization":
+        """
+        Return a structured factorization for Cornacchia-style imaginary quadratic rings.
+
+        The result is returned as `Factorization(unit, primes)` where `primes` is a
+            mapping ``{prime_element: exponent}`` and:
+
+        * `unit * prod(p**e for p, e in primes.items()) == x`
+        * each listed `prime_element` is a non-unit irreducible in this ring
+
+        Strategy:
+
+        1. Normalize by extracting a canonical unit associate.
+        2. Remove powers of the ramified prime generator.
+        3. Factor the remaining integer norm with ``sympy.factorint``.
+        4. For each rational prime factor, use split/inert classification:
+           * inert primes stay prime in the ring,
+           * split primes are decomposed via Cornacchia's method and tested (with conjugates)
+             as divisors.
+
+        Args:
+            x: A non-zero element of this ring.
+
+        Raises:
+            ValueError: If `x` is zero (zero has no finite prime factorization).
+
+        Returns:
+            Factorization: The unit and prime-power data for ``x``.
+        """
+        if not x:
+            raise ValueError("0 does not have a finite factorization")
+
+        rem = x
+        unit = x.one
+
+        for u in x.units:
+            q, r = divmod(rem, u)
+            if not r and (q.a, q.b) < (rem.a, rem.b):
+                rem = q
+                unit *= u
+
+        factors: dict[QuadInt, int] = defaultdict(int)
+
+        ramified = self._ramified_generator(x)
+        while True:
+            q, r = divmod(rem, ramified)
+            if r:
+                break
+            factors[ramified] += 1
+            rem = q
+
+        n = abs(rem)
+        int_factors = factorint(n)
+
+        for p in sorted(int_factors):
+            if p == self.RAMIFIED_PRIME:
+                continue
+
+            if self._is_inert_prime(p):
+                cand = self._inert_generator(x, p)
+                while True:
+                    q, r = divmod(rem, cand)
+                    if r:
+                        break
+                    factors[cand] += 1
+                    rem = q
+                continue
+
+            if self._is_split_prime(p):
+                x0, y0 = self._decompose_prime(p)
+                cand_base = self._split_generator(x, p, x0, y0)
+                for cand in (cand_base, cand_base.conjugate()):
+                    if abs(cand) <= 1:
+                        continue
+                    while rem != self.den:
+                        q, r = divmod(rem, cand)
+                        if r:
+                            break
+                        factors[cand] += 1
+                        rem = q
+
+        if abs(rem) != 1:
+            factors[rem] += 1
+        else:
+            unit *= rem
+
+        return Factorization(unit=unit, primes=dict(factors))
+
+
+class GaussianRing(CornacchiaRing):
+    """Specialized factorization strategy for Gaussian integers Z[i]."""
+
+    RAMIFIED_PRIME = 2
+    SPLIT_K = 1
+
+    @classmethod
+    def _is_split_prime(cls, p: int) -> bool:
+        return p % 4 == 1
+
+    @classmethod
+    def _is_inert_prime(cls, p: int) -> bool:
+        return p % 4 == 3
+
+    @classmethod
+    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+        return x._make(1, 1)
+
+    @classmethod
+    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":  # noqa: ARG003
+        return x._make(x0, y0)
+
+
+class SqrtMinusTwoRing(CornacchiaRing):
+    """Specialized factorization strategy for Z[sqrt(-2)]."""
+
+    RAMIFIED_PRIME = 2
+    SPLIT_K = 2
+
+    @classmethod
+    def _is_split_prime(cls, p: int) -> bool:
+        return p % 8 in (1, 3)
+
+    @classmethod
+    def _is_inert_prime(cls, p: int) -> bool:
+        return p % 8 in (5, 7)
+
+    @classmethod
+    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+        return x._make(0, 1)
+
+    @classmethod
+    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":  # noqa: ARG003
+        return x._make(x0, y0)
+
+
+class EisensteinRing(CornacchiaRing):
+    """Specialized factorization strategy for Eisenstein integers Z[ω]."""
+
+    RAMIFIED_PRIME = 3
+    SPLIT_K = 3
+
+    @classmethod
+    def _is_split_prime(cls, p: int) -> bool:
+        return p % 3 == 1
+
+    @classmethod
+    def _is_inert_prime(cls, p: int) -> bool:
+        return p % 3 == 2
+
+    @classmethod
+    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+        return x._make(3, 1)
+
+    @classmethod
+    def _inert_generator(cls, x: "QuadInt", p: int) -> "QuadInt":
+        return x._make(2 * p, 0)
+
+    @classmethod
+    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":  # noqa: ARG003
+        # Convert x0**2 + 3*y0**2 = p into internal numerator basis (A + B*sqrt(-3))/2.
+        return x._make(2 * x0, 2 * y0)
+
+
+class HeegnerDen2Ring(EisensteinRing):
+    """Shared split-prime factorization helper for D=-7 and D=-11 (den=2)."""
+
+    SPLIT_K = 1  # unused by this strategy
+
+    @staticmethod
+    def _gcd_ring(a: "QuadInt", b: "QuadInt") -> "QuadInt":
+        """Compute a gcd using Euclidean division in norm-Euclidean rings."""
+        x, y = a, b
+        while y:
+            x, y = y, divmod(x, y)[1]
+
+        return x._canonical_associate()
+
+    @classmethod
+    def _is_split_prime(cls, p: int) -> bool:
+        if p == cls.RAMIFIED_PRIME:
+            return False
+        if p == 2:
+            return -cls.RAMIFIED_PRIME % 8 == 1
+        return sqrt_mod(-cls.RAMIFIED_PRIME, p, all_roots=False) is not None
+
+    @classmethod
+    def _is_inert_prime(cls, p: int) -> bool:
+        if p == cls.RAMIFIED_PRIME:
+            return False
+        if p == 2:
+            return -cls.RAMIFIED_PRIME % 8 == 5
+        return sqrt_mod(-cls.RAMIFIED_PRIME, p, all_roots=False) is None
+
+    @classmethod
+    def _ramified_generator(cls, x: "QuadInt") -> "QuadInt":
+        return x._make(0, 2)
+
+    @classmethod
+    def _decompose_prime(cls, p: int) -> tuple[int, int]:
+        """Return odd representatives of the two sqrt(D) roots modulo p."""
+        root = sqrt_mod(-cls.RAMIFIED_PRIME, p, all_roots=False)
+        if root is None:
+            raise ValueError(f"Could not decompose {p!r}")
+
+        t = int(root)
+        if (t ^ 1) & 1:
+            t += p
+
+        t_alt = p - int(root)
+        if (t_alt ^ 1) & 1:
+            t_alt += p
+
+        return t, t_alt
+
+    @classmethod
+    def _split_generator(cls, x: "QuadInt", p: int, x0: int, y0: int) -> "QuadInt":
+        p_elem = x._make(2 * p, 0)
+        cand = cls._gcd_ring(p_elem, x._make(x0, 1))
+        if abs(cand) in (1, p * p):
+            cand = cls._gcd_ring(p_elem, x._make(y0, 1))
+
+        return cand
+
+
+class HeegnerSevenRing(HeegnerDen2Ring):
+    """Specialized factorization strategy for the maximal order with D=-7."""
+
+    RAMIFIED_PRIME = 7
+
+
+class HeegnerElevenRing(HeegnerDen2Ring):
+    """Specialized factorization strategy for the maximal order with D=-11."""
+
+    RAMIFIED_PRIME = 11
