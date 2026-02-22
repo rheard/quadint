@@ -126,6 +126,7 @@ ignore=[
     "D104",    # Missing docstring in public package
     "D105",    # Missing docstring in magic method
     "D202",    # Blank line after function docstring
+    "D205",   # Missing blank line after summary
     "D212",    # Multi-line docstring summary should start at the first line
     "D415",    # Closing punctuation on docstrings
     "PT013",   # Incorrect import of pytest

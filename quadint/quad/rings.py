@@ -129,22 +129,10 @@ class QuadraticRing:
 
         # choose subclass
         new_inst: QuadraticRing
-        if D0 == 0:
-            new_inst = DualRing(D0, den0)
-        elif D0 == 1:
-            new_inst = SplitRing(D0, den0)
-        elif D0 == -1 and den0 == 1:
-            new_inst = GaussianRing(D0, den0)
-        elif D0 == -2 and den0 == 1:
-            new_inst = SqrtMinusTwoRing(D0, den0)
-        elif D0 == -3 and den0 == 2:
-            new_inst = EisensteinRing(D0, den0)
-        elif D0 == -7 and den0 == 2:
-            new_inst = HeegnerSevenRing(D0, den0)
-        elif D0 == -11 and den0 == 2:
-            new_inst = HeegnerElevenRing(D0, den0)
-        elif D0 in NORM_EUCLID_D and den0 == default_den:
-            new_inst = RealNormEuclidRing(D0, den0)
+        for subcls in cls._subclasses():
+            if subcls.accept_override(D0, den0, default_den):
+                new_inst = subcls(D0, den0)
+                break
         else:
             new_inst = super().__new__(cls)
 
@@ -155,6 +143,13 @@ class QuadraticRing:
         """Initialize the ring settings"""
         self.D = int(D)
         self.den = (2 if (self.D % 4) == 1 else 1) if den is None else _check_den(den)
+
+    @classmethod
+    def _subclasses(cls):
+        """Recursively yield all subclasses of cls (depth-first)."""
+        for sub in cls.__subclasses__():
+            yield from sub._subclasses()
+            yield sub
 
     def __repr__(self) -> str:
         return f"QuadraticRing(D={self.D}, den={self.den})"
@@ -262,6 +257,11 @@ class QuadraticRing:
         factors[folded] = factors.get(folded, 0) + 1
         return factors
 
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return True
+
 
 class DualRing(QuadraticRing):
     """
@@ -277,6 +277,11 @@ class DualRing(QuadraticRing):
     def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
         return object.__new__(cls)
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == 0
 
     def divmod(self, x: QuadInt, y: QuadInt):
         """Division with D=0"""
@@ -326,6 +331,11 @@ class SplitRing(QuadraticRing):
     def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
         return object.__new__(cls)
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == 1
 
     def divmod(self, x: QuadInt, y: QuadInt):
         """Division with D=1"""
@@ -387,6 +397,11 @@ class RealNormEuclidRing(QuadraticRing):
     def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc."""
         return object.__new__(cls)
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D in NORM_EUCLID_D and den == default_den
 
     def divmod(self, x: QuadInt, y: QuadInt):
         """
@@ -477,6 +492,12 @@ class CornacchiaRing(RealNormEuclidRing):
 
     RAMIFIED_PRIME: ClassVar[int]
     SPLIT_K: ClassVar[int]
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        # No, this is purely a sub-abstract base class that needs to be subclassed
+        return False
 
     @classmethod
     def _is_split_prime(cls, p: int) -> bool:
@@ -635,6 +656,11 @@ class GaussianRing(CornacchiaRing):
     def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:  # noqa: ARG003
         return x._make(x0, y0)
 
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == -1 and den == 1
+
 
 class SqrtMinusTwoRing(CornacchiaRing):
     """Specialized factorization strategy for Z[sqrt(-2)]."""
@@ -657,6 +683,11 @@ class SqrtMinusTwoRing(CornacchiaRing):
     @classmethod
     def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:  # noqa: ARG003
         return x._make(x0, y0)
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == -2 and den == 1
 
 
 class EisensteinRing(CornacchiaRing):
@@ -685,6 +716,11 @@ class EisensteinRing(CornacchiaRing):
     def _split_generator(cls, x: QuadInt, p: int, x0: int, y0: int) -> QuadInt:  # noqa: ARG003
         # Convert x0**2 + 3*y0**2 = p into internal numerator basis (A + B*sqrt(-3))/2.
         return x._make(2 * x0, 2 * y0)
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == -3 and den == 2
 
 
 class HeegnerDen2Ring(EisensteinRing):
@@ -747,14 +783,30 @@ class HeegnerDen2Ring(EisensteinRing):
 
         return cand
 
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        # No, this is purely a sub-abstract base class that needs to be subclassed
+        return False
+
 
 class HeegnerSevenRing(HeegnerDen2Ring):
     """Specialized factorization strategy for the maximal order with D=-7."""
 
     RAMIFIED_PRIME = 7
 
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == -7 and den == 2
+
 
 class HeegnerElevenRing(HeegnerDen2Ring):
     """Specialized factorization strategy for the maximal order with D=-11."""
 
     RAMIFIED_PRIME = 11
+
+    @classmethod
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:
+        """Should this class be used for the given values?"""
+        return D == -11 and den == 2
