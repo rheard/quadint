@@ -11,6 +11,7 @@ import quadint.split
 
 from quadint import QuadInt, QuadraticRing
 from quadint.split import splitint
+from tests.test_quad import id_generator
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -260,15 +261,17 @@ class TestConjugate(SplitIntTests):
 class TestRepr(SplitIntTests):
     """Validate the repr matches existing solutions"""
 
-    def test_examples(self):
-        """Verify some given examples"""
-        examples = [
+    @pytest.mark.parametrize(
+        ("x", "expected_repr"),
+        [
             (splitint(-9, 12), "(-9+12j)"),
             (splitint(0, -10), "-10j"),
             (splitint(0, 10), "10j"),
             (splitint(10, 0), "(10+0j)"),
             (splitint(5, -5), "(5-5j)"),
-        ]
-
-        for example, expected in examples:
-            assert repr(example) == expected
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt, expected_repr: str):
+        """Verify some given examples"""
+        assert repr(x) == expected_repr
