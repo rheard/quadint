@@ -120,6 +120,12 @@ class TestQuadraticRingSingleton(RingTests):
         q2 = QuadraticRing(-2)
         self.assert_diff_ring_obj(q1, q2)
 
+    @pytest.mark.parametrize("den", [0, 3, -1])
+    def test_invalid_den_rejected(self, den: int):
+        """Only den=1 or den=2 are supported by QuadraticRing."""
+        with pytest.raises(ValueError, match="den must be 1 or 2"):
+            _ = QuadraticRing(5, den)
+
     def test_repeated_calls_do_not_mutate_cached_instance(self):
         """Repeated construction should not corrupt cached fields"""
         q = QuadraticRing(1)  # default den=2

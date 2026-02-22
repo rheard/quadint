@@ -26,6 +26,14 @@ class Factorization:
         return prod((p**k for p, k in self.primes.items()), start=self.unit)
 
 
+def _check_den(den: int) -> int:
+    """Validate and return ring denominator."""
+    den0 = int(den)
+    if den0 not in (1, 2):
+        raise ValueError(f"den must be 1 or 2, got {den0!r}")
+    return den0
+
+
 def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     """Round n/d to nearest int; ties go away from 0. d must be > 0."""
     if d == 0:
@@ -112,7 +120,7 @@ class QuadraticRing:
         """Handle singleton logic"""
         D0 = int(D)
         default_den = 2 if (D0 % 4) == 1 else 1
-        den0 = default_den if den is None else int(den)
+        den0 = default_den if den is None else _check_den(den)
 
         key = (D0, den0)
         inst = cls._CACHE.get(key)
@@ -146,7 +154,7 @@ class QuadraticRing:
     def __init__(self, D: int, den: int | None = None) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
-        self.den = (2 if (self.D % 4) == 1 else 1) if den is None else int(den)
+        self.den = (2 if (self.D % 4) == 1 else 1) if den is None else _check_den(den)
 
     def __repr__(self) -> str:
         return f"QuadraticRing(D={self.D}, den={self.den})"
