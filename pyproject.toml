@@ -2,11 +2,17 @@
 requires = [
     "mypy[mypyc]",
     "setuptools",
+
+    # This is for the build system, only used for mypyc linkage.
+    #   Below versions in [project] are what will be installed and used with this project at runtime
+    # TODO: Sympy began adding mypy type-hints and removed the py.typed file.
+    #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
+    "sympy<=1.12.1",
 ]
 
 [project]
 name = "quadint"
-version = "0.0.16"
+version = "0.0.17"
 dynamic = ["license"]
 authors = [
   { name="Ryan Heard", email="ryanwheard@gmail.com" },
@@ -25,6 +31,19 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 keywords = ["complex", "math", "eisenstein"]
+dependencies = [
+    # TODO: Sympy began adding mypy type-hints and removed the py.typed file.
+    #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
+    "sympy<=1.12.1",
+]
+
+[project.optional-dependencies]
+test = [
+    "mypy[mypyc]",
+    "setuptools",
+    "pytest-xdist",
+    "ruff",
+]
 
 [project.urls]
 Repository = "https://github.com/rheard/quadint"

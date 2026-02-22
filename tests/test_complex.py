@@ -14,6 +14,8 @@ from quadint import (
     QuadraticRing,
     complexint as complexi,
 )
+from quadint.quad.rings import GaussianRing
+from tests.test_quad import QuadIntTests, id_generator, norm_multiset
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -21,6 +23,12 @@ def test_compiled_tests():
     """Verify that we are running these tests with a compiled version of complexint"""
     path = Path(quadint.__file__)
     assert path.suffix.lower() != ".py"
+
+
+def test_gaussian_ring_type():
+    """QuadraticRing(-1) should dispatch to GaussianRing."""
+    ring = QuadraticRing(-1)
+    assert isinstance(ring, GaussianRing)
 
 
 def test_precision():
@@ -432,12 +440,110 @@ class TestRepr(ComplexIntTests):
         assert repr(a) == repr(b)
         assert str(a) == str(b)
 
-    def test_examples(self):
-        """Verify some given examples"""
-        examples = [
+    @pytest.mark.parametrize(
+        ("x", "expected_repr"),
+        [
             (complexi(-9, 12), "(-9+12j)"),
             (complexi(0, -10), "-10j"),
-        ]
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt, expected_repr: str):
+        """Verify some given examples"""
+        assert repr(x) == expected_repr
 
-        for example, expected in examples:
-            assert repr(example) == expected
+
+class TestFactorDetail(QuadIntTests):
+    """Tests for factor_detail for complexint"""
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            complexi(1, 0),
+            complexi(-1, 0),
+            complexi(0, 1),
+            complexi(5, 2),
+            complexi(4, 53),
+            complexi(6, 0),
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt):
+        """Validate some given examples"""
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+    def test_zero_raises(self):
+        """Validate zero cannot be factored"""
+        x = complexi(0, 0)
+        with pytest.raises(ValueError, match="0 does not have a finite factorization"):
+            _ = x.factor_detail()
+
+    def test_527_primitive_vs_full(self):
+        """Test factoring with a composite wholly real number"""
+        x = complexi(17 * 31, 0)  # 527
+
+        # 17 splits (norm 17 twice), 31 stays Gaussian prime (norm 31^2)
+        f_full = x.factor_detail()
+        self.assert_factoring(x, f_full)
+        assert len(f_full.primes) == 3
+        assert norm_multiset(f_full.primes) == [17, 17, 31 * 31]
+
+    def test_square(self):
+        """
+        This is designed to catch candidate pruning that accidentally drops a needed divisor.
+
+        In Z[i], z = 1+2i has norm 5 (rational prime) so it's irreducible.
+            Therefore z^2 must factor into two norm-5 primes (up to associates).
+        """
+        z = complexi(1, 2)  # 1 + 2i, norm 5
+        x = z * z  # (-3 + 4i)
+
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+        norms = norm_multiset(f.primes)
+        assert norms.count(5) == 2, f"expected two norm-5 primes, got norms={norms} primes={f.primes}"
+
+    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
+    @pytest.mark.parametrize("b", [-5, -3, -1, 1, 3, 4])
+    def test_small_grid(self, a: int, b: int):
+        """Check factor_detail().prod() round-trips for a small Gaussian grid."""
+        x = complexi(a, b)
+        if not x:
+            return
+
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+    def test_associate_factorization_norm_invariant(self):
+        """Associates should keep the same factor-norm multiset."""
+        x = complexi(4, 53)
+        fx = x.factor_detail()
+        base_norms = norm_multiset(fx.primes)
+
+        for u in x.units:
+            y = x * u
+            fy = y.factor_detail()
+            assert fy.prod() == y
+            assert norm_multiset(fy.primes) == base_norms
+
+
+class TestFactor(QuadIntTests):
+    """Tests for factor for complexint"""
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            complexi(4, 53),
+            complexi(6, 0),
+            complexi(17 * 31, 0),
+            complexi(5, 2),
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt):
+        """Validate some given examples"""
+        factors = x.factor()
+        assert isinstance(factors, dict)
+        self.assert_factoring(x, factors)

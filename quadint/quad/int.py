@@ -1,7 +1,8 @@
+from math import gcd
 from typing import TYPE_CHECKING, ClassVar, Iterator, Optional, Union  # noqa: UP035
 
 if TYPE_CHECKING:
-    from quadint.quad.rings import QuadraticRing
+    from quadint.quad.rings import Factorization, QuadraticRing
 
 OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
@@ -46,6 +47,49 @@ class QuadInt:
     def one(self) -> "QuadInt":
         """Multiplicative identity (1)."""
         return self._make(self.ring.den, 0)
+
+    @property
+    def units(self) -> tuple["QuadInt", ...]:
+        """
+        Return the torsion units (roots of unity) in this order.
+
+        Notes:
+            This intentionally returns a finite subgroup only. In real quadratic rings
+            (D >= 0), the full unit group is infinite; here we expose just the torsion
+            part (typically `{±1}` except for D=1) because it is what canonical-associate and
+            factorization normalization need.
+        """
+        one = self.one
+
+        if self.ring.D == -1 and self.ring.den == 1:
+            i = self._make(0, 1)
+            return one, -one, i, -i
+
+        if self.ring.D == 1:
+            j_ = self._make(0, self.ring.den)
+            return one, -one, j_, -j_
+
+        if self.ring.D == -3 and self.ring.den == 2:
+            w = self._make(-1, 1)
+            return one, -one, w, -w, w * w, -(w * w)
+
+        return one, -one
+
+    def _canonical_associate(self) -> "QuadInt":
+        """Return canonical representative among associates for stable factor output."""
+
+        def key(w: QuadInt) -> tuple[int, int, int, int, int]:
+            return abs(w), abs(w.b), abs(w.a), w.a, w.b
+
+        best = self
+        best_k = key(self)
+        for u in self.units[1:]:
+            w = self * u
+            kw = key(w)
+            if kw < best_k:
+                best, best_k = w, kw
+
+        return best
 
     def _from_obj(self, n: OP_TYPES):
         """Make a QuadInt on the current ring from a given object"""
@@ -249,6 +293,36 @@ class QuadInt:
         if (num % dd) != 0:
             raise ArithmeticError("Non-integral norm; check ring parameters / parity")
         return num // dd
+
+    def factor(self) -> dict["QuadInt", int]:
+        """Return a plain factor dict whose product is `self`."""
+        return self.ring.factor(self)
+
+    def factor_detail(self) -> "Factorization":
+        """Return structured `Factorization(unit, primes)` details."""
+        return self.ring.factor_detail(self)
+
+    def content(self) -> int:
+        """Largest positive integer n such that x = n*y for some y in this ring."""
+        if not self:
+            return 0
+
+        g = gcd(abs(self.a), abs(self.b))
+        if g <= 1:
+            return 1
+
+        if self.ring.den == 1:
+            return g
+
+        # den == 2 rings require same parity for stored numerators.
+        # If the maximal gcd quotient has mismatched parity, reducing by one factor of 2
+        # is the unique maximal fix.
+        qa = self.a // g
+        qb = self.b // g
+        if (qa ^ qb) & 1:
+            return g // 2
+
+        return g
 
     def __bool__(self) -> bool:
         return (self.a | self.b) != 0

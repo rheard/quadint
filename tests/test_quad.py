@@ -1,13 +1,6 @@
-"""
-Tests for QuadraticRing singleton caching / identity semantics.
-
-These tests are specifically meant to catch regressions that might only show up
-after mypyc compilation: repeated construction must return the same object, and
-ring identity checks must remain valid.
-"""
-
 import os
 
+from math import gcd, isqrt, prod
 from pathlib import Path
 from typing import Union
 
@@ -15,8 +8,46 @@ import pytest
 
 import quadint
 
-from quadint import QuadInt
-from quadint.quad import QuadraticRing
+from quadint import QuadInt, complexint
+from quadint.quad import Factorization, QuadraticRing
+
+
+def id_generator(value: str):
+    """I want to see the examples in PyCharm, and this enables that..."""
+    return str(value)
+
+
+def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
+    """Return sorted list of norms with multiplicity."""
+    out: list[int] = []
+    for p, k in primes.items():
+        out.extend([abs(p)] * k)
+    out.sort()
+    return out
+
+
+def brute_content(x: QuadInt) -> int:
+    """Reference implementation: scan all divisors of gcd(a,b)."""
+    g = gcd(abs(x.a), abs(x.b))
+    if g <= 1:
+        return 1
+
+    den = x.ring.den
+    best = 1
+    r = isqrt(g)
+    for d in range(1, r + 1):
+        if g % d:
+            continue
+        for cand in (d, g // d):
+            if cand <= best:
+                continue
+            a = x.a // cand
+            b = x.b // cand
+            if den == 2 and ((a ^ b) & 1):
+                continue
+            best = cand
+
+    return best
 
 
 @pytest.mark.skipif(
@@ -131,21 +162,30 @@ class TestIdentityChecksWithQuadInt(RingTests):
 
 
 sqrtNeg17 = QuadraticRing(-17)
+sqrtNeg11 = QuadraticRing(-11)
 sqrtNeg7 = QuadraticRing(-7)
+sqrtNeg2 = QuadraticRing(-2)
+sqrt1 = QuadraticRing(1)
 sqrt2 = QuadraticRing(2)
 sqrt5 = QuadraticRing(5)
 sqrt31 = QuadraticRing(31)
 
+ZI = QuadraticRing(-1)
+ZE = QuadraticRing(-3)
 
-class TestDiv:
+
+class QuadIntTests:
     """Tests for __div__"""
 
-    a, b, a_int, b_int = None, None, None, None
+    a_int, b_int, a_cint, b_cint = None, None, None, None
 
     def setup_method(self, _):
         """Setup some test data"""
         self.a_int = sqrt2(5, 2)
         self.b_int = sqrt2(3, -2)
+
+        self.a_cint = complexint(5, 2)
+        self.b_cint = complexint(3, -2)
 
     @staticmethod
     def assert_quad_equal(res: Union[tuple, QuadInt], res_int: QuadInt):
@@ -157,6 +197,42 @@ class TestDiv:
         assert isinstance(res_int.b, int)
 
         assert isinstance(res_int, QuadInt)
+
+    def assert_factoring(self, n: QuadInt, factors: Factorization | dict):
+        """Validate everything about the factoring is correct"""
+        if isinstance(factors, Factorization):
+            ans = factors.prod()
+            primes = factors.primes
+        else:
+            ans = prod(p**k for p, k in factors.items())
+            primes = factors
+
+        self.assert_quad_equal(n, ans)
+
+        for p in primes:
+            # These _should_ all be primes and should be impossible to factor...
+            if isinstance(factors, Factorization):
+                prime_factors = p.factor_detail()
+
+                assert abs(prime_factors.unit) == 1
+                assert len(prime_factors.primes) == 1
+
+                factored_p, factored_k = next(iter(prime_factors.primes.items()))
+                assert factored_k == 1
+                # Because the unit is not integrated, the prime returned may be an associate of the prime we care about
+                assert any(p == factored_p * u for u in p.units)
+            else:
+                prime_factors = p.factor()
+
+                assert len(prime_factors) == 1
+
+                factored_p, factored_k = next(iter(prime_factors.items()))
+                assert factored_k == 1
+                assert factored_p == p
+
+
+class TestDiv(QuadIntTests):
+    """Tests for __div__"""
 
     def test_div(self):
         """Test QuadInt / QuadInt in QuadraticRing(2)"""
@@ -228,7 +304,6 @@ class TestDiv:
 
     def test_pow_mod_matches_pow_then_mod_gaussian(self):
         """pow(x, e, m) should match (x**e) % m in Gaussian integers."""
-        ZI = QuadraticRing(-1)
         x = ZI(5, 2)
         m = ZI(2, 1)
 
@@ -250,7 +325,6 @@ class TestDiv:
 
     def test_pow_mod_accepts_int_modulus(self):
         """Allow int modulus (it should embed into the same ring)."""
-        ZI = QuadraticRing(-1)
         x = ZI(5, 2)
 
         got = pow(x, 20, 7)
@@ -260,18 +334,14 @@ class TestDiv:
 
     def test_pow_mod_requires_same_ring(self):
         """Modulus must be in the same QuadraticRing (identity check)."""
-        ZI = QuadraticRing(-1)
-        ZS2 = QuadraticRing(-2)
-
         x = ZI(5, 2)
-        m_other_ring = ZS2(2, 1)
+        m_other_ring = sqrt2(2, 1)
 
         with pytest.raises(TypeError):
             pow(x, 5, m_other_ring)
 
     def test_pow_mod_zero_modulus_raises(self):
         """pow(x, e, 0) should raise like Python ints."""
-        ZI = QuadraticRing(-1)
         x = ZI(5, 2)
 
         with pytest.raises(ZeroDivisionError):
@@ -279,7 +349,6 @@ class TestDiv:
 
     def test_pow_mod_negative_exponent_raises(self):
         """pow(x, -e, m) should raise."""
-        ZI = QuadraticRing(-1)
         x = ZI(5, 2)
         m = ZI(2, 1)
 
@@ -310,3 +379,262 @@ class TestDiv:
         # The truly-best local choice gives (ru, rv)=(-1, 0) => ru^2+rv^2 == 1.
         # The current parity-forced choice gives (ru, rv)=(-1, -1) => 2.
         assert ru * ru + rv * rv == 1
+
+
+class TestUnits:
+    """Tests for the units"""
+
+    def test_units_sizes(self):
+        """Verify Gaussian and Eisenstein rings have the correct unit lengths"""
+        assert len(sqrt1(2, 0).units) == 4
+        assert len(ZI(1, 0).units) == 4
+        assert len(ZE(2, 0).units) == 6
+
+        assert len(sqrt2(1, 0).units) == 2
+
+    @pytest.mark.parametrize("x", [ZI(3, 2), ZE(5, 1), sqrt2(7, 3)], ids=id_generator)
+    def test_canonical_associate_is_idempotent_and_unit_invariant(self, x: QuadInt):
+        """Canonical associate selection should be stable across repeated calls and unit multiples."""
+        base = x._canonical_associate()
+        assert base == base._canonical_associate()
+
+        for u in x.units:
+            y = x * u
+            assert y._canonical_associate() == base
+
+
+class TestContent:
+    """Tests for the content method"""
+
+    def test_zero(self):
+        """Use the standard content(0)=0 convention."""
+        assert complexint(0, 0).content() == 0
+
+    def test_gaussian(self):
+        """Verify content is produced correctly for Gaussian rings"""
+        x = complexint(4, 53)
+        assert x.content() == 1
+
+        y = complexint(6, 0)
+        assert y.content() == 6
+
+    def test_parity_matters(self):
+        """Verify content is parity-aware and takes the den value into account"""
+        # D=-3 defaults to den=2
+        assert ZE.den == 2
+
+        one = ZE(2, 0)  # (2+0*sqrt(-3))/2 == 1
+        two = ZE(4, 0)  # == 2
+        three = ZE(6, 0)  # == 3
+
+        # You can't pull out a factor of 2 from "1" in den=2 ring because it breaks parity.
+        assert one.content() == 1
+        # But you can pull out 2 from "2"
+        assert two.content() == 2
+        # And you can pull out 3 from "3"
+        assert three.content() == 3
+
+    @pytest.mark.parametrize("k", [-7, -2, -1, 1, 2, 9])
+    def test_content_scales(self, k: int):
+        """Verify content(k*x)=|k|*content(x) for Gaussian integers."""
+        x = complexint(4, 6)
+        assert x.content() == 2
+
+        y = x * k
+        assert y.content() == abs(k) * x.content()
+
+    @pytest.mark.parametrize("k", [-7, -2, -1, 1, 2, 9])
+    def test_content_scales_den2(self, k: int):
+        """Verify content(k*x)=|k|*content(x) in den=2 rings too."""
+        x = ZE(4, 0)  # == 2, content 2
+        assert x.content() == 2
+
+        y = x * k
+        assert y.content() == abs(k) * x.content()
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            complexint(4, 6),
+            complexint(6, 0),
+            ZE(4, 2),
+            ZE(6, 6),
+        ],
+    )
+    def test_content_divides_numerators(self, x: QuadInt):
+        """Verify the returned content divides stored ring numerators."""
+        c = x.content()
+        assert c > 0
+        assert x.a % c == 0
+        assert x.b % c == 0
+
+    @pytest.mark.skipif(
+        os.getenv("CI", "").lower() in {"1", "true", "yes"},
+        reason="Local-only test",
+    )
+    @pytest.mark.parametrize(
+        "x",
+        [
+            complexint(1_999_966_000_289, 999_983_000_138),
+            complexint(2_000_000_000_000, 1_500_000_000_000),
+            ZE(1_800_000_000_000, 600_000_000_000),
+            ZE(2_400_000_000_000, 1_200_000_000_000),
+        ],
+        ids=id_generator,
+    )
+    def test_content_matches_reference_large_values(self, x: QuadInt):
+        """Large-value regression: optimized content matches the old divisor-scan logic."""
+        assert x.content() == brute_content(x)
+
+
+class TestFactorDetail(QuadIntTests):
+    """Tests for the factor_detail method"""
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            sqrtNeg2(1, 0),
+            sqrtNeg2(-1, 0),
+            sqrtNeg2(0, 1),
+            sqrtNeg2(5, 2),
+            sqrtNeg2(4, 53),
+            sqrtNeg2(6, 0),
+            sqrtNeg7(2, 0),
+            sqrtNeg7(-2, 0),
+            sqrtNeg7(0, 2),
+            sqrtNeg7(10, 2),
+            sqrtNeg7(4, 56),
+            sqrtNeg7(6, 0),
+            sqrtNeg11(2, 0),
+            sqrtNeg11(-2, 0),
+            sqrtNeg11(0, 2),
+            sqrtNeg11(10, 2),
+            sqrtNeg11(4, 56),
+            sqrtNeg11(6, 0),
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt):
+        """Validate some given examples"""
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            sqrtNeg2(0, 0),
+            sqrtNeg7(0, 0),
+            sqrtNeg11(0, 0),
+        ],
+        ids=id_generator,
+    )
+    def test_zero_raises(self, x: QuadInt):
+        """Validate zero cannot be factored"""
+        with pytest.raises(ValueError, match="0 does not have a finite factorization"):
+            _ = x.factor_detail()
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            # This test only works with D=-2 because the other two require same parity, and I can't
+            #   create the same parity as 0 with 2 odd primes...
+            sqrtNeg2(17 * 31, 0),
+        ],
+        ids=id_generator,
+    )
+    def test_527_primitive_vs_full(self, x: QuadInt):
+        """Test factoring with a composite wholly real number"""
+        # 17 splits (norm 17 twice), 31 stays Gaussian prime (norm 31^2)
+        f_full = x.factor_detail()
+        self.assert_factoring(x, f_full)
+        assert len(f_full.primes) == 3
+        assert norm_multiset(f_full.primes) == [17, 17, 31 * 31]
+
+    @pytest.mark.parametrize(
+        ("z", "expected_prime_norm"),
+        [
+            (sqrtNeg2(1, 1), 3),
+            (sqrtNeg7(-1, 1), 2),
+            (sqrtNeg11(3, 1), 5),
+        ],
+        ids=id_generator,
+    )
+    def test_square(self, z: QuadInt, expected_prime_norm: int):
+        """This is designed to catch candidate pruning that accidentally drops a needed divisor."""
+        x = z * z
+
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+        norms = norm_multiset(f.primes)
+        assert norms.count(expected_prime_norm) == 2, (
+            f"expected two norm-{expected_prime_norm} primes, got norms={norms} primes={f.primes}"
+        )
+
+    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
+    @pytest.mark.parametrize("b", [-5, -3, -1, 1, 3, 4])
+    @pytest.mark.parametrize("test_klass", [sqrtNeg2, sqrtNeg7, sqrtNeg11])
+    def test_small_grid(self, a: int, b: int, test_klass: QuadraticRing):
+        """Check factor_detail().prod() round-trips for a small Gaussian grid."""
+        try:
+            x = test_klass(a, b)
+        except ValueError:
+            return
+
+        if not x:
+            return
+
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+    def test_notimplemented_for_positive_D(self):
+        """Factorization implemented only for imaginary D"""
+        x = sqrt2(5, 2)
+        with pytest.raises(NotImplementedError):
+            _ = x.factor_detail()
+
+    def test_notimplemented_for_non_norm_euclid_ring(self):
+        """Factorization only reliably make sense for norm-Euclidean rings."""
+        # D=-17 is proven to be not norm-Euclidean
+        x = sqrtNeg17(5, 2)
+        with pytest.raises(NotImplementedError):
+            _ = x.factor_detail()
+
+    @pytest.mark.parametrize("test_klass", [sqrtNeg2, sqrtNeg7, sqrtNeg11])
+    def test_associate_factorization_norm_invariant(self, test_klass: QuadraticRing):
+        """Associates should keep the same factor-norm multiset."""
+        x = test_klass(4, 56)
+        fx = x.factor_detail()
+        base_norms = norm_multiset(fx.primes)
+
+        for u in x.units:
+            y = x * u
+            fy = y.factor_detail()
+            assert fy.prod() == y
+            assert norm_multiset(fy.primes) == base_norms
+
+
+class TestFactor(QuadIntTests):
+    """Tests for factor"""
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            sqrtNeg2(4, 53),
+            sqrtNeg2(6, 0),
+            sqrtNeg2(17 * 31, 0),
+            sqrtNeg2(5, 2),
+            sqrtNeg7(4, 56),
+            sqrtNeg7(6, 0),
+            sqrtNeg7(17, 7),
+            sqrtNeg11(4, 56),
+            sqrtNeg11(6, 0),
+            sqrtNeg11(17, 7),
+        ],
+        ids=id_generator,
+    )
+    def test_examples(self, x: QuadInt):
+        """Validate some given examples"""
+        factors = x.factor()
+        assert isinstance(factors, dict)
+        self.assert_factoring(x, factors)
