@@ -130,6 +130,7 @@ ignore=[
     "D212",    # Multi-line docstring summary should start at the first line
     "D415",    # Closing punctuation on docstrings
     "PT013",   # Incorrect import of pytest
+    "PYI041",
     "RUF023",  # __slots__ is not sorted
     "RUF067",  # `__init__` module should only contain docstrings and re-exports
     "TRY003",  # Avoid specifying long messages outside the exception class

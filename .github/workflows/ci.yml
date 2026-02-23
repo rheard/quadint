@@ -34,12 +34,12 @@ jobs:
           python -m pip install --upgrade mypy "sympy<=1.12.1"
           stubgen quadint/__init__.py --inspect-mode
           stubgen quadint/quad/__init__.py --inspect-mode
-          stubgen quadint/eisenstein.py
-          stubgen quadint/complex.py
-          stubgen quadint/dual.py
-          stubgen quadint/split.py
-          stubgen quadint/quad/int.py --include-private
-          stubgen quadint/quad/rings.py
+          stubgen quadint/eisenstein.py --include-docstrings
+          stubgen quadint/complex.py --include-docstrings 
+          stubgen quadint/dual.py --include-docstrings 
+          stubgen quadint/split.py --include-docstrings
+          stubgen quadint/quad/int.py --include-private --include-docstrings --inspect-mode
+          stubgen quadint/quad/rings.py --include-private --include-docstrings
           mkdir -p quadint-stubs
           mkdir -p quadint-stubs/quad
           mv out/quadint/__init__.pyi quadint-stubs/__init__.pyi

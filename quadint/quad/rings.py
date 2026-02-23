@@ -7,7 +7,7 @@ from typing import Callable, ClassVar
 
 from sympy import factorint, sqrt_mod
 
-from quadint.quad.int import OP_TYPES, QuadInt
+from quadint.quad.int import QuadInt
 
 NORM_EUCLID_D: set[int] = {-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13, 17, 19, 21, 29, 33, 37, 41, 57, 73}
 
@@ -80,7 +80,7 @@ def _choose_best_in_neighborhood(
         (bestA, bestB): Best candidate found.
     """
     best_score: tuple[int, ...] | None = None
-    bestA = bestB = 0
+    best_a = best_b = 0
 
     for A in range(A0 - radius, A0 + radius + 1):
         B0 = B0_for_A(A)
@@ -91,9 +91,9 @@ def _choose_best_in_neighborhood(
             s = score_for_AB(A, B)
             if best_score is None or s < best_score:
                 best_score = s
-                bestA, bestB = A, B
+                best_a, best_b = A, B
 
-    return bestA, bestB
+    return best_a, best_b
 
 
 class QuadraticRing:
@@ -191,7 +191,7 @@ class QuadraticRing:
         """Multiplicative identity (1)."""
         return QuadInt(self.den, 0, self)
 
-    def from_obj(self, n: OP_TYPES) -> QuadInt:
+    def from_obj(self, n: complex | int | float | QuadInt) -> QuadInt:
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
         if isinstance(n, (int, float)):
             a = int(n)
@@ -420,9 +420,9 @@ class RealNormEuclidRing(QuadraticRing):
         Returns:
             q, r: The quotient and remainder
         """
-        Ny = abs(y)  # signed norm (may be negative for D>0)
-        absNy = abs(Ny)
-        if absNy == 0:
+        y_norm = abs(y)  # signed norm (may be negative for D>0)
+        abs_y_norm = abs(y_norm)
+        if abs_y_norm == 0:
             raise ZeroDivisionError
 
         # Candidate center from x/y ≈ (x * conj(y)) / N(y)
@@ -440,18 +440,18 @@ class RealNormEuclidRing(QuadraticRing):
             num_a //= self.den
             num_b //= self.den
 
-        A0 = _round_div_ties_away_from_zero(num_a, Ny)
-        B0 = _round_div_ties_away_from_zero(num_b, Ny)
+        A0 = _round_div_ties_away_from_zero(num_a, y_norm)
+        B0 = _round_div_ties_away_from_zero(num_b, y_norm)
         dd = self.den**2
-        threshold = absNy * absNy * dd
+        threshold = abs_y_norm * abs_y_norm * dd
 
         def B0_for_A(A: int) -> int:  # noqa: ARG001
             return B0
 
         # Prefer any norm-reducing remainder; among those, minimize |N(r)| then distance to (A0,B0).
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
-            da = A * Ny - num_a
-            db = B * Ny - num_b
+            da = A * y_norm - num_a
+            db = B * y_norm - num_b
 
             # numerator of N(w) where w=(da + db*sqrt(D))/den
             nw_num = da * da - self.D * (db * db)
@@ -465,7 +465,7 @@ class RealNormEuclidRing(QuadraticRing):
 
         # Expand search radius until we find a norm-reducing remainder.
         for rad in (1, 2, 3, 4, 6, 8):
-            bestA, bestB = _choose_best_in_neighborhood(
+            best_a, best_b = _choose_best_in_neighborhood(
                 A0=A0,
                 B0_for_A=B0_for_A,
                 score_for_AB=score_for_AB,
@@ -473,12 +473,12 @@ class RealNormEuclidRing(QuadraticRing):
                 radius=rad,
             )
 
-            da = bestA * Ny - num_a
-            db = bestB * Ny - num_b
+            da = best_a * y_norm - num_a
+            db = best_b * y_norm - num_b
             nw_num = da * da - self.D * (db * db)
 
             if abs(nw_num) < threshold:
-                q = x._make(bestA, bestB)
+                q = x._make(best_a, best_b)
                 r = x - q * y
                 return q, r
 

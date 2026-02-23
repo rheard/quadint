@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from quadint.quad import OP_TYPES, QuadInt, QuadraticRing
+from quadint.quad import QuadInt, QuadraticRing
 
 _ZI = QuadraticRing(-1)  # Gaussian integers
 
@@ -21,7 +21,7 @@ class complexint(QuadInt):
     SYMBOL: ClassVar[str] = "j"
     DEFAULT_RING = _ZI
 
-    def _from_obj(self, n: OP_TYPES) -> complexint:
+    def _from_obj(self, n: complex | int | float | QuadInt) -> complexint:
         """Make a QuadInt on the current ring from a given object"""
         if isinstance(n, (int, float)):
             a = int(n)

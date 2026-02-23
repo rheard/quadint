@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from math import gcd
-from typing import TYPE_CHECKING, ClassVar, Iterator, Union  # noqa: UP035
+from typing import TYPE_CHECKING, ClassVar, Iterator  # noqa: UP035
 
 if TYPE_CHECKING:
     from quadint.quad.rings import Factorization, QuadraticRing
 
-OTHER_OP_TYPES = Union[complex, int, float]  # Types that QuadInt operations are compatible with (other than QuadInt)
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
-OP_TYPES = Union["QuadInt", OTHER_OP_TYPES]
 
 
 class QuadInt:
@@ -85,8 +83,8 @@ class QuadInt:
     def _canonical_associate(self) -> QuadInt:
         """Return canonical representative among associates for stable factor output."""
 
-        def key(w: QuadInt) -> tuple[int, int, int, int, int]:
-            return abs(w), abs(w.b), abs(w.a), w.a, w.b
+        def key(w_: QuadInt) -> tuple[int, int, int, int, int]:
+            return abs(w_), abs(w_.b), abs(w_.a), w_.a, w_.b
 
         best = self
         best_k = key(self)
@@ -98,7 +96,7 @@ class QuadInt:
 
         return best
 
-    def _from_obj(self, n: OP_TYPES):
+    def _from_obj(self, n: complex | int | float | QuadInt):
         """Make a QuadInt on the current ring from a given object"""
         if isinstance(n, (int, float)):
             a = int(n)
@@ -126,7 +124,7 @@ class QuadInt:
         """(a + b√D)/den -> (a - b√D)/den."""
         return self._make(self.a, -self.b)
 
-    def __add__(self, other: OP_TYPES):
+    def __add__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
@@ -136,10 +134,10 @@ class QuadInt:
 
         return NotImplemented
 
-    def __radd__(self, other: OTHER_OP_TYPES):
+    def __radd__(self, other: int | float | complex):
         return self.__add__(other)
 
-    def __sub__(self, other: OP_TYPES):
+    def __sub__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
@@ -149,7 +147,7 @@ class QuadInt:
 
         return NotImplemented
 
-    def __rsub__(self, other: OTHER_OP_TYPES):
+    def __rsub__(self, other: int | float | complex):
         return self.__neg__().__add__(other)
 
     def __neg__(self):
@@ -158,7 +156,7 @@ class QuadInt:
     def __pos__(self):
         return self._make(self.a, self.b)
 
-    def __mul__(self, other: OP_TYPES):
+    def __mul__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
@@ -170,30 +168,29 @@ class QuadInt:
             # But values are /den. If both are (..)/den then product is (..)/den^2.
             # We keep representation /den by dividing numerator by den once:
             # (xy)/den^2 == (xy/den)/den  -> require xy divisible by den.
-            D = self.ring.D
             den = self.ring.den
 
             a1, b1 = self.a, self.b
             a2, b2 = other.a, other.b
 
-            A = a1 * a2 + b1 * b2 * D
-            B = a1 * b2 + a2 * b1
+            a_out = a1 * a2 + b1 * b2 * self.ring.D
+            b_out = a1 * b2 + a2 * b1
 
             if den != 1:
-                if (A % den) != 0 or (B % den) != 0:
+                if (a_out % den) != 0 or (b_out % den) != 0:
                     raise ArithmeticError("Non-integral product; check ring parameters / parity")
 
-                A //= den
-                B //= den
+                a_out //= den
+                b_out //= den
 
-            return self._make(A, B)
+            return self._make(a_out, b_out)
 
         return NotImplemented
 
-    def __rmul__(self, other: OTHER_OP_TYPES):
+    def __rmul__(self, other: int | float | complex):
         return self.__mul__(other)
 
-    def __pow__(self, exp: float, mod: OP_TYPES | None = None):
+    def __pow__(self, exp: float, mod: complex | int | float | QuadInt | None = None):
         if isinstance(mod, _OTHER_OP_TYPES):
             mod = self._from_obj(mod)
 
@@ -236,7 +233,7 @@ class QuadInt:
         return result
 
     # region Euclidean-ish division (no Fraction; small neighborhood search in integer metric)
-    def __divmod__(self, other: OP_TYPES):
+    def __divmod__(self, other: complex | int | float | QuadInt):
         """
         Nearest-lattice division for D <= 0 (imaginary quadratic).
 
@@ -254,28 +251,28 @@ class QuadInt:
         self.assert_same_ring(other)
         return self.ring.divmod(self, other)
 
-    def __truediv__(self, other: OP_TYPES):
+    def __truediv__(self, other: complex | int | float | QuadInt):
         return self.__floordiv__(other)
 
-    def __rtruediv__(self, other: OTHER_OP_TYPES):
+    def __rtruediv__(self, other: int | float | complex):
         if isinstance(other, _OTHER_OP_TYPES):
             new_other = self._from_obj(other)
             return new_other.__truediv__(self)
 
         return NotImplemented
 
-    def __floordiv__(self, other: OP_TYPES):
+    def __floordiv__(self, other: complex | int | float | QuadInt):
         q, _ = divmod(self, other)
         return q
 
-    def __rfloordiv__(self, other: OTHER_OP_TYPES):
+    def __rfloordiv__(self, other: int | float | complex):
         if isinstance(other, _OTHER_OP_TYPES):
             new_other = self._from_obj(other)
             return new_other.__floordiv__(self)
 
         return NotImplemented
 
-    def __mod__(self, other: OP_TYPES):
+    def __mod__(self, other: complex | int | float | QuadInt):
         _, r = divmod(self, other)
         return r
 
@@ -293,9 +290,8 @@ class QuadInt:
         Raises:
             ArithmeticError: If there is a non-integral norm for the ring.
         """
-        D = self.ring.D
         den = self.ring.den
-        num = self.a * self.a - D * self.b * self.b
+        num = self.a * self.a - self.ring.D * self.b * self.b
         dd = den * den
         if (num % dd) != 0:
             raise ArithmeticError("Non-integral norm; check ring parameters / parity")
@@ -364,7 +360,6 @@ class QuadInt:
         return hash((self.a, self.b, self.ring.D, self.ring.den))
 
     def __repr__(self) -> str:
-        D = self.ring.D
         den = self.ring.den
 
         parens = self.a != 0
@@ -374,7 +369,7 @@ class QuadInt:
         op = ("+" if parens else "") if self.b >= 0 else "-"
         a = self.a or ""
         b = abs(self.b)
-        symbol = self.SYMBOL.format(D=D)
+        symbol = self.SYMBOL.format(D=self.ring.D)
 
         core = f"{lead}{a}{op}{b}{symbol}{tail}"
         return f"{core}/{den}" if den != 1 else core
