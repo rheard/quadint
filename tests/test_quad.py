@@ -139,6 +139,75 @@ class TestQuadraticRing(RingTests):
             self.assert_same_ring_obj(q, q2)
 
 
+class TestRingCapabilities:
+    """Tests for lightweight capability helpers on QuadraticRing."""
+
+    @pytest.mark.parametrize(
+        ("ring", "expected"),
+        [
+            (QuadraticRing(-1), True),
+            (QuadraticRing(-7), True),
+            (QuadraticRing(0), True),
+            (QuadraticRing(1), True),
+            (QuadraticRing(31), False),
+            (QuadraticRing(-17), False),
+            (QuadraticRing(-3, 1), False),
+        ],
+        ids=id_generator,
+    )
+    def test_supports_division(self, ring: QuadraticRing, expected: bool):
+        """supports_division should mirror whether this ring has a divmod implementation."""
+        assert ring.supports_division() is expected
+
+    def test_supports_division_matches_runtime_behavior(self):
+        """Unsupported rings should raise NotImplementedError from division operations."""
+        supported = QuadraticRing(-1)
+        unsupported = QuadraticRing(31)
+
+        assert supported.supports_division() is True
+        assert unsupported.supports_division() is False
+
+        x = supported(5, 2)
+        y = supported(3, -1)
+        q, r = divmod(x, y)
+        assert x == q * y + r
+
+        with pytest.raises(NotImplementedError):
+            _ = divmod(unsupported(5, 2), unsupported(3, -1))
+
+    @pytest.mark.parametrize(
+        ("ring", "expected"),
+        [
+            (QuadraticRing(-1), True),
+            (QuadraticRing(-2), True),
+            (QuadraticRing(-3), True),
+            (QuadraticRing(-7), True),
+            (QuadraticRing(-11), True),
+            (QuadraticRing(2), False),
+            (QuadraticRing(-3, 1), False),
+            (QuadraticRing(-17), False),
+        ],
+        ids=id_generator,
+    )
+    def test_supports_factorization(self, ring: QuadraticRing, expected: bool):
+        """supports_factorization should mirror whether this ring has factorization support."""
+        assert ring.supports_factorization() is expected
+
+    def test_supports_factorization_matches_runtime_behavior(self):
+        """Unsupported rings should raise NotImplementedError from factorization operations."""
+        supported = QuadraticRing(-1)
+        unsupported = QuadraticRing(2)
+
+        assert supported.supports_factorization() is True
+        assert unsupported.supports_factorization() is False
+
+        factors = supported(5, 2).factor_detail()
+        assert isinstance(factors, Factorization)
+
+        with pytest.raises(NotImplementedError):
+            _ = unsupported(5, 2).factor_detail()
+
+
 class TestIdentityChecksWithQuadInt(RingTests):
     """Tests that rely on QuadInt.assert_same_ring using identity"""
 

@@ -111,6 +111,8 @@ class QuadraticRing:
 
     __slots__ = ("D", "den")
 
+    SUPPORTS_DIVISION: ClassVar[bool] = False
+    SUPPORTS_FACTORIZATION: ClassVar[bool] = False
     _CACHE: ClassVar[dict[tuple[int, int], object]] = {}
 
     D: int
@@ -219,6 +221,24 @@ class QuadraticRing:
         db = int(b) * self.den
         return QuadInt(da, db, self)
 
+    def supports_division(self) -> bool:
+        """
+        Return whether this ring advertises Euclidean-style ``divmod`` support.
+
+        Returns:
+            bool: Whether this ring class sets ``SUPPORTS_DIVISION``.
+        """
+        return self.SUPPORTS_DIVISION
+
+    def supports_factorization(self) -> bool:
+        """
+        Return whether this ring advertises prime-factorization support.
+
+        Returns:
+            bool: Whether this ring class sets ``SUPPORTS_FACTORIZATION``.
+        """
+        return self.SUPPORTS_FACTORIZATION
+
     def divmod(self, x: QuadInt, y: QuadInt):
         """An override for defining division algorithms in subclasses for different D values"""
         raise NotImplementedError
@@ -277,6 +297,8 @@ class DualRing(QuadraticRing):
     This class will solve division for the real part while trying to minimize the ε part.
     """
 
+    SUPPORTS_DIVISION: ClassVar[bool] = True
+
     def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
         return object.__new__(cls)
@@ -330,6 +352,8 @@ class SplitRing(QuadraticRing):
 
     This structural shortcut is only possible with D=1 (because Z[sqrt(1)]... well, splits.)
     """
+
+    SUPPORTS_DIVISION: ClassVar[bool] = True
 
     def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc"""
@@ -396,6 +420,8 @@ class RealNormEuclidRing(QuadraticRing):
     This class provides the general division algorithm used for both positive and negative
         discriminants in NORM_EUCLID_D (excluding D=0 and D=1 special cases).
     """
+
+    SUPPORTS_DIVISION: ClassVar[bool] = True
 
     def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
         """Don't go to superclass logic, just create the object. Needed for mypyc."""
@@ -492,6 +518,8 @@ class RealNormEuclidRing(QuadraticRing):
 
 class CornacchiaRing(RealNormEuclidRing):
     """Shared split-prime factorization flow for rings with norm form x**2 + k*y**2."""
+
+    SUPPORTS_FACTORIZATION: ClassVar[bool] = True
 
     RAMIFIED_PRIME: ClassVar[int]
     SPLIT_K: ClassVar[int]
