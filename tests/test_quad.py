@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import random
 
 from math import gcd, isqrt, prod
 from pathlib import Path
@@ -77,8 +78,8 @@ class RingTests:
         assert a is not b
 
 
-class TestQuadraticRingSingleton(RingTests):
-    """Tests for the QuadraticRing __new__ cache singleton behavior"""
+class TestQuadraticRing(RingTests):
+    """Tests for the QuadraticRing behavior"""
 
     def test_same_instance_default_den(self):
         """QuadraticRing(D) should be a singleton per (D, default_den)"""
@@ -386,6 +387,37 @@ class TestDiv(QuadIntTests):
         # The truly-best local choice gives (ru, rv)=(-1, 0) => ru^2+rv^2 == 1.
         # The current parity-forced choice gives (ru, rv)=(-1, -1) => 2.
         assert ru * ru + rv * rv == 1
+
+    @staticmethod
+    def _rand_elem(rng: random.Random, Q: QuadraticRing, bound: int) -> QuadInt:
+        """Create a random ring element while respecting den=2 parity constraints."""
+        a = rng.randint(-bound, bound)
+        b = rng.randint(-bound, bound)
+
+        if Q.den == 2 and ((a ^ b) & 1):
+            b += 1
+
+        return Q(a, b)
+
+    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13], ids=id_generator)
+    def test_divmod_random_remainder_is_norm_reducing(self, D: int):
+        """For supported norm-Euclidean orders, divmod should satisfy x=qy+r and |N(r)| < |N(y)|."""
+        Q = QuadraticRing(D)
+        rng = random.Random(10_000 + D)
+
+        # Include both medium and larger coefficients to exercise neighborhood expansion.
+        for bound in (50, 5000):
+            for _ in range(20):
+                x = self._rand_elem(rng, Q, bound)
+                y = self._rand_elem(rng, Q, bound)
+
+                while not y:
+                    y = self._rand_elem(rng, Q, bound)
+
+                q, r = divmod(x, y)
+
+                assert x == q * y + r, f"division identity failed for D={D}, x={x}, y={y}"
+                assert abs(abs(r)) < abs(abs(y)), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
 
 
 class TestUnits:
