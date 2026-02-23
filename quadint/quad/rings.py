@@ -203,6 +203,9 @@ class QuadraticRing:
             a = int(n.real)
             b = int(n.imag)
         elif isinstance(n, QuadInt):
+            if n.ring is not self:
+                raise TypeError("Cannot mix QuadInt from different rings")
+
             return n
         else:
             return NotImplemented
