@@ -154,7 +154,7 @@ class QuadraticRing:
             yield sub
 
     def __repr__(self) -> str:
-        return f"QuadraticRing(D={self.D}, den={self.den})"
+        return f"{self.__class__.__name__}(D={self.D}, den={self.den})"
 
     def __call__(self, a: int = 0, b: int = 0) -> QuadInt:
         """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
