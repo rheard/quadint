@@ -14,11 +14,6 @@ from quadint import QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
 
 
-def id_generator(value: str):
-    """I want to see the examples in PyCharm, and this enables that..."""
-    return str(value)
-
-
 def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
     """Return sorted list of norms with multiplicity."""
     out: list[int] = []
@@ -153,7 +148,7 @@ class TestRingCapabilities:
             (QuadraticRing(-17), False),
             (QuadraticRing(-3, 1), False),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_supports_division(self, ring: QuadraticRing, expected: bool):
         """supports_division should mirror whether this ring has a divmod implementation."""
@@ -187,7 +182,7 @@ class TestRingCapabilities:
             (QuadraticRing(-3, 1), False),
             (QuadraticRing(-17), False),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_supports_factorization(self, ring: QuadraticRing, expected: bool):
         """supports_factorization should mirror whether this ring has factorization support."""
@@ -470,7 +465,7 @@ class TestDiv(QuadIntTests):
 
         return Q(a, b)
 
-    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13], ids=id_generator)
+    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13], ids=str)
     def test_divmod_random_remainder_is_norm_reducing(self, D: int):
         """For supported norm-Euclidean orders, divmod should satisfy x=qy+r and |N(r)| < |N(y)|."""
         Q = QuadraticRing(D)
@@ -502,7 +497,7 @@ class TestUnits:
 
         assert len(Z2(1, 0).units) == 2
 
-    @pytest.mark.parametrize("x", [ZI(3, 2), ZE(5, 1), Z2(7, 3)], ids=id_generator)
+    @pytest.mark.parametrize("x", [ZI(3, 2), ZE(5, 1), Z2(7, 3)], ids=str)
     def test_canonical_associate_is_idempotent_and_unit_invariant(self, x: QuadInt):
         """Canonical associate selection should be stable across repeated calls and unit multiples."""
         base = x._canonical_associate()
@@ -590,7 +585,7 @@ class TestContent:
             ZE(1_800_000_000_000, 600_000_000_000),
             ZE(2_400_000_000_000, 1_200_000_000_000),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_content_matches_reference_large_values(self, x: QuadInt):
         """Large-value regression: optimized content matches the old divisor-scan logic."""
@@ -622,7 +617,7 @@ class TestFactorDetail(QuadIntTests):
             ZN11(4, 56),
             ZN11(6, 0),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt):
         """Validate some given examples"""
@@ -636,7 +631,7 @@ class TestFactorDetail(QuadIntTests):
             ZN7(0, 0),
             ZN11(0, 0),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_zero_raises(self, x: QuadInt):
         """Validate zero cannot be factored"""
@@ -650,7 +645,7 @@ class TestFactorDetail(QuadIntTests):
             #   create the same parity as 0 with 2 odd primes...
             ZN2(17 * 31, 0),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_527_primitive_vs_full(self, x: QuadInt):
         """Test factoring with a composite wholly real number"""
@@ -667,7 +662,7 @@ class TestFactorDetail(QuadIntTests):
             (ZN7(-1, 1), 2),
             (ZN11(3, 1), 5),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_square(self, z: QuadInt, expected_prime_norm: int):
         """This is designed to catch candidate pruning that accidentally drops a needed divisor."""
@@ -741,7 +736,7 @@ class TestFactor(QuadIntTests):
             ZN11(6, 0),
             ZN11(17, 7),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt):
         """Validate some given examples"""

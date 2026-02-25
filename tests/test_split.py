@@ -12,7 +12,6 @@ import quadint.split
 
 from quadint import QuadInt, QuadraticRing
 from quadint.split import splitint
-from tests.test_quad import id_generator
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -271,7 +270,7 @@ class TestRepr(SplitIntTests):
             (splitint(10, 0), "(10+0j)"),
             (splitint(5, -5), "(5-5j)"),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt, expected_repr: str):
         """Verify some given examples"""

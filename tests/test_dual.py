@@ -12,7 +12,6 @@ import quadint.dual
 
 from quadint import QuadInt, QuadraticRing
 from quadint.dual import dualint
-from tests.test_quad import id_generator
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -273,7 +272,7 @@ class TestRepr(DualIntTests):
             (dualint(10, 0), "(10+0ε)"),
             (dualint(5, -5), "(5-5ε)"),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt, expected_repr: str):
         """Verify some given examples"""

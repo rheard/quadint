@@ -16,7 +16,7 @@ from quadint import (
     complexint as complexi,
 )
 from quadint.quad.rings import GaussianRing
-from tests.test_quad import QuadIntTests, id_generator, norm_multiset
+from tests.test_quad import QuadIntTests, norm_multiset
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -447,7 +447,7 @@ class TestRepr(ComplexIntTests):
             (complexi(-9, 12), "(-9+12j)"),
             (complexi(0, -10), "-10j"),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt, expected_repr: str):
         """Verify some given examples"""
@@ -467,7 +467,7 @@ class TestFactorDetail(QuadIntTests):
             complexi(4, 53),
             complexi(6, 0),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt):
         """Validate some given examples"""
@@ -541,7 +541,7 @@ class TestFactor(QuadIntTests):
             complexi(17 * 31, 0),
             complexi(5, 2),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt):
         """Validate some given examples"""

@@ -12,7 +12,7 @@ import quadint.eisenstein
 
 from quadint import QuadInt, QuadraticRing
 from quadint.eisenstein import eisensteinint as eisenstein
-from tests.test_quad import QuadIntTests, id_generator, norm_multiset
+from tests.test_quad import QuadIntTests, norm_multiset
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
@@ -291,7 +291,7 @@ class TestRepr(EisensteinIntTests):
             (eisenstein(10, 0), "(10+0ω)"),
             (eisenstein(5, -5), "(5-5ω)"),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt, expected_repr: str):
         """Verify some given examples"""
@@ -311,7 +311,7 @@ class TestFactorDetail(QuadIntTests):
             eisenstein(4, 53),
             eisenstein(6, 0),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt):
         """Validate some given examples"""
@@ -385,7 +385,7 @@ class TestFactor(QuadIntTests):
             eisenstein(17 * 31, 0),
             eisenstein(5, 2),
         ],
-        ids=id_generator,
+        ids=str,
     )
     def test_examples(self, x: QuadInt):
         """Validate some given examples"""
