@@ -56,6 +56,107 @@ def _split_uv(x: QuadInt) -> tuple[int, int]:
     return apb // den, amb // den
 
 
+class _NeighborhoodSearch:
+    """
+    Incremental local lattice search around (A0, B0_for_A(A)).
+
+    Expanding from radius r to R only evaluates the newly-added Chebyshev shells
+    (r+1, r+2, ..., R), so repeated calls do not rescan the interior.
+    """
+
+    __slots__ = (
+        "A0",
+        "B0_for_A",
+        "score_for_AB",
+        "den",
+        "_expanded_radius",
+        "_best_score",
+        "_best_a",
+        "_best_b",
+    )
+
+    def __init__(
+        self,
+        *,
+        A0: int,
+        B0_for_A: Callable[[int], int],
+        score_for_AB: Callable[[int, int], tuple[int, ...]],
+        den: int,
+    ) -> None:
+        self.A0 = int(A0)
+        self.B0_for_A = B0_for_A
+        self.score_for_AB = score_for_AB
+        self.den = int(den)
+
+        # Highest radius already fully scanned. Start at -1 = nothing scanned yet.
+        self._expanded_radius = -1
+
+        self._best_score: tuple[int, ...] | None = None
+        self._best_a = 0
+        self._best_b = 0
+
+    def _consider(self, A: int, B: int) -> None:
+        if self.den == 2 and ((A ^ B) & 1):
+            return
+
+        s = self.score_for_AB(A, B)
+        if self._best_score is None or s < self._best_score:
+            self._best_score = s
+            self._best_a = A
+            self._best_b = B
+
+    def _scan_shell(self, radius: int) -> None:
+        """
+        Scan exactly the Chebyshev shell at the given radius (new points only).
+        """
+        if radius < 0:
+            return
+
+        if radius == 0:
+            A = self.A0
+            B = self.B0_for_A(A)
+            self._consider(A, B)
+            return
+
+        left = self.A0 - radius
+        right = self.A0 + radius
+
+        for A in range(left, right + 1):
+            B0 = self.B0_for_A(A)
+
+            if A in (left, right):
+                # New vertical edges: full range
+                for B in range(B0 - radius, B0 + radius + 1):
+                    self._consider(A, B)
+            else:
+                # New top/bottom edge only
+                self._consider(A, B0 - radius)
+                self._consider(A, B0 + radius)
+
+    def expand_to(self, radius: int) -> tuple[int, int]:
+        """
+        Expand the search incrementally up to `radius` and return current best (A,B).
+        """
+        r = int(radius)
+        if r < 0:
+            raise ValueError("radius must be >= 0")
+
+        if r > self._expanded_radius:
+            for shell in range(self._expanded_radius + 1, r + 1):
+                self._scan_shell(shell)
+            self._expanded_radius = r
+
+        return self._best_a, self._best_b
+
+    @property
+    def best_score(self) -> tuple[int, ...] | None:
+        return self._best_score
+
+    @property
+    def best_ab(self) -> tuple[int, int]:
+        return self._best_a, self._best_b
+
+
 def _choose_best_in_neighborhood(
     *,
     A0: int,
@@ -79,21 +180,13 @@ def _choose_best_in_neighborhood(
     Returns:
         (bestA, bestB): Best candidate found.
     """
-    best_score: tuple[int, ...] | None = None
-    best_a = best_b = 0
-
-    for A in range(A0 - radius, A0 + radius + 1):
-        B0 = B0_for_A(A)
-        for B in range(B0 - radius, B0 + radius + 1):
-            if den == 2 and ((A ^ B) & 1):
-                continue
-
-            s = score_for_AB(A, B)
-            if best_score is None or s < best_score:
-                best_score = s
-                best_a, best_b = A, B
-
-    return best_a, best_b
+    search = _NeighborhoodSearch(
+        A0=A0,
+        B0_for_A=B0_for_A,
+        score_for_AB=score_for_AB,
+        den=den,
+    )
+    return search.expand_to(radius)
 
 
 class QuadraticRing:
@@ -484,20 +577,19 @@ class RealNormEuclidRing(QuadraticRing):
             return flag, abs_nw_num, dist2
 
         # Expand search radius until we find a norm-reducing remainder.
+        search = _NeighborhoodSearch(
+            A0=A0,
+            B0_for_A=B0_for_A,
+            score_for_AB=score_for_AB,
+            den=self.den,
+        )
+
         for rad in (1, 2, 3, 4, 6, 8):
-            best_a, best_b = _choose_best_in_neighborhood(
-                A0=A0,
-                B0_for_A=B0_for_A,
-                score_for_AB=score_for_AB,
-                den=self.den,
-                radius=rad,
-            )
+            best_a, best_b = search.expand_to(rad)
 
-            da = best_a * y_norm - num_a
-            db = best_b * y_norm - num_b
-            nw_num = da * da - self.D * (db * db)
-
-            if abs(nw_num) < threshold:
+            # score_for_AB returns (flag, abs_nw_num, dist2)
+            best_score = search.best_score
+            if best_score is not None and best_score[0] == 0:
                 q = x._make(best_a, best_b)
                 r = x - q * y
                 return q, r
