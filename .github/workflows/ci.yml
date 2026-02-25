@@ -31,13 +31,14 @@ jobs:
       - name: Generate and place stubs
         shell: bash
         run: |
-          python -m pip install --upgrade mypy "sympy<=1.12.1"
+          python -m pip install --upgrade mypy "sympy<=1.12.1" "cypari"
           stubgen quadint/__init__.py --inspect-mode
           stubgen quadint/quad/__init__.py --inspect-mode
           stubgen quadint/eisenstein.py --include-docstrings
           stubgen quadint/complex.py --include-docstrings 
           stubgen quadint/dual.py --include-docstrings 
           stubgen quadint/split.py --include-docstrings
+          stubgen quadint/utils.py --include-docstrings
           stubgen quadint/quad/int.py --include-private --include-docstrings --inspect-mode
           stubgen quadint/quad/rings.py --include-private --include-docstrings --inspect-mode
           mkdir -p quadint-stubs
@@ -48,6 +49,7 @@ jobs:
           mv out/quadint/complex.pyi quadint-stubs/complex.pyi
           mv out/quadint/dual.pyi quadint-stubs/dual.pyi
           mv out/quadint/split.pyi quadint-stubs/split.pyi
+          mv out/quadint/utils.pyi quadint-stubs/utils.pyi
           mv out/quadint/quad/int.pyi quadint-stubs/quad/int.pyi
           mv out/quadint/quad/rings.pyi quadint-stubs/quad/rings.pyi
           rm -rf out
