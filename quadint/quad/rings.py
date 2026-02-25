@@ -120,6 +120,9 @@ class QuadraticRing:
 
     def __new__(cls, D: int, den: int | None = None):
         """Handle singleton logic"""
+        if cls is not QuadraticRing:
+            return super().__new__(cls)
+
         D0 = int(D)
         default_den = 2 if (D0 % 4) == 1 else 1
         den0 = default_den if den is None else _check_den(den)
@@ -299,10 +302,6 @@ class DualRing(QuadraticRing):
 
     SUPPORTS_DIVISION: ClassVar[bool] = True
 
-    def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
-        """Don't go to superclass logic, just create the object. Needed for mypyc"""
-        return object.__new__(cls)
-
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
@@ -354,10 +353,6 @@ class SplitRing(QuadraticRing):
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = True
-
-    def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
-        """Don't go to superclass logic, just create the object. Needed for mypyc"""
-        return object.__new__(cls)
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
@@ -422,10 +417,6 @@ class RealNormEuclidRing(QuadraticRing):
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = True
-
-    def __new__(cls, D: int, den: int | None = None):  # noqa: ARG004
-        """Don't go to superclass logic, just create the object. Needed for mypyc."""
-        return object.__new__(cls)
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:
