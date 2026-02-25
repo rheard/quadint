@@ -276,6 +276,13 @@ class QuadInt:
         _, r = divmod(self, other)
         return r
 
+    def __rmod__(self, other: int | float | complex):
+        if isinstance(other, _OTHER_OP_TYPES):
+            new_other = self._from_obj(other)
+            return new_other.__mod__(self)
+
+        return NotImplemented
+
     # endregion
 
     def __abs__(self) -> int:
