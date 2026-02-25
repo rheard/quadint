@@ -599,6 +599,7 @@ class RealNormEuclidRing(QuadraticRing):
         )
 
 
+# region Cornacchia rings (for factorization)
 class CornacchiaRing(RealNormEuclidRing):
     """Shared split-prime factorization flow for rings with norm form x**2 + k*y**2."""
 
@@ -837,6 +838,7 @@ class EisensteinRing(CornacchiaRing):
         return D == -3 and den == 2
 
 
+# region Heegner rings
 class HeegnerDen2Ring(EisensteinRing):
     """Shared split-prime factorization helper for D=-7 and D=-11 (den=2)."""
 
@@ -924,3 +926,7 @@ class HeegnerElevenRing(HeegnerDen2Ring):
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -11 and den == 2
+
+
+# endregion
+# endregion
