@@ -238,14 +238,16 @@ class TestIdentityChecksWithQuadInt(RingTests):
             _ = a + b
 
 
-sqrtNeg17 = QuadraticRing(-17)
-sqrtNeg11 = QuadraticRing(-11)
-sqrtNeg7 = QuadraticRing(-7)
-sqrtNeg2 = QuadraticRing(-2)
-sqrt1 = QuadraticRing(1)
-sqrt2 = QuadraticRing(2)
-sqrt5 = QuadraticRing(5)
-sqrt31 = QuadraticRing(31)
+ZN17 = QuadraticRing(-17)
+ZN11 = QuadraticRing(-11)
+ZN7 = QuadraticRing(-7)
+ZN2 = QuadraticRing(-2)
+Z1 = QuadraticRing(1)
+Z2 = QuadraticRing(2)
+Z5 = QuadraticRing(5)
+Z15 = QuadraticRing(15)
+Z31 = QuadraticRing(31)
+Z69 = QuadraticRing(69)
 
 ZI = QuadraticRing(-1)
 ZE = QuadraticRing(-3)
@@ -258,8 +260,8 @@ class QuadIntTests:
 
     def setup_method(self, _):
         """Setup some test data"""
-        self.a_int = sqrt2(5, 2)
-        self.b_int = sqrt2(3, -2)
+        self.a_int = Z2(5, 2)
+        self.b_int = Z2(3, -2)
 
         self.a_cint = complexint(5, 2)
         self.b_cint = complexint(3, -2)
@@ -335,8 +337,8 @@ class TestDiv(QuadIntTests):
 
     def test_div_ring5(self):
         """Test QuadInt / QuadInt in QuadraticRing(5)"""
-        a_int = sqrt5(7, 3)
-        b_int = sqrt5(3, -5)
+        a_int = Z5(7, 3)
+        b_int = Z5(3, -5)
 
         mul_int = a_int * b_int
 
@@ -346,10 +348,10 @@ class TestDiv(QuadIntTests):
         res_int = mul_int / b_int
         self.assert_quad_equal((a_int.a, a_int.b), res_int)
 
-    def test_div_ring31(self):
-        """Test QuadInt / QuadInt in QuadraticRing(31) (31 is not norm-Euclidean so this is not implemented)"""
-        a_int = sqrt31(5, 2)
-        b_int = sqrt31(3, -2)
+    def test_div_ring15(self):
+        """Test QuadInt / QuadInt in QuadraticRing(15)"""
+        a_int = Z15(5, 2)
+        b_int = Z15(3, -2)
 
         mul_int = a_int * b_int
 
@@ -358,8 +360,8 @@ class TestDiv(QuadIntTests):
 
     def test_div_ring_neg7(self):
         """Test QuadInt / QuadInt in QuadraticRing(-7)"""
-        a_int = sqrtNeg7(7, 3)
-        b_int = sqrtNeg7(3, -5)
+        a_int = ZN7(7, 3)
+        b_int = ZN7(3, -5)
 
         mul_int = a_int * b_int
 
@@ -371,8 +373,8 @@ class TestDiv(QuadIntTests):
 
     def test_div_ring_neg17(self):
         """Test QuadInt / QuadInt in QuadraticRing(-17) (-17 is not norm-Euclidean so this is not implemented)"""
-        a_int = sqrtNeg17(5, 2)
-        b_int = sqrtNeg17(3, -2)
+        a_int = ZN17(5, 2)
+        b_int = ZN17(3, -2)
 
         mul_int = a_int * b_int
 
@@ -412,7 +414,7 @@ class TestDiv(QuadIntTests):
     def test_pow_mod_requires_same_ring(self):
         """Modulus must be in the same QuadraticRing (identity check)."""
         x = ZI(5, 2)
-        m_other_ring = sqrt2(2, 1)
+        m_other_ring = Z2(2, 1)
 
         with pytest.raises(TypeError):
             pow(x, 5, m_other_ring)
@@ -494,13 +496,13 @@ class TestUnits:
 
     def test_units_sizes(self):
         """Verify Gaussian and Eisenstein rings have the correct unit lengths"""
-        assert len(sqrt1(2, 0).units) == 4
+        assert len(Z1(2, 0).units) == 4
         assert len(ZI(1, 0).units) == 4
         assert len(ZE(2, 0).units) == 6
 
-        assert len(sqrt2(1, 0).units) == 2
+        assert len(Z2(1, 0).units) == 2
 
-    @pytest.mark.parametrize("x", [ZI(3, 2), ZE(5, 1), sqrt2(7, 3)], ids=id_generator)
+    @pytest.mark.parametrize("x", [ZI(3, 2), ZE(5, 1), Z2(7, 3)], ids=id_generator)
     def test_canonical_associate_is_idempotent_and_unit_invariant(self, x: QuadInt):
         """Canonical associate selection should be stable across repeated calls and unit multiples."""
         base = x._canonical_associate()
@@ -601,24 +603,24 @@ class TestFactorDetail(QuadIntTests):
     @pytest.mark.parametrize(
         "x",
         [
-            sqrtNeg2(1, 0),
-            sqrtNeg2(-1, 0),
-            sqrtNeg2(0, 1),
-            sqrtNeg2(5, 2),
-            sqrtNeg2(4, 53),
-            sqrtNeg2(6, 0),
-            sqrtNeg7(2, 0),
-            sqrtNeg7(-2, 0),
-            sqrtNeg7(0, 2),
-            sqrtNeg7(10, 2),
-            sqrtNeg7(4, 56),
-            sqrtNeg7(6, 0),
-            sqrtNeg11(2, 0),
-            sqrtNeg11(-2, 0),
-            sqrtNeg11(0, 2),
-            sqrtNeg11(10, 2),
-            sqrtNeg11(4, 56),
-            sqrtNeg11(6, 0),
+            ZN2(1, 0),
+            ZN2(-1, 0),
+            ZN2(0, 1),
+            ZN2(5, 2),
+            ZN2(4, 53),
+            ZN2(6, 0),
+            ZN7(2, 0),
+            ZN7(-2, 0),
+            ZN7(0, 2),
+            ZN7(10, 2),
+            ZN7(4, 56),
+            ZN7(6, 0),
+            ZN11(2, 0),
+            ZN11(-2, 0),
+            ZN11(0, 2),
+            ZN11(10, 2),
+            ZN11(4, 56),
+            ZN11(6, 0),
         ],
         ids=id_generator,
     )
@@ -630,9 +632,9 @@ class TestFactorDetail(QuadIntTests):
     @pytest.mark.parametrize(
         "x",
         [
-            sqrtNeg2(0, 0),
-            sqrtNeg7(0, 0),
-            sqrtNeg11(0, 0),
+            ZN2(0, 0),
+            ZN7(0, 0),
+            ZN11(0, 0),
         ],
         ids=id_generator,
     )
@@ -646,7 +648,7 @@ class TestFactorDetail(QuadIntTests):
         [
             # This test only works with D=-2 because the other two require same parity, and I can't
             #   create the same parity as 0 with 2 odd primes...
-            sqrtNeg2(17 * 31, 0),
+            ZN2(17 * 31, 0),
         ],
         ids=id_generator,
     )
@@ -661,9 +663,9 @@ class TestFactorDetail(QuadIntTests):
     @pytest.mark.parametrize(
         ("z", "expected_prime_norm"),
         [
-            (sqrtNeg2(1, 1), 3),
-            (sqrtNeg7(-1, 1), 2),
-            (sqrtNeg11(3, 1), 5),
+            (ZN2(1, 1), 3),
+            (ZN7(-1, 1), 2),
+            (ZN11(3, 1), 5),
         ],
         ids=id_generator,
     )
@@ -681,7 +683,7 @@ class TestFactorDetail(QuadIntTests):
 
     @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
     @pytest.mark.parametrize("b", [-5, -3, -1, 1, 3, 4])
-    @pytest.mark.parametrize("test_klass", [sqrtNeg2, sqrtNeg7, sqrtNeg11])
+    @pytest.mark.parametrize("test_klass", [ZN2, ZN7, ZN11])
     def test_small_grid(self, a: int, b: int, test_klass: QuadraticRing):
         """Check factor_detail().prod() round-trips for a small Gaussian grid."""
         try:
@@ -697,18 +699,18 @@ class TestFactorDetail(QuadIntTests):
 
     def test_notimplemented_for_positive_D(self):
         """Factorization implemented only for imaginary D"""
-        x = sqrt2(5, 2)
+        x = Z2(5, 2)
         with pytest.raises(NotImplementedError):
             _ = x.factor_detail()
 
     def test_notimplemented_for_non_norm_euclid_ring(self):
         """Factorization only reliably make sense for norm-Euclidean rings."""
         # D=-17 is proven to be not norm-Euclidean
-        x = sqrtNeg17(5, 2)
+        x = ZN17(5, 2)
         with pytest.raises(NotImplementedError):
             _ = x.factor_detail()
 
-    @pytest.mark.parametrize("test_klass", [sqrtNeg2, sqrtNeg7, sqrtNeg11])
+    @pytest.mark.parametrize("test_klass", [ZN2, ZN7, ZN11])
     def test_associate_factorization_norm_invariant(self, test_klass: QuadraticRing):
         """Associates should keep the same factor-norm multiset."""
         x = test_klass(4, 56)
@@ -728,16 +730,16 @@ class TestFactor(QuadIntTests):
     @pytest.mark.parametrize(
         "x",
         [
-            sqrtNeg2(4, 53),
-            sqrtNeg2(6, 0),
-            sqrtNeg2(17 * 31, 0),
-            sqrtNeg2(5, 2),
-            sqrtNeg7(4, 56),
-            sqrtNeg7(6, 0),
-            sqrtNeg7(17, 7),
-            sqrtNeg11(4, 56),
-            sqrtNeg11(6, 0),
-            sqrtNeg11(17, 7),
+            ZN2(4, 53),
+            ZN2(6, 0),
+            ZN2(17 * 31, 0),
+            ZN2(5, 2),
+            ZN7(4, 56),
+            ZN7(6, 0),
+            ZN7(17, 7),
+            ZN11(4, 56),
+            ZN11(6, 0),
+            ZN11(17, 7),
         ],
         ids=id_generator,
     )
