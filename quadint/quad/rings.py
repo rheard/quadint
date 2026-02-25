@@ -106,9 +106,7 @@ class _NeighborhoodSearch:
             self._best_b = B
 
     def _scan_shell(self, radius: int) -> None:
-        """
-        Scan exactly the Chebyshev shell at the given radius (new points only).
-        """
+        """Scan exactly the Chebyshev shell at the given radius (new points only)."""
         if radius < 0:
             return
 
@@ -134,9 +132,7 @@ class _NeighborhoodSearch:
                 self._consider(A, B0 + radius)
 
     def expand_to(self, radius: int) -> tuple[int, int]:
-        """
-        Expand the search incrementally up to `radius` and return current best (A,B).
-        """
+        """Expand the search incrementally up to `radius` and return current best (A,B)."""
         r = int(radius)
         if r < 0:
             raise ValueError("radius must be >= 0")
@@ -335,7 +331,7 @@ class QuadraticRing:
         """
         return self.SUPPORTS_FACTORIZATION
 
-    def divmod(self, x: QuadInt, y: QuadInt):
+    def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
         """An override for defining division algorithms in subclasses for different D values"""
         raise NotImplementedError
 
@@ -400,7 +396,7 @@ class DualRing(QuadraticRing):
         """Should this class be used for the given values?"""
         return D == 0
 
-    def divmod(self, x: QuadInt, y: QuadInt):
+    def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
         """Division with D=0"""
         # In dual numbers, (c + dε) is invertible iff c != 0.
         n = y.a
@@ -452,7 +448,7 @@ class SplitRing(QuadraticRing):
         """Should this class be used for the given values?"""
         return D == 1
 
-    def divmod(self, x: QuadInt, y: QuadInt):
+    def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
         """Division with D=1"""
         u1, v1 = _split_uv(x)
         u2, v2 = _split_uv(y)
