@@ -8,11 +8,12 @@ requires = [
     # TODO: Sympy began adding mypy type-hints and removed the py.typed file.
     #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
     "sympy<=1.12.1",
+    "cypari",
 ]
 
 [project]
 name = "quadint"
-version = "0.0.17"
+version = "0.0.18"
 dynamic = ["license"]
 authors = [
   { name="Ryan Heard", email="ryanwheard@gmail.com" },
@@ -45,6 +46,10 @@ test = [
     "ruff",
 ]
 
+pari = [
+    "cypari",
+]
+
 [project.urls]
 Repository = "https://github.com/rheard/quadint"
 
@@ -70,9 +75,14 @@ test-command=[
 [tool.cibuildwheel.linux]
 environment-pass = ["CI", "GITHUB_ACTIONS"]
 
+[[tool.mypy.overrides]]
+module = ["cypari.*"]
+follow_untyped_imports = true
+
 [tool.ruff]
 line-length = 120
 extend-exclude=["quadint-stubs"]
+exclude = [".venv", "*.pyi"]
 
 [tool.ruff.lint]
 preview = true

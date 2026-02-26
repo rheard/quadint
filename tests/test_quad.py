@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import random
 
@@ -12,6 +13,12 @@ import quadint
 
 from quadint import QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
+from quadint.quad.rings import HarperRing, _is_squarefree  # noqa: PLC2701
+
+requires_cypari = pytest.mark.skipif(
+    importlib.util.find_spec("cypari") is None,
+    reason="requires cypari",
+)
 
 
 def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
@@ -144,20 +151,21 @@ class TestRingCapabilities:
             (QuadraticRing(-7), True),
             (QuadraticRing(0), True),
             (QuadraticRing(1), True),
-            (QuadraticRing(31), False),
+            (QuadraticRing(15), False),
+            (QuadraticRing(16), False),
             (QuadraticRing(-17), False),
             (QuadraticRing(-3, 1), False),
         ],
         ids=str,
     )
-    def test_supports_division(self, ring: QuadraticRing, expected: bool):
+    def test_supports_division(self, ring: QuadraticRing, *, expected: bool):
         """supports_division should mirror whether this ring has a divmod implementation."""
         assert ring.supports_division() is expected
 
     def test_supports_division_matches_runtime_behavior(self):
         """Unsupported rings should raise NotImplementedError from division operations."""
         supported = QuadraticRing(-1)
-        unsupported = QuadraticRing(31)
+        unsupported = QuadraticRing(15)
 
         assert supported.supports_division() is True
         assert unsupported.supports_division() is False
@@ -184,7 +192,7 @@ class TestRingCapabilities:
         ],
         ids=str,
     )
-    def test_supports_factorization(self, ring: QuadraticRing, expected: bool):
+    def test_supports_factorization(self, ring: QuadraticRing, *, expected: bool):
         """supports_factorization should mirror whether this ring has factorization support."""
         assert ring.supports_factorization() is expected
 
@@ -486,6 +494,511 @@ class TestDiv(QuadIntTests):
                 assert abs(abs(r)) < abs(abs(y)), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
 
 
+def _rand_elem(rng: random.Random, Q: QuadraticRing, bound: int) -> QuadInt:
+    """Create a random ring element while respecting den=2 parity constraints."""
+    a = rng.randint(-bound, bound)
+    b = rng.randint(-bound, bound)
+
+    if Q.den == 2 and ((a ^ b) & 1):
+        b += 1
+
+    return Q(a, b)
+
+
+class TestClark69EuclideanFunction:
+    """Unit tests for the Euclidean function used by the D=69 division algorithm."""
+
+    def test_phi69_basic_integer_values(self):
+        """phi(0)=0, phi(1)=1, and the only tweak is 23 -> 26 (multiplicatively)."""
+        assert Z69._phi_from_abs_norm(0) == 0
+        assert Z69._phi_from_abs_norm(1) == 1
+        assert Z69._phi_from_abs_norm(-1) == 1
+
+        assert Z69._phi_from_abs_norm(23) == 26
+        assert Z69._phi_from_abs_norm(-23) == 26
+
+        assert Z69._phi_from_abs_norm(23 * 23) == 26 * 26
+        assert Z69._phi_from_abs_norm(11) == 11
+        assert Z69._phi_from_abs_norm(23 * 11) == 26 * 11
+
+    def test_phi69_matches_known_prime_above_23(self):
+        """
+        In Z[(1+sqrt(69))/2], the elements (23 ± 3*sqrt(69))/2 have norm -23.
+        So phi should map them to 26.
+        """
+        assert Z69.den == 2
+
+        p = Z69(23, 3)
+        assert abs(p) == -23
+        assert Z69.phi(p) == 26
+
+        p_conj = p.conjugate()
+        assert abs(p_conj) == -23
+        assert Z69.phi(p_conj) == 26
+
+    def test_phi69_sign_and_conjugation_invariant(self):
+        """Phi depends only on |N(x)|, so it's invariant under x -> -x and conjugation."""
+        rng = random.Random(69_000)
+        for _ in range(200):
+            x = _rand_elem(rng, Z69, 10_000)
+            assert Z69.phi(x) == Z69.phi(-x)
+            assert Z69.phi(x) == Z69.phi(x.conjugate())
+
+    def test_phi69_is_multiplicative(self):
+        """Sanity: phi(xy) == phi(x)*phi(y) because |N| is multiplicative and v23 adds."""
+        rng = random.Random(69_001)
+        for _ in range(200):
+            x = _rand_elem(rng, Z69, 2_000)
+            y = _rand_elem(rng, Z69, 2_000)
+            if not x or not y:
+                continue
+            assert Z69.phi(x * y) == Z69.phi(x) * Z69.phi(y)
+
+
+class TestDivClark69:
+    """Integration tests for the D=69 division algorithm."""
+
+    def test_ring69_supports_division(self):
+        """Once the D=69 ring override is installed, QuadraticRing(69) must support divmod."""
+        assert Z69.den == 2
+        assert Z69.supports_division() is True
+
+    def test_divmod_zero_divisor_raises(self):
+        """Division by 0 should raise."""
+        x = Z69(10, 2)
+        with pytest.raises(ZeroDivisionError):
+            divmod(x, Z69.zero)
+
+    def test_divmod_random_remainder_is_phi_reducing(self):
+        """
+        For a Euclidean function phi, divmod must satisfy x=qy+r and phi(r) < phi(y) (or r==0).
+        Mirrors your existing norm-reduction randomized test, but uses phi69.
+        """
+        rng = random.Random(69_123)
+
+        for bound in (50, 5000):
+            for _ in range(40):
+                x = _rand_elem(rng, Z69, bound)
+                y = _rand_elem(rng, Z69, bound)
+
+                while not y:
+                    y = _rand_elem(rng, Z69, bound)
+
+                # Skip torsion units; Euclidean condition would force remainder 0 anyway.
+                if abs(abs(y)) == 1:
+                    continue
+
+                q, r = divmod(x, y)
+
+                assert x == q * y + r, f"division identity failed: x={x}, y={y}, q={q}, r={r}"
+
+                # Membership / parity sanity in den=2 ring.
+                assert q.ring is Z69
+                assert r.ring is Z69
+                assert ((q.a ^ q.b) & 1) == 0
+                assert ((r.a ^ r.b) & 1) == 0
+
+                assert Z69.phi(r) < Z69.phi(y), f"phi did not reduce: x={x}, y={y}, q={q}, r={r}"
+
+    @requires_cypari
+    def test_harper_ring_similar(self):
+        """While the Harper ring is not required to produce identical results, some are (and logically should be)"""
+        # The only real problem with this is we NEED cypari to compute the admissible pairs in real time.
+        #   They shouldn't be in the hardcoded list because then it may affect the subclass mechanism.
+        #   Fwiw, the admissible pair that would be hardcoded is: ((-5-1*sqrt(69))/2, (-5-3*sqrt(69))/2)
+        H69 = HarperRing(69)
+        a1 = Z69(69 * 2, 420)
+        a2 = H69(69 * 2, 420)
+
+        b1 = Z69(13, 37)
+        b2 = H69(13, 37)
+
+        q1, r1 = divmod(a1, b1)
+        q2, r2 = divmod(a2, b2)
+
+        # Note that because we're forcing different rings, equality breaks down because we rely on instance checks.
+        #   As long as users just stick to using QuadraticRing(69) then this won't be a problem for them...
+        assert q1.a == q2.a
+        assert q1.b == q2.b
+        assert r1.a == r2.a
+        assert r1.b == r2.b
+
+    def test_clark_regression_pair_phi_fix(self):
+        """
+        Regression inspired by the standard D=69 obstruction near primes over 23.
+
+        Let
+            y = (23 + 3*sqrt(69))/2   with |N(y)| = 23  and phi(y)=26,
+            x = 18 + 2*sqrt(69).
+
+        The naive q=1 step gives remainder r0 = x - y = (13 + sqrt(69))/2 with |N(r0)|=25,
+        which is not norm-reducing (25 > 23), but is phi-reducing (25 < 26).
+        """
+        y = Z69(23, 3)
+        x = Z69(36, 4)  # == 18 + 2*sqrt(69)
+
+        # Verify the "naive" step math.
+        r0 = x - y
+        assert abs(abs(r0)) == 25
+        assert abs(abs(y)) == 23
+        assert Z69.phi(r0) == 25
+        assert Z69.phi(y) == 26
+        assert Z69.phi(r0) < Z69.phi(y)
+
+        # And verify divmod actually produces a phi-reducing remainder.
+        q, r = divmod(x, y)
+        assert x == q * y + r
+        assert Z69.phi(r) < Z69.phi(y)
+
+    def test_euclid_loop_terminates_and_phi_strictly_decreases(self):
+        """A tiny Euclidean-algorithm loop should strictly decrease phi and terminate quickly."""
+        a = Z69(36, 4)  # 18 + 2*sqrt(69)
+        b = Z69(23, 3)  # (23 + 3*sqrt(69))/2
+
+        steps = 0
+        while b:
+            q, r = divmod(a, b)
+            assert a == q * b + r
+            assert Z69.phi(r) < Z69.phi(b)
+
+            a, b = b, r
+            steps += 1
+            assert steps < 200, "Euclidean descent did not terminate (phi not strictly decreasing?)"
+
+        # a is the last nonzero remainder: it must divide the original inputs.
+        x0 = Z69(36, 4)
+        assert (x0 % a) == 0
+
+
+class TestHarperHelpers:
+    """Tests for the standalone helper functions used by HarperRing."""
+
+    @pytest.mark.parametrize(
+        ("n", "expected"),
+        [
+            (0, False),
+            (1, False),
+            (-1, False),
+            (2, True),
+            (3, True),
+            (4, False),
+            (5, True),
+            (6, True),
+            (8, False),
+            (9, False),
+            (10, True),
+            (12, False),
+            (14, True),
+            (15, True),
+            (16, False),
+            (18, False),
+            (21, True),
+            (22, True),
+            (23, True),
+            (24, False),
+            (29, True),
+            (31, True),
+            (45, False),
+            (61, True),
+            (69, True),  # 69 = 3 * 23, squarefree
+            (-14, True),
+            (-18, False),
+        ],
+        ids=str,
+    )
+    def test_squarefree(self, n: int, *, expected: bool):
+        """Verify the squarefree helper handles signs and repeated prime factors correctly."""
+        assert _is_squarefree(n) is expected
+
+    @pytest.mark.parametrize(
+        ("D", "den", "expected_disc"),
+        [
+            (14, None, 56),  # default den=1 -> disc = 4D
+            (14, 1, 56),
+            (14, 2, 14),  # explicit non-default order
+            (23, None, 92),
+            (23, 1, 92),
+            (61, None, 61),  # default den=2 since 61 % 4 == 1
+            (61, 2, 61),
+            (61, 1, 244),  # explicit non-default order
+            (69, None, 69),
+            (69, 2, 69),
+            (69, 1, 276),
+        ],
+        ids=str,
+    )
+    def test_disc_from_D_den(self, D: int, den: int | None, expected_disc: int):
+        """Verify discriminant helper follows the den=1 vs den=2 convention."""
+        assert QuadraticRing(D, den).discriminant() == expected_disc
+
+
+@requires_cypari
+class TestHarperPariHelpers:
+    """Tests for PARI-backed helpers used by HarperRing."""
+
+    @pytest.mark.parametrize(
+        ("D", "den", "expected"),
+        [
+            (14, 1, True),  # Q(sqrt(14)) maximal order
+            (61, 2, True),  # Q(sqrt(61)) maximal order
+            (69, 2, True),  # Q(sqrt(69)) maximal order
+            (15, 1, False),  # Q(sqrt(15)) has class number > 1
+        ],
+        ids=str,
+    )
+    def test_class_number_is_one(self, D: int, den: int, expected: bool):  # noqa: FBT001
+        """Verify the class-number helper on a few known real quadratic discriminants."""
+        assert (QuadraticRing(D, den).class_number() == 1) is expected
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        # Skip any principal generators
+        [k for k, v in HarperRing._HARDCODED.items() if len(v) == 4],
+        ids=str,
+    )
+    def test_find_admissible_witness_pair_known_cases(self, D: int, den: int):
+        """Known Harper cases should yield an admissible prime pair via PARI search."""
+        r = QuadraticRing(D, den)
+        out = r._find_admissible_witness_primes()
+
+        assert out is not None, f"expected admissible pair for D={D}, den={den}"
+        assert isinstance(out, tuple)
+        assert len(out) == 4
+        assert all(isinstance(v, int) for v in out)
+
+        p1, _, p2, _ = out
+        assert HarperRing._HARDCODED[D, den] == out
+        assert p1 > 1
+        assert p2 > 1
+        assert p1 != p2
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        # Only principal generators
+        [k for k, v in HarperRing._HARDCODED.items() if len(v) == 2],
+        ids=str,
+    )
+    def test_principal_generators_known_cases(self, D: int, den: int):
+        """Known Harper cases should yield principal generators via PARI-backed search."""
+        r = QuadraticRing(D, den)
+        out = r._find_admissible_witness_primes()
+
+        assert out is not None, f"expected admissible pair for D={D}, den={den}"
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert all(isinstance(v, QuadInt) for v in out)
+
+        p1, p2 = out
+        assert HarperRing._HARDCODED[D, den] == out
+        assert p1 != p2
+
+
+class TestHarperAcceptOverride(RingTests):
+    """Tests for HarperRing selection logic and hardcoded coverage."""
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        HarperRing._HARDCODED,
+        ids=str,
+    )
+    def test_hardcoded_cases_are_selected(self, D: int, den: int):
+        """QuadraticRing should select HarperRing for every hardcoded Harper case."""
+        Q = QuadraticRing(D, den)
+        assert isinstance(Q, HarperRing)
+        assert Q.supports_division() is True
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        [(14, 2), (22, 2), (23, 2), (61, 1)],
+        ids=str,
+    )
+    def test_nonmax_orders_not_selected(self, D: int, den: int):
+        """HarperRing should only apply to the maximal order (default denominator)."""
+        default_den = 2 if (D % 4) == 1 else 1
+        assert den != default_den
+
+        Q = QuadraticRing(D, den)
+        assert not isinstance(Q, HarperRing)
+
+    @pytest.mark.parametrize(
+        ("D", "den", "default_den"),
+        [
+            (0, 1, 1),
+            (-14, 1, 1),
+            (-61, 2, 2),
+            (14, 2, 1),  # wrong denominator for maximal order
+        ],
+        ids=str,
+    )
+    def test_accept_override_rejects_wrong_domain(self, D: int, den: int, default_den: int):
+        """HarperRing.accept_override should reject non-real or non-maximal inputs."""
+        assert HarperRing.accept_override(D, den, default_den) is False
+
+    def test_hardcoded_subset_contains_expected_literature_values(self):
+        """The hardcoded list should include the standard Harper/Conrad examples."""
+        expected = {(14, 1), (22, 1), (23, 1), (61, 2)}
+        assert expected.issubset(HarperRing._HARDCODED)
+
+
+class TestHarperDiv:
+    """Tests for HarperRing.divmod and Euclidean reduction on hardcoded Harper rings."""
+
+    @staticmethod
+    def _rand_elem(rng: random.Random, Q: QuadraticRing, bound: int) -> QuadInt:
+        """Create a random ring element while respecting den=2 parity constraints."""
+        a = rng.randint(-bound, bound)
+        b = rng.randint(-bound, bound)
+
+        if Q.den == 2 and ((a ^ b) & 1):
+            b += 1
+
+        return Q(a, b)
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        HarperRing._HARDCODED,
+        ids=str,
+    )
+    def test_zero_divisor(self, D: int, den: int):
+        """Division by zero should raise ZeroDivisionError."""
+        Q = QuadraticRing(D, den)
+        x = Q(7, 3)
+        with pytest.raises(ZeroDivisionError):
+            _ = divmod(x, Q.zero)
+
+    @pytest.mark.parametrize(
+        ("D", "den", "xa", "xb", "ya", "yb"),
+        [
+            (14, 1, 69, 420, 13, 37),
+            (22, 1, 91, 315, 11, 17),
+            (23, 1, 77, 221, 9, 10),
+            (61, 2, 69, 421, 13, 37),  # odd/odd parity for den=2
+        ],
+        ids=str,
+    )
+    def test_example_division_identity_and_phi_reduction(
+        self,
+        D: int,
+        den: int,
+        xa: int,
+        xb: int,
+        ya: int,
+        yb: int,
+    ):
+        """A few concrete examples should satisfy x=qy+r and reduce the Euclidean size."""
+        Q = QuadraticRing(D, den)
+        x = Q(xa, xb)
+        y = Q(ya, yb)
+
+        q, r = divmod(x, y)
+
+        assert x == q * y + r
+        assert Q.phi(r) < Q.phi(y), f"phi did not decrease for D={D}, x={x}, y={y}, r={r}"
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        HarperRing._HARDCODED,
+        ids=str,
+    )
+    def test_exact_products_divide_with_zero_remainder(self, D: int, den: int):
+        """If x = a*b exactly then divmod(x, a) should return (b, 0)."""
+        Q = QuadraticRing(D, den)
+
+        # Hand-picked exact factors with valid parity in den=2 case.
+        examples = [
+            (Q(5, 1), Q(3, 1)),
+            (Q(7, -3), Q(9, 1)),
+            (Q(11, 5), Q(-3, 7)),
+        ]
+
+        for a, b in examples:
+            x = a * b
+            q, r = divmod(x, a)
+
+            assert r == Q.zero, f"expected exact division remainder 0 for D={D}, x={x}, a={a}"
+            assert q == b, f"expected exact quotient b for D={D}, x={x}, a={a}, got q={q}"
+
+            # Also verify __truediv__ integration on exact divisions.
+            assert x / a == b
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        HarperRing._HARDCODED,
+        ids=str,
+    )
+    def test_random_phi_reducing(self, D: int, den: int):
+        """Randomized regression: Harper divmod should always preserve identity and reduce phi."""
+        Q = QuadraticRing(D, den)
+        rng = random.Random(70_000 + 100 * D + den)
+
+        # Use both small and medium sizes to exercise quotient-neighborhood searches.
+        for bound in (40, 300):
+            for _ in range(50):
+                x = self._rand_elem(rng, Q, bound)
+                y = self._rand_elem(rng, Q, bound)
+
+                while not y:
+                    y = self._rand_elem(rng, Q, bound)
+
+                q, r = divmod(x, y)
+
+                assert x == q * y + r, f"division identity failed for D={D}, x={x}, y={y}, q={q}, r={r}"
+                assert Q.phi(r) < Q.phi(y), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        # I have cached all values below 100.
+        #   These are the first couple rings passed 100 that should also work (if cypari is installed).
+        [(101, 2), (103, 1)],
+        ids=str,
+    )
+    @requires_cypari
+    def test_random_phi_reducing_not_cached(self, D: int, den: int):
+        """Randomized regression: Harper divmod should always preserve identity and reduce phi."""
+        assert (D, den) not in HarperRing._HARDCODED
+
+        Q = QuadraticRing(D, den)
+        assert isinstance(Q, HarperRing)
+        rng = random.Random(70_000 + 100 * D + den)
+
+        # Use both small and medium sizes to exercise quotient-neighborhood searches.
+        for bound in (40, 300):
+            for _ in range(50):
+                x = self._rand_elem(rng, Q, bound)
+                y = self._rand_elem(rng, Q, bound)
+
+                while not y:
+                    y = self._rand_elem(rng, Q, bound)
+
+                q, r = divmod(x, y)
+
+                assert x == q * y + r, f"division identity failed for D={D}, x={x}, y={y}, q={q}, r={r}"
+                assert Q.phi(r) < Q.phi(y), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
+
+    def test_try_exact_quotient_success_and_failure(self):
+        """_try_exact_quotient should return q for exact division and None otherwise."""
+        Q = QuadraticRing(14, 1)
+        assert isinstance(Q, HarperRing)
+
+        y = Q(5, 1)
+        q_expected = Q(3, 2)
+        x = q_expected * y
+
+        assert Q._try_exact_quotient(x, y) == q_expected
+        assert Q._try_exact_quotient(x + Q.one, y) is None
+
+    def test_valuation_at_generator_counts_exact_powers(self):
+        """_valuation_at_generator should count repeated exact divisibility by a generator."""
+        Q = QuadraticRing(14, 1)
+        assert isinstance(Q, HarperRing)
+
+        pi = Q(5, 1)
+        x = pi * pi * pi
+
+        assert Q._valuation_at_generator(x, pi) == 3
+        assert Q._valuation_at_generator(Q.one, pi) == 0
+
+
 class TestUnits:
     """Tests for the units"""
 
@@ -592,6 +1105,7 @@ class TestContent:
         assert x.content() == brute_content(x)
 
 
+# region Factoring tests
 class TestFactorDetail(QuadIntTests):
     """Tests for the factor_detail method"""
 
@@ -743,3 +1257,6 @@ class TestFactor(QuadIntTests):
         factors = x.factor()
         assert isinstance(factors, dict)
         self.assert_factoring(x, factors)
+
+
+# endregion
