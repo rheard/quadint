@@ -3,7 +3,9 @@ from __future__ import annotations
 import functools
 import importlib
 
-from typing import Callable, Iterable, ParamSpec, TypeVar  # noqa: UP035
+from typing import Callable, Iterable, TypeVar  # noqa: UP035
+
+from typing_extensions import ParamSpec
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -14,7 +16,7 @@ def requires_modules(
     *,
     message: str | None = None,
     exc_type: type[Exception] = ValueError,
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
+):
     """
     Decorator factory to require that at least one of the given modules is importable.
 

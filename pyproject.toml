@@ -9,6 +9,7 @@ requires = [
     #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
     "sympy<=1.12.1",
     "cypari",
+    "typing_extensions",
 ]
 
 [project]
@@ -33,6 +34,8 @@ classifiers = [
 ]
 keywords = ["complex", "math", "eisenstein"]
 dependencies = [
+    "typing_extensions",
+
     # TODO: Sympy began adding mypy type-hints and removed the py.typed file.
     #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
     "sympy<=1.12.1",
