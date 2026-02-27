@@ -78,6 +78,9 @@ test-command=[
 [tool.cibuildwheel.linux]
 environment-pass = ["CI", "GITHUB_ACTIONS"]
 
+[tool.cibuildwheel.windows]
+environment = { PIP_ONLY_BINARY = "cypari", PIP_PREFER_BINARY = "1" }
+
 [[tool.mypy.overrides]]
 module = ["cypari.*"]
 follow_untyped_imports = true
