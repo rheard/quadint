@@ -554,12 +554,12 @@ class RealNormEuclidRing(QuadraticRing):
         For the known finite list of D where the ring of integers is norm-Euclidean,
         there exists q such that |N(x - qy)| < |N(y)|.
 
+        Returns:
+            q, r: The quotient and remainder
+
         Raises:
             ZeroDivisionError: If the magnitude of the divisor is 0.
             ArithmeticError: In the event of a parity mismatch.
-
-        Returns:
-            q, r: The quotient and remainder
         """
         y_norm = abs(y)  # signed norm (may be negative for D>0)
         abs_y_norm = abs(y_norm)
@@ -711,11 +711,11 @@ class CornacchiaRing(RealNormEuclidRing):
         Args:
             x: A non-zero element of this ring.
 
-        Raises:
-            ValueError: If `x` is zero (zero has no finite prime factorization).
-
         Returns:
             Factorization: The unit and prime-power data for ``x``.
+
+        Raises:
+            ValueError: If `x` is zero (zero has no finite prime factorization).
         """
         if not x:
             raise ValueError("0 does not have a finite factorization")
