@@ -70,8 +70,6 @@ test-command=[
     'mv "{project}/temp/quadint" "{project}/quadint"',  # Move the .py files back so they are ready for the next build
     'rm -rf "{project}/temp"',
 ]
-
-[tool.cibuildwheel.linux]
 environment-pass = ["CI", "GITHUB_ACTIONS"]
 
 [[tool.mypy.overrides]]
