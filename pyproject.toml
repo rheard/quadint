@@ -8,7 +8,6 @@ requires = [
     # TODO: Sympy began adding mypy type-hints and removed the py.typed file.
     #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
     "sympy<=1.12.1",
-    "cypari",
     "typing_extensions",
 ]
 
@@ -60,9 +59,6 @@ Repository = "https://github.com/rheard/quadint"
 # TODO: Android, iOS?
 build = "cp3{9,10,11,12,13,14}-{win,macosx,manylinux}*"
 
-# cypari fails while compiling PARI with py3.13+ on Win32
-skip = "cp313-win32 cp314-win32"
-
 before-test = [
     'mkdir "{project}/temp"',
     'mv "{project}/quadint" "{project}/temp/quadint"',  # Move the .py files away so they are not used in testing
@@ -83,6 +79,7 @@ environment-pass = ["CI", "GITHUB_ACTIONS"]
 
 [[tool.mypy.overrides]]
 module = ["cypari.*"]
+ignore_missing_imports = true
 follow_untyped_imports = true
 
 [tool.ruff]
