@@ -60,6 +60,9 @@ Repository = "https://github.com/rheard/quadint"
 # TODO: Android, iOS?
 build = "cp3{9,10,11,12,13,14}-{win,macosx,manylinux}*"
 
+# cypari fails while compiling PARI with py3.13+ on Win32
+skip = "cp313-win32 cp314-win32"
+
 before-test = [
     'mkdir "{project}/temp"',
     'mv "{project}/quadint" "{project}/temp/quadint"',  # Move the .py files away so they are not used in testing
@@ -77,9 +80,6 @@ test-command=[
 
 [tool.cibuildwheel.linux]
 environment-pass = ["CI", "GITHUB_ACTIONS"]
-
-[tool.cibuildwheel.windows]
-environment = { PIP_ONLY_BINARY = "cypari", PIP_PREFER_BINARY = "1" }
 
 [[tool.mypy.overrides]]
 module = ["cypari.*"]
