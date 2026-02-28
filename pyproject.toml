@@ -63,9 +63,9 @@ before-test = [
     'mkdir "{project}/temp"',
     'mv "{project}/quadint" "{project}/temp/quadint"',  # Move the .py files away so they are not used in testing
 ]
-test-requires=["ruff", "pylint", "pytest"]
+test-requires=["ruff", "pylint", "pytest", "pytest-xdist"]
 test-command=[
-    "python -m pytest {project}/tests",
+    "python -m pytest -n auto {project}/tests",
     "ruff check {project}",
 
     # Require docstrings on all unit tests!
