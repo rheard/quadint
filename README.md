@@ -123,14 +123,18 @@ print(z * w)          # 0j   (zero divisor behavior)
 ## Division & interoperability notes
 
 * This package is primarily intended for **exact, discrete** arithmetic (`+`, `-`, `*`, `**`, conjugation, norms).
-* Division helpers (`divmod`, `//`, `%`, `/`) are implemented for **dual numbers** (`D=0`) and **split-complex integers** (`D=1`), and for the finite set of **norm-Euclidean** quadratic rings (including selected `D<0` and `D>0`) **at the default/maximal denominator**; outside these cases division may raise `NotImplementedError` (and `ZeroDivisionError` for zero divisors).
+* Division helpers (`divmod`, `//`, `%`, `/`) are implemented for the finite set of **norm-Euclidean** quadratic rings **at the default/maximal denominator**, and also for **dual** (`D=0`) and **split-complex integers** (`D=1`).
+  * New: division is also available in selected **Euclidean-but-not-norm-Euclidean real quadratic maximal orders** via a Harper-style method (weighted Euclidean score + local quotient search). This currently covers:
+    * `D=14,22,23,31,43,46,47,53,59,61,62,67,71,77,83,86,89,93,94,97`
+    * and `D=69` via a dedicated Clark-style Euclidean function implementation.
+    * Without `cypari`, Harper-style support is limited to the built-in hard-coded cases above (with `D < 100`); with `cypari` installed, additional admissible Harper-like cases may be discoverable.
 * Factorization (`factor` / `factor_detail`) is currently implemented for:
   * `complexint` (`D=-1, den=1`),
   * `QuadraticRing(-2, den=1)`,
   * `eisensteinint` (`D=-3, den=2`),
   * and the Heegner maximal orders for `D=-7` and `D=-11`.
   Other rings may raise `NotImplementedError`.
-* **Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
+* Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
 
 Example of truncation behavior:
 
