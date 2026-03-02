@@ -781,15 +781,15 @@ class TestHarperPariHelpers:
     def test_principal_generators_known_cases(self, D: int, den: int):
         """Known Harper cases should yield principal generators via PARI-backed search."""
         r = QuadraticRing(D, den)
-        out = r._find_admissible_witness_primes()
+        out = r._principal_generators_from_witness(r._find_admissible_witness_primes())
 
         assert out is not None, f"expected admissible pair for D={D}, den={den}"
         assert isinstance(out, tuple)
         assert len(out) == 2
         assert all(isinstance(v, QuadInt) for v in out)
+        assert HarperRing._HARDCODED[D, den] == out
 
         p1, p2 = out
-        assert HarperRing._HARDCODED[D, den] == out
         assert p1 != p2
 
 

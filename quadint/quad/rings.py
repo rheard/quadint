@@ -1153,7 +1153,7 @@ class HarperRing(QuadraticRing):
         (89, 2): (11, 1, 17, 1),
         (93, 2): (7, 1, 11, 1),
         (94, 1): (3, 1, 5, 1),
-        (97, 2): (3, 1, 11, 1),
+        (97, 2): (3, 1, 11, 2),
     }
 
     @classmethod
@@ -1751,5 +1751,5 @@ for (D_, den_), ((p1_a_, p1_b_), (p2_a_, p2_b_)) in _POST_HARDCODED.items():
     if (D_, den_) in HarperRing._HARDCODED:
         continue
 
-    _ring = HarperRing(D_, den_)
+    _ring = QuadraticRing(D_, den_)
     HarperRing._HARDCODED[D_, den_] = (_ring(p1_a_, p1_b_), _ring(p2_a_, p2_b_))
