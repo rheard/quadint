@@ -283,6 +283,28 @@ class QuadInt:
 
         return NotImplemented
 
+    def exact_div(self, divisor: complex | int | float | QuadInt) -> QuadInt | None:
+        """Return q if y * q == self in this ring, else None."""
+        if isinstance(divisor, _OTHER_OP_TYPES):
+            divisor = self._from_obj(divisor)
+
+        if not isinstance(divisor, QuadInt):
+            return NotImplemented
+
+        self.assert_same_ring(divisor)
+        return self.ring.exact_div(self, divisor)
+
+    def divides(self, x: complex | int | float | QuadInt) -> bool:
+        """Return True iff self | x in this ring."""
+        if isinstance(x, _OTHER_OP_TYPES):
+            x = self._from_obj(x)
+
+        if not isinstance(x, QuadInt):
+            return NotImplemented
+
+        self.assert_same_ring(x)
+        return self.ring.divides(x, self)
+
     # endregion
 
     def __abs__(self) -> int:

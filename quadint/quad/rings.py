@@ -367,6 +367,49 @@ class QuadraticRing:
         """An override for defining division algorithms in subclasses for different D values"""
         raise NotImplementedError
 
+    def exact_div(self, x: QuadInt, y: QuadInt) -> QuadInt | None:
+        """
+        Return q if x == q*y exactly in this ring, else None.
+
+        Uses the identity q = self*conj(divisor)/N(divisor) and then checks integrality
+            in the order (including den=2 parity constraint).
+
+        Returns:
+            QuadInt: Solely the quotient if the remainder is 0, else None.
+        """
+        N = abs(y)  # signed norm
+        if N == 0:
+            # This happens in zero-divisor rings (D=0 dual, D=1 split) and for zero divisors.
+            # TODO: Divisibility is still meaningful there, but needs a different solver.
+            raise NotImplementedError
+
+        # num = x * conj(y), in numerator coordinates (same convention as divmod code)
+        num_a = x.a * y.a - x.b * y.b * self.D
+        num_b = y.a * x.b - x.a * y.b
+
+        # IMPORTANT: keep representation /den (same rule as __mul__ and divmod)
+        if self.den != 1:
+            if (num_a % self.den) != 0 or (num_b % self.den) != 0:
+                return None
+            num_a //= self.den
+            num_b //= self.den
+
+        # integrality test: coordinates divisible by |N|
+        if (num_a % N) != 0 or (num_b % N) != 0:
+            return None
+
+        qa = num_a // N
+        qb = num_b // N
+
+        if self.den == 2 and ((qa ^ qb) & 1):
+            return None
+
+        return x._make(qa, qb)
+
+    def divides(self, x: QuadInt, y: QuadInt) -> bool:
+        """Return True iff x | y in this ring."""
+        return self.exact_div(x, y) is not None
+
     def factor_detail(self, x: QuadInt) -> Factorization:
         """Factor `x` and return structured details when supported by this ring."""
         raise NotImplementedError("Factorization is not implemented for this ring")
@@ -724,8 +767,10 @@ class CornacchiaRing(RealNormEuclidRing):
         unit = x.one
 
         for u in x.units:
-            q, r = divmod(rem, u)
-            if not r and (q.a, q.b) < (rem.a, rem.b):
+            q = self.exact_div(rem, u)
+            if q is None:
+                continue
+            if (q.a, q.b) < (rem.a, rem.b):
                 rem = q
                 unit *= u
 
@@ -733,8 +778,8 @@ class CornacchiaRing(RealNormEuclidRing):
 
         ramified = self._ramified_generator(x)
         while True:
-            q, r = divmod(rem, ramified)
-            if r:
+            q = self.exact_div(rem, ramified)
+            if q is None:
                 break
             factors[ramified] += 1
             rem = q
@@ -749,8 +794,8 @@ class CornacchiaRing(RealNormEuclidRing):
             if self._is_inert_prime(p):
                 cand = self._inert_generator(x, p)
                 while True:
-                    q, r = divmod(rem, cand)
-                    if r:
+                    q = self.exact_div(rem, cand)
+                    if q is None:
                         break
                     factors[cand] += 1
                     rem = q
@@ -763,8 +808,8 @@ class CornacchiaRing(RealNormEuclidRing):
                     if abs(cand) <= 1:
                         continue
                     while rem != self.den:
-                        q, r = divmod(rem, cand)
-                        if r:
+                        q = self.exact_div(rem, cand)
+                        if q is None:
                             break
                         factors[cand] += 1
                         rem = q
@@ -1484,47 +1529,12 @@ class HarperRing(QuadraticRing):
     # region Fallback helpers
     #   The methods in this region are only used if the witness primes speed-up trick fails,
     #       or obviously if that has not been manually validated.
-    def _try_exact_quotient(self, x: QuadInt, y: QuadInt) -> QuadInt | None:
-        """
-        Return q if x == q*y exactly in this ring, else None.
-
-        This avoids calling divmod() (and therefore avoids phi()/divmod recursion)
-        when phi() wants valuations at selected Harper generators.
-
-        Returns:
-            QuadInt: Solely the quotient if the remainder is 0, else None.
-        """
-        y_norm = abs(y)  # signed norm
-        if y_norm == 0:
-            return None
-
-        # num = x * conj(y), in numerator coordinates (same convention as divmod code)
-        num_a = x.a * y.a - x.b * y.b * self.D
-        num_b = y.a * x.b - x.a * y.b
-
-        if self.den != 1:
-            if (num_a % self.den) != 0 or (num_b % self.den) != 0:
-                return None
-            num_a //= self.den
-            num_b //= self.den
-
-        if (num_a % y_norm) != 0 or (num_b % y_norm) != 0:
-            return None
-
-        A = num_a // y_norm
-        B = num_b // y_norm
-
-        if self.den == 2 and ((A ^ B) & 1):
-            return None
-
-        return x._make(A, B)
-
     def _valuation_at_generator(self, x: QuadInt, pi: QuadInt) -> int:
         """v_pi(x) for a fixed chosen principal prime generator pi (ideal-specific)."""
         e = 0
         rem = x
         while rem:
-            q = self._try_exact_quotient(rem, pi)
+            q = self.exact_div(rem, pi)
             if q is None:
                 break
             rem = q

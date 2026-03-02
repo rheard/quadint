@@ -975,18 +975,6 @@ class TestHarperDiv:
                 assert x == q * y + r, f"division identity failed for D={D}, x={x}, y={y}, q={q}, r={r}"
                 assert Q.phi(r) < Q.phi(y), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
 
-    def test_try_exact_quotient_success_and_failure(self):
-        """_try_exact_quotient should return q for exact division and None otherwise."""
-        Q = QuadraticRing(14, 1)
-        assert isinstance(Q, HarperRing)
-
-        y = Q(5, 1)
-        q_expected = Q(3, 2)
-        x = q_expected * y
-
-        assert Q._try_exact_quotient(x, y) == q_expected
-        assert Q._try_exact_quotient(x + Q.one, y) is None
-
     def test_valuation_at_generator_counts_exact_powers(self):
         """_valuation_at_generator should count repeated exact divisibility by a generator."""
         Q = QuadraticRing(14, 1)
@@ -997,6 +985,185 @@ class TestHarperDiv:
 
         assert Q._valuation_at_generator(x, pi) == 3
         assert Q._valuation_at_generator(Q.one, pi) == 0
+
+
+class TestExactDivAndDivides(QuadIntTests):
+    """Tests for QuadInt.exact_div and QuadInt.divides."""
+
+    @pytest.mark.parametrize(
+        ("Q", "y", "q"),
+        [
+            # Gaussian integers (den=1)
+            (ZI, ZI(1, 1), ZI(5, 2)),  # (1+i) divides (5+2i)(1+i)
+            (ZI, ZI(2, -1), ZI(-3, 4)),  # random-ish
+            # Eisenstein integers (den=2) - good for parity/den regressions
+            (ZE, ZE(3, 1), ZE(5, 1)),  # ramified-ish generator and a nontrivial quotient
+            (ZE, ZE(2, 2), ZE(7, -1)),  # another den=2 case
+            # Real quadratic den=2 with negative norm unit (exercises N<0 branch)
+            (Z5, Z5(3, 7), Z5(9, 3)),
+            # Non-division ring: exact_div should still work (divmod not implemented)
+            (Z15, Z15(5, 1), Z15(7, 2)),
+            (ZN17, ZN17(5, 2), ZN17(3, -1)),
+        ],
+        ids=str,
+    )
+    def test_exact_div_roundtrip_on_products(self, Q: QuadraticRing, y: QuadInt, q: QuadInt):
+        """If we construct x=q*y, then x.exact_div(y) must return q and y.divides(x) must be True."""
+        assert y.ring is Q
+        assert q.ring is Q
+        assert y  # nonzero
+
+        x = q * y
+
+        got = x.exact_div(y)
+        assert got == q
+        assert got is not None
+        assert got.ring is Q
+        assert x == got * y
+
+        Ny = abs(y)  # signed norm
+        assert abs(Ny) != 1  # avoid units in real quadratic rings
+
+        assert y.divides(x) is True
+        assert y.divides(x + Q.one) is False
+        assert (x + Q.one).exact_div(y) is None
+
+    def test_exact_div_unit_divides_everything(self):
+        """Every torsion unit u should divide every x (exactly)."""
+        for Q in (ZI, ZE, Z5, Z15, ZN17):
+            x = Q(37, -11)
+            for u in x.units:
+                q = x.exact_div(u)
+                assert q is not None
+                assert x == q * u
+                assert u.divides(x) is True
+
+    def test_exact_div_works_even_if_divmod_not_supported(self):
+        """
+        exact_div is independent of Euclidean division support.
+        QuadraticRing(15) has supports_division()==False but exact_div should still work.
+        """
+        assert Z15.supports_division() is False
+
+        y = Z15(3, 0)  # the integer 3
+        x = Z15(21, 0)  # the integer 21
+
+        q = x.exact_div(y)
+        assert q == Z15(7, 0)
+        assert y.divides(x) is True
+
+        assert (x + Z15.one).exact_div(y) is None
+        assert y.divides(x + Z15.one) is False
+
+    def test_divides_is_equivalent_to_exact_div_not_none(self):
+        """Coherence: y.divides(x) <=> x.exact_div(y) is not None."""
+        rng = random.Random(12345)
+        for Q in (ZI, ZE, Z5, Z15, ZN17):
+            for _ in range(200):
+                x = _rand_elem(rng, Q, 200)
+                y = _rand_elem(rng, Q, 200)
+                if not y:
+                    continue
+
+                ok = y.divides(x)
+                q = x.exact_div(y)
+
+                assert ok == (q is not None)
+                if q is not None:
+                    assert x == q * y
+
+    def test_exact_div_rejects_mixed_rings(self):
+        """exact_div/divides should still enforce the identity ring check."""
+        x = ZI(5, 2)
+        y_other = Z2(5, 2)
+
+        with pytest.raises(TypeError):
+            _ = x.exact_div(y_other)
+
+        with pytest.raises(TypeError):
+            _ = x.divides(y_other)
+
+    def test_exact_div_accepts_int_and_float(self):
+        """exact_div/divides should accept int/float inputs via embedding."""
+        x = ZI(12, 6)
+        assert x.exact_div(2) == ZI(6, 3)
+        assert x.exact_div(2.0) == ZI(6, 3)
+        assert (2).__class__ is int  # sanity: we're not relying on weird coercions
+
+        y = ZI(3, 0)
+        assert y.divides(x) is True
+        assert ZI(5, 0).divides(x) is False
+
+    def test_exact_div_den2_parity_rejection_finds_a_witness(self):
+        """
+        Find an example in a den=2 ring where the field quotient would have wrong parity,
+        so exact_div must return None (it enforces the den=2 integrality constraint).
+        """
+        Q = ZE  # D=-3, den=2
+        assert Q.den == 2
+
+        # Search small values for a (x,y) where:
+        #  - computed (qa,qb) are integers (pass divisibility-by-norm check)
+        #  - but qa,qb have opposite parity (not in the order)
+        for ya in range(-9, 10):
+            for yb in range(-9, 10):
+                if (ya ^ yb) & 1:
+                    continue
+                y = Q(ya, yb)
+                if not y:
+                    continue
+                N = abs(y)
+                if N == 0:
+                    continue
+
+                m = abs(N)
+
+                for xa in range(-15, 16):
+                    for xb in range(-15, 16):
+                        if (xa ^ xb) & 1:
+                            continue
+                        x = Q(xa, xb)
+
+                        num_a = x.a * y.a - x.b * y.b * Q.D
+                        num_b = y.a * x.b - x.a * y.b
+
+                        if (num_a % m) or (num_b % m):
+                            continue
+
+                        qa = num_a // m
+                        qb = num_b // m
+                        if N < 0:
+                            qa = -qa
+                            qb = -qb
+
+                        # This is the specific failure mode we want to witness:
+                        if (qa ^ qb) & 1:
+                            assert x.exact_div(y) is None
+                            assert y.divides(x) is False
+                            return
+
+        pytest.skip("No den=2 parity-mismatch witness found in the search window (unexpected).")
+
+    def test_exact_div_zero_norm_divisor_not_supported(self):
+        """
+        In rings with zero divisors (DualRing D=0, SplitRing D=1), exact_div should reject
+        divisors with norm 0 (currently NotImplementedError in QuadraticRing.exact_div).
+        """
+        # Dual numbers: epsilon has a=0 => norm 0
+        Q0 = QuadraticRing(0)
+        x0 = Q0(5, 7)
+        eps = Q0(0, 1)
+        assert abs(eps) == 0
+        with pytest.raises(NotImplementedError):
+            _ = x0.exact_div(eps)
+
+        # Split-complex: a=±b => norm 0
+        Q1 = QuadraticRing(1)  # default den=2
+        x1 = Q1(6, 2)
+        z = Q1(2, 2)
+        assert abs(z) == 0
+        with pytest.raises(NotImplementedError):
+            _ = x1.exact_div(z)
 
 
 class TestUnits:
