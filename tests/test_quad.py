@@ -154,6 +154,7 @@ class TestRingCapabilities:
             (QuadraticRing(15), False),
             (QuadraticRing(16), False),
             (QuadraticRing(-17), False),
+            (QuadraticRing(-19), False),
             (QuadraticRing(-3, 1), False),
         ],
         ids=str,
@@ -186,6 +187,7 @@ class TestRingCapabilities:
             (QuadraticRing(-3), True),
             (QuadraticRing(-7), True),
             (QuadraticRing(-11), True),
+            (QuadraticRing(-19), True),
             (QuadraticRing(2), False),
             (QuadraticRing(-3, 1), False),
             (QuadraticRing(-17), False),
@@ -241,6 +243,7 @@ class TestIdentityChecksWithQuadInt(RingTests):
             _ = a + b
 
 
+ZN19 = QuadraticRing(-19)
 ZN17 = QuadraticRing(-17)
 ZN11 = QuadraticRing(-11)
 ZN7 = QuadraticRing(-7)
@@ -1380,11 +1383,45 @@ class TestFactorDetail(QuadIntTests):
             _ = x.factor_detail()
 
     def test_notimplemented_for_non_norm_euclid_ring(self):
-        """Factorization only reliably make sense for norm-Euclidean rings."""
+        """Non-UFD / non-supported imaginary rings should still reject factorization."""
         # D=-17 is proven to be not norm-Euclidean
         x = ZN17(5, 2)
         with pytest.raises(NotImplementedError):
             _ = x.factor_detail()
+
+    def test_heegner_non_euclid_ramified_prime_factorization(self):
+        """For D=-19, sqrt(D) should be a ramified prime element (norm 19)."""
+        x = ZN19(0, 2)  # == sqrt(-19)
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+        assert norm_multiset(f.primes) == [19]
+
+    def test_heegner_non_euclid_inert_prime_factorization(self):
+        """Inert rational primes should stay prime as elements (norm p^2)."""
+        # For D=-19, p=3 is inert (since -19 is not a square mod 3).
+        x = ZN19(6, 0)  # == 3
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+        assert norm_multiset(f.primes) == [9]
+
+    @pytest.mark.parametrize("p", [5, 11], ids=str)
+    def test_heegner_non_euclid_split_prime_decomposition(self, p: int):
+        """_decompose_prime should return (A,B) with A^2 - D*B^2 = 4p and π=(A+B√D)/2 having norm p."""
+        A, B = ZN19._decompose_prime(p)
+        assert 4 * p == (A * A - ZN19.D * (B * B))
+        assert ((A ^ B) & 1) == 0  # den=2 parity constraint
+
+        pi = ZN19(A, B)
+        assert abs(pi) == p
+
+    def test_heegner_non_euclid_69_1337(self):
+        """Regression: ensure (69 + 1337*sqrt(-19))/2 factors and round-trips."""
+        x = ZN19(69, 1337)
+        f = x.factor_detail()
+        self.assert_factoring(x, f)
+
+        # From observed output: N(x)=11^2 * 70183, so expect norms [11, 11, 70183].
+        assert norm_multiset(f.primes) == [11, 11, 70183]
 
     @pytest.mark.parametrize("test_klass", [ZN2, ZN7, ZN11])
     def test_associate_factorization_norm_invariant(self, test_klass: QuadraticRing):
