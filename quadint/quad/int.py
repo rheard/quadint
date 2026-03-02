@@ -204,13 +204,21 @@ class QuadInt:
                 raise ZeroDivisionError("pow() 3rd argument cannot be 0")
 
         e = int(exp)
+
+        # Allow negative powers only in the modular case (like Python's pow()).
         if e < 0:
-            raise ValueError("Negative powers not supported in quadratic integer rings")
+            if mod is None:
+                raise ValueError("Negative powers not supported in quadratic integer rings without a modulus")
+
+            # x^(-e) mod m == (x^{-1} mod m)^e mod m
+            base = self.inv_mod(mod) % mod
+            e = -e
+        else:
+            base = self % mod if mod is not None else self
 
         # exponentiation by squaring
         if mod is None:
             result = self.one
-            base = self
             while e:
                 if e & 1:
                     result = result * base
@@ -220,8 +228,8 @@ class QuadInt:
                     base = base * base
 
             return result
+
         result = self.one % mod
-        base = self % mod
         while e:
             if e & 1:
                 result = (result * base) % mod
@@ -289,7 +297,7 @@ class QuadInt:
             divisor = self._from_obj(divisor)
 
         if not isinstance(divisor, QuadInt):
-            return NotImplemented
+            raise NotImplementedError
 
         self.assert_same_ring(divisor)
         return self.ring.exact_div(self, divisor)
@@ -300,10 +308,36 @@ class QuadInt:
             x = self._from_obj(x)
 
         if not isinstance(x, QuadInt):
-            return NotImplemented
+            raise NotImplementedError
 
         self.assert_same_ring(x)
         return self.ring.divides(x, self)
+
+    def xgcd(self, x: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
+        """Extended gcd in Euclidean quadratic rings."""
+        if isinstance(x, _OTHER_OP_TYPES):
+            x = self._from_obj(x)
+
+        if not isinstance(x, QuadInt):
+            raise NotImplementedError
+
+        self.assert_same_ring(x)
+        return self.ring.xgcd(self, x)
+
+    def gcd(self, x: QuadInt) -> QuadInt:
+        """Greatest common divisor in Euclidean quadratic rings."""
+        return self.xgcd(x)[0]
+
+    def inv_mod(self, mod: complex | int | float | QuadInt) -> QuadInt:
+        """Return the modular inverse of self modulo mod (if it exists)."""
+        if isinstance(mod, _OTHER_OP_TYPES):
+            mod = self._from_obj(mod)
+
+        if not isinstance(mod, QuadInt):
+            raise NotImplementedError
+
+        self.assert_same_ring(mod)
+        return self.ring.inv_mod(self, mod)
 
     # endregion
 

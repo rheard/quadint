@@ -410,6 +410,132 @@ class QuadraticRing:
         """Return True iff x | y in this ring."""
         return self.exact_div(x, y) is not None
 
+    def xgcd(self, a: QuadInt, b: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
+        """
+        Extended gcd in Euclidean quadratic rings.
+
+        Returns (g, s, t) such that:
+            s*a + t*b == g
+
+        Notes:
+            - This is only implemented for rings with divmod support (Euclidean-style division).
+            - The gcd is only defined up to multiplication by a unit; this returns a stable
+              associate using QuadInt._canonical_associate() and adjusts (s,t) accordingly
+              using the (finite) torsion unit list.
+        """
+        # TODO: For now: avoid the zero-divisor rings (dual/split), where "gcd" semantics differ.
+        if self.D in (0, 1):
+            raise NotImplementedError("xgcd not implemented for D=0 or D=1 (non-domains)")
+
+        if not self.supports_division():
+            raise NotImplementedError("xgcd requires Euclidean-style division (supports_division()==True)")
+
+        # region Handle trivial cases
+        if not a:
+            g = b._canonical_associate()
+            # Find unit u with u*b == g so that 0*a + u*b == g
+            t = self.one
+            if g != b:
+                for u in b.units:
+                    if u * b == g:
+                        t = u
+                        break
+            return g, self.zero, t
+
+        if not b:
+            g = a._canonical_associate()
+            # Find unit u with u*a == g so that u*a + 0*b == g
+            s = self.one
+            if g != a:
+                for u in a.units:
+                    if u * a == g:
+                        s = u
+                        break
+            return g, s, self.zero
+        # endregion
+
+        r0, r1 = a, b
+        s0, s1 = self.one, self.zero
+        t0, t1 = self.zero, self.one
+
+        while r1:
+            q, r = self.divmod(
+                r0,
+                r1,
+            )
+            r0, r1 = r1, r
+            s0, s1 = s1, s0 - q * s1
+            t0, t1 = t1, t0 - q * t1
+
+        # r0 is a gcd up to a unit. Normalize it for stable output, and adjust (s,t).
+        g = r0
+        s = s0
+        t = t0
+
+        g_can = g._canonical_associate()
+        if g_can != g:
+            # Find u with g*u == g_can (torsion units only)
+            for u in g.units:  # finite torsion units
+                if g * u == g_can:
+                    g = g_can
+                    s = s * u
+                    t = t * u
+                    break
+
+        return g, s, t
+
+    def gcd(self, a: QuadInt, b: QuadInt) -> QuadInt:
+        """
+        Greatest common divisor in Euclidean quadratic rings.
+
+        This returns a *canonical associate* `g` such that:
+          - g divides both `a` and `b`, and
+          - for any `d` dividing both `a` and `b`, `d` also divides `g`.
+
+        The result is only defined up to multiplication by a unit; this method returns the
+        same stable representative as `xgcd()` (via `_canonical_associate()`), so callers
+        get deterministic output.
+
+        Notes:
+            - Implemented via `xgcd()`, so it is available exactly when `xgcd()` is available.
+            - Raises `NotImplementedError` for non-Euclidean rings (supports_division()==False)
+              and for D in {0, 1} where the ring is not a domain.
+        """
+        g, _, _ = self.xgcd(a, b)
+        return g
+
+    def inv_mod(self, a: QuadInt, m: QuadInt) -> QuadInt:
+        """
+        Modular inverse in Euclidean quadratic rings.
+
+        Returns inv such that:
+            (a * inv) % m == 1 % m
+
+        Raises:
+            NotImplementedError: if this ring does not support Euclidean division / xgcd.
+            ZeroDivisionError: if m == 0.
+            ValueError: if a is not invertible modulo m (i.e. gcd(a, m) is not a unit).
+        """
+        if a.ring is not self or m.ring is not self:
+            raise TypeError("Cannot mix QuadInt from different rings")
+
+        if not m:
+            raise ZeroDivisionError("modulus cannot be 0")
+
+        # xgcd gives s*a + t*m == g
+        g, s, _t = self.xgcd(a, m)
+
+        # Invertible mod m  <=>  gcd(a,m) is a unit.
+        # In these quadratic integer rings, unit <=> |N(g)| == 1.
+        if abs(abs(g)) != 1:
+            raise ValueError(f"{a} is not invertible mod {m} (gcd={g})")
+
+        # g^{-1} = conjugate(g) / N(g), and N(g) is ±1 here.
+        Ng = abs(g)  # signed norm
+        g_inv = g.conjugate() if Ng == 1 else -g.conjugate()
+
+        return (s * g_inv) % m
+
     def factor_detail(self, x: QuadInt) -> Factorization:
         """Factor `x` and return structured details when supported by this ring."""
         raise NotImplementedError("Factorization is not implemented for this ring")
@@ -909,15 +1035,6 @@ class HeegnerDen2Ring(EisensteinRing):
 
     SPLIT_K = 1  # unused by this strategy
 
-    @staticmethod
-    def _gcd_ring(a: QuadInt, b: QuadInt) -> QuadInt:
-        """Compute a gcd using Euclidean division in norm-Euclidean rings."""
-        x, y = a, b
-        while y:
-            x, y = y, divmod(x, y)[1]
-
-        return x._canonical_associate()
-
     @classmethod
     def _is_split_prime(cls, p: int) -> bool:
         if p == cls.RAMIFIED_PRIME:
@@ -958,9 +1075,9 @@ class HeegnerDen2Ring(EisensteinRing):
         x0, y0 = self._decompose_prime(p)
 
         p_elem = x._make(2 * p, 0)
-        cand = self._gcd_ring(p_elem, x._make(x0, 1))
+        cand = self.gcd(p_elem, x._make(x0, 1))
         if abs(cand) in (1, p * p):
-            cand = self._gcd_ring(p_elem, x._make(y0, 1))
+            cand = self.gcd(p_elem, x._make(y0, 1))
 
         return cand
 
@@ -1132,7 +1249,7 @@ class HeegnerNonEuclidUfdRing(CornacchiaRing):
 # endregion
 
 
-class Clark69Ring(QuadraticRing):
+class Clark69Ring(RealNormEuclidRing):
     """
     Euclidean division for the maximal order of Q(sqrt(69)), i.e. Z[(1+sqrt(69))/2].
 
@@ -1269,7 +1386,7 @@ def _is_squarefree(n: int) -> bool:
     return all(i < 2 for i in facts.values())
 
 
-class HarperRing(QuadraticRing):
+class HarperRing(RealNormEuclidRing):
     """
     Harper-style Euclidean division for selected real quadratic maximal orders.
 

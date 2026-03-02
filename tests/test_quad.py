@@ -432,14 +432,6 @@ class TestDiv(QuadIntTests):
         with pytest.raises(ZeroDivisionError):
             pow(x, 5, 0)
 
-    def test_pow_mod_negative_exponent_raises(self):
-        """pow(x, -e, m) should raise."""
-        x = ZI(5, 2)
-        m = ZI(2, 1)
-
-        with pytest.raises(ValueError, match="Negative powers not supported in quadratic integer rings"):
-            pow(x, -1, m)
-
     def test_splitring_den2_does_not_force_qu_qv_parity(self):
         """The parity constraint for split integer division doesn't apply when den=2 (the default). Verify that"""
         # D=1 defaults to den=2 (maximal-order convention), so this uses SplitRing with den=2.
@@ -1167,6 +1159,211 @@ class TestExactDivAndDivides(QuadIntTests):
         assert abs(z) == 0
         with pytest.raises(NotImplementedError):
             _ = x1.exact_div(z)
+
+
+class TestGcdXgcd(QuadIntTests):
+    """Tests for gcd/xgcd."""
+
+    @staticmethod
+    def _is_associate(x: QuadInt, y: QuadInt) -> bool:
+        """Return True iff x and y differ by multiplication by a torsion unit."""
+        return any(x == y * u for u in y.units)
+
+    def test_xgcd_requires_division(self):
+        """xgcd/gcd should raise in rings without divmod support."""
+        a = Z15(5, 2)
+        b = Z15(3, -2)
+        with pytest.raises(NotImplementedError):
+            _ = a.xgcd(b)
+        with pytest.raises(NotImplementedError):
+            _ = a.gcd(b)
+
+    def test_xgcd_rejects_zero_divisor_rings(self):
+        """Verify xgcd is intentionally not implemented for D=0 and D=1."""
+        for Q in (QuadraticRing(0), QuadraticRing(1)):
+            a = Q(5, 9)
+            b = Q(3, 1)
+            with pytest.raises(NotImplementedError):
+                _ = a.xgcd(b)
+            with pytest.raises(NotImplementedError):
+                _ = a.gcd(b)
+
+    def test_xgcd_trivial_cases_obey_bezout(self):
+        """Verify xgcd should satisfy Bézout identity even when one argument is 0."""
+        Q = ZI  # Gaussian integers have nontrivial torsion units, good stress-test.
+        a = Q(5, 2)
+        z = Q.zero
+
+        g1, s1, t1 = a.xgcd(z)
+        assert s1 * a + t1 * z == g1
+        assert g1 == a._canonical_associate()
+        assert a.gcd(z) == g1
+
+        g2, s2, t2 = z.xgcd(a)
+        assert s2 * z + t2 * a == g2
+        assert g2 == a._canonical_associate()
+        assert z.gcd(a) == g2
+
+    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 5, 69], ids=str)
+    def test_xgcd_bezout_and_divisibility_random(self, D: int):
+        """
+        Property test:
+          - s*a + t*b == g
+          - g divides a and b
+          - gcd agrees with xgcd()[0]
+          - gcd is symmetric (stable canonical associate)
+        """
+        Q = QuadraticRing(D)
+        rng = random.Random(99_000 + D)
+
+        for bound in (50, 5000):
+            for _ in range(30):
+                a = _rand_elem(rng, Q, bound)
+                b = _rand_elem(rng, Q, bound)
+                if not b:
+                    continue
+
+                g, s, t = a.xgcd(b)
+
+                # Bézout identity
+                assert s * a + t * b == g
+
+                # Stable canonical representative (torsion-unit canonicalization)
+                assert g == g._canonical_associate()
+
+                # Divisibility
+                assert g.divides(a) is True
+                assert g.divides(b) is True
+
+                # gcd wrappers agree
+                assert a.gcd(b) == g
+                assert Q.gcd(a, b) == g
+
+                # symmetry; gcds should be associates: each divides the other
+                g2 = b.gcd(a)
+                assert g.divides(g2)
+                assert g2.divides(g)
+
+    @pytest.mark.parametrize("Q", [ZI, ZE, Z5], ids=str)
+    def test_gcd_contains_common_factor(self, Q: QuadraticRing):
+        """If d divides both a and b, then d should divide gcd(a,b)."""
+        rng = random.Random(12_345 + Q.D)
+
+        # Pick a small non-unit d
+        d = _rand_elem(rng, Q, 20)
+        while not d or abs(abs(d)) == 1:
+            d = _rand_elem(rng, Q, 20)
+
+        u = _rand_elem(rng, Q, 200)
+        v = _rand_elem(rng, Q, 200)
+        a = d * u
+        b = d * v
+
+        g = a.gcd(b)
+        assert d.divides(g) is True
+
+
+class TestInvModAndNegativePow(QuadIntTests):
+    """Tests for inv_mod and negative exponents in pow(x, e, mod)."""
+
+    @staticmethod
+    def _embed_int(Q: QuadraticRing, n: int) -> QuadInt:
+        """Embed Python int n as an element of Q (works for den=1 and den=2)."""
+        return Q(n * Q.den, 0)
+
+    @staticmethod
+    def _find_invertible(Q: QuadraticRing, mod: QuadInt) -> tuple[QuadInt, QuadInt]:
+        """
+        Find a small element a with inverse modulo mod.
+        Returns (a, inv) with a*inv ≡ 1 (mod mod).
+        """
+        for a0 in range(-6, 7):
+            for b0 in range(-6, 7):
+                if a0 == 0 and b0 == 0:
+                    continue
+                if Q.den == 2 and ((a0 ^ b0) & 1):
+                    continue
+                a = Q(a0, b0)
+                try:
+                    inv = a.inv_mod(mod)
+                except ValueError:
+                    continue
+                return a, inv
+
+        pytest.skip(f"Could not find invertible element modulo {mod} in {Q}")
+
+    @pytest.mark.parametrize("Q", [ZI, ZE, Z2, Z5, Z69], ids=str)
+    def test_inv_mod_matches_pow_negative_one(self, Q: QuadraticRing):
+        """inv_mod agrees with pow(a, -1, m), and a*inv ≡ 1 (mod m)."""
+        assert Q.supports_division() is True
+
+        m = self._embed_int(Q, 29)  # integer modulus
+        a, inv = self._find_invertible(Q, m)
+
+        one_mod = a.one % m
+        assert (a * inv) % m == one_mod
+        assert (inv * a) % m == one_mod
+
+        assert pow(a, -1, m) == inv
+        assert pow(a, -1, m) * a % m == one_mod
+
+    @pytest.mark.parametrize("Q", [ZI, ZE, Z2, Z5, Z69], ids=str)
+    def test_pow_negative_exponents_use_inverse(self, Q: QuadraticRing):
+        """pow(a, -e, m) equals pow(a.inv_mod(m), e, m) for e>0."""
+        assert Q.supports_division() is True
+
+        m = self._embed_int(Q, 31)
+        a, inv = self._find_invertible(Q, m)
+
+        for e in [1, 2, 5, 17]:
+            left = pow(a, -e, m)
+            right = pow(inv, e, m)
+            assert left == right
+
+    def test_pow_negative_without_mod_raises(self):
+        """Negative exponent without a modulus should still be rejected."""
+        a = ZI(3, 2)
+        with pytest.raises(ValueError):
+            _ = a**-1
+        with pytest.raises(ValueError):
+            _ = pow(a, -7)
+
+    @pytest.mark.parametrize("Q", [ZI, ZE, Z2, Z5, Z69], ids=str)
+    def test_inv_mod_noninvertible_raises(self, Q: QuadraticRing):
+        """If gcd(a,m) is not a unit, inv_mod / pow(-1, mod) must raise ValueError."""
+        assert Q.supports_division() is True
+
+        m = self._embed_int(Q, 6)
+        a = self._embed_int(Q, 2)  # shares a non-unit gcd with 6
+        with pytest.raises(ValueError):
+            _ = a.inv_mod(m)
+        with pytest.raises(ValueError):
+            _ = pow(a, -1, m)
+
+    def test_inv_mod_requires_division(self):
+        """Rings without divmod/xgcd should reject inv_mod and negative modular pow."""
+        assert Z15.supports_division() is False
+
+        a = Z15(5, 2)
+        m = self._embed_int(Z15, 7)
+
+        with pytest.raises(NotImplementedError):
+            _ = a.inv_mod(m)
+        with pytest.raises(NotImplementedError):
+            _ = pow(a, -1, m)
+
+    @pytest.mark.parametrize("Q", [ZI, Z2, Z5], ids=str)
+    def test_inv_mod_and_pow_reject_modulus_zero(self, Q: QuadraticRing):
+        """Modulus == 0 should raise ZeroDivisionError (both inv_mod and pow)."""
+        assert Q.supports_division() is True
+
+        a = Q(3 * Q.den, Q.den)  # nonzero element
+        z = Q.zero
+
+        with pytest.raises(ZeroDivisionError):
+            _ = a.inv_mod(z)
+        with pytest.raises(ZeroDivisionError):
+            _ = pow(a, -1, z)
 
 
 class TestUnits:
