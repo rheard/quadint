@@ -506,8 +506,8 @@ class TestFactorDetail(QuadIntTests):
         norms = norm_multiset(f.primes)
         assert norms.count(5) == 2, f"expected two norm-5 primes, got norms={norms} primes={f.primes}"
 
-    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
     @pytest.mark.parametrize("b", [-5, -3, -1, 1, 3, 4])
+    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
     def test_small_grid(self, a: int, b: int):
         """Check factor_detail().prod() round-trips for a small Gaussian grid."""
         x = complexi(a, b)

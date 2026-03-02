@@ -1190,8 +1190,8 @@ class TestFactorDetail(QuadIntTests):
             f"expected two norm-{expected_prime_norm} primes, got norms={norms} primes={f.primes}"
         )
 
-    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
     @pytest.mark.parametrize("b", [-5, -3, -1, 1, 3, 4])
+    @pytest.mark.parametrize("a", [-4, -2, -1, 1, 2, 5])
     @pytest.mark.parametrize("test_klass", [ZN2, ZN7, ZN11])
     def test_small_grid(self, a: int, b: int, test_klass: QuadraticRing):
         """Check factor_detail().prod() round-trips for a small Gaussian grid."""
