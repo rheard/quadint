@@ -414,14 +414,14 @@ class QuadraticRing:
         """
         Extended gcd in Euclidean quadratic rings.
 
-        Returns (g, s, t) such that:
-            s*a + t*b == g
-
         Notes:
             - This is only implemented for rings with divmod support (Euclidean-style division).
             - The gcd is only defined up to multiplication by a unit; this returns a stable
               associate using QuadInt._canonical_associate() and adjusts (s,t) accordingly
               using the (finite) torsion unit list.
+
+        Returns:
+            (g, s, t): such that s*a + t*b == g
         """
         # TODO: For now: avoid the zero-divisor rings (dual/split), where "gcd" semantics differ.
         if self.D in (0, 1):
@@ -488,10 +488,6 @@ class QuadraticRing:
         """
         Greatest common divisor in Euclidean quadratic rings.
 
-        This returns a *canonical associate* `g` such that:
-          - g divides both `a` and `b`, and
-          - for any `d` dividing both `a` and `b`, `d` also divides `g`.
-
         The result is only defined up to multiplication by a unit; this method returns the
         same stable representative as `xgcd()` (via `_canonical_associate()`), so callers
         get deterministic output.
@@ -500,6 +496,10 @@ class QuadraticRing:
             - Implemented via `xgcd()`, so it is available exactly when `xgcd()` is available.
             - Raises `NotImplementedError` for non-Euclidean rings (supports_division()==False)
               and for D in {0, 1} where the ring is not a domain.
+
+        Returns:
+            g: A *canonical associate* such that g divides both `a` and `b`,
+                and for any `d` dividing both `a` and `b`, `d` also divides `g`.
         """
         g, _, _ = self.xgcd(a, b)
         return g
@@ -508,17 +508,13 @@ class QuadraticRing:
         """
         Modular inverse in Euclidean quadratic rings.
 
-        Returns inv such that:
-            (a * inv) % m == 1 % m
+        Returns:
+            inv: such that (a * inv) % m == 1 % m
 
         Raises:
-            NotImplementedError: if this ring does not support Euclidean division / xgcd.
             ZeroDivisionError: if m == 0.
             ValueError: if a is not invertible modulo m (i.e. gcd(a, m) is not a unit).
         """
-        if a.ring is not self or m.ring is not self:
-            raise TypeError("Cannot mix QuadInt from different rings")
-
         if not m:
             raise ZeroDivisionError("modulus cannot be 0")
 
