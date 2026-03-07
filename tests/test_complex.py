@@ -16,7 +16,8 @@ from quadint import (
     complexint as complexi,
 )
 from quadint.quad.rings import GaussianRing
-from tests.test_quad import QuadIntTests, norm_multiset
+from tests.quad.test_int import QuadIntTests
+from tests.quad.test_rings import norm_multiset
 
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
