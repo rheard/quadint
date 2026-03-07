@@ -28,23 +28,19 @@ class CornacchiaRing(RealNormEuclidRing):
         # No, this is purely a sub-abstract base class that needs to be subclassed
         return False
 
-    @classmethod
-    def _is_split_prime(cls, p: int) -> bool:
+    def _is_split_prime(self, p: int) -> bool:
         raise NotImplementedError
 
-    @classmethod
-    def _is_inert_prime(cls, p: int) -> bool:
+    def _is_inert_prime(self, p: int) -> bool:
         raise NotImplementedError
 
-    @classmethod
-    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
+    def _ramified_generator(self, x: QuadInt) -> QuadInt:
         raise NotImplementedError
 
     def _ramified_prime(self) -> int:
         return self.RAMIFIED_PRIME
 
-    @classmethod
-    def _inert_generator(cls, x: QuadInt, p: int) -> QuadInt:
+    def _inert_generator(self, x: QuadInt, p: int) -> QuadInt:
         return x._make(p, 0)
 
     def _split_generator(self, x: QuadInt, p: int) -> QuadInt:
@@ -171,16 +167,13 @@ class GaussianRing(CornacchiaRing):
     RAMIFIED_PRIME = 2
     SPLIT_K = 1
 
-    @classmethod
-    def _is_split_prime(cls, p: int) -> bool:
+    def _is_split_prime(self, p: int) -> bool:
         return p % 4 == 1
 
-    @classmethod
-    def _is_inert_prime(cls, p: int) -> bool:
+    def _is_inert_prime(self, p: int) -> bool:
         return p % 4 == 3
 
-    @classmethod
-    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
+    def _ramified_generator(self, x: QuadInt) -> QuadInt:
         return x._make(1, 1)
 
     @classmethod
@@ -195,16 +188,13 @@ class SqrtMinusTwoRing(CornacchiaRing):
     RAMIFIED_PRIME = 2
     SPLIT_K = 2
 
-    @classmethod
-    def _is_split_prime(cls, p: int) -> bool:
+    def _is_split_prime(self, p: int) -> bool:
         return p % 8 in (1, 3)
 
-    @classmethod
-    def _is_inert_prime(cls, p: int) -> bool:
+    def _is_inert_prime(self, p: int) -> bool:
         return p % 8 in (5, 7)
 
-    @classmethod
-    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
+    def _ramified_generator(self, x: QuadInt) -> QuadInt:
         return x._make(0, 1)
 
     @classmethod
@@ -219,20 +209,16 @@ class EisensteinRing(CornacchiaRing):
     RAMIFIED_PRIME = 3
     SPLIT_K = 3
 
-    @classmethod
-    def _is_split_prime(cls, p: int) -> bool:
+    def _is_split_prime(self, p: int) -> bool:
         return p % 3 == 1
 
-    @classmethod
-    def _is_inert_prime(cls, p: int) -> bool:
+    def _is_inert_prime(self, p: int) -> bool:
         return p % 3 == 2
 
-    @classmethod
-    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
+    def _ramified_generator(self, x: QuadInt) -> QuadInt:
         return x._make(3, 1)
 
-    @classmethod
-    def _inert_generator(cls, x: QuadInt, p: int) -> QuadInt:
+    def _inert_generator(self, x: QuadInt, p: int) -> QuadInt:
         return x._make(2 * p, 0)
 
     def _split_generator(self, x: QuadInt, p: int) -> QuadInt:

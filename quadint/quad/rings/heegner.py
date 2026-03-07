@@ -17,24 +17,21 @@ class HeegnerDen2Ring(EisensteinRing):
 
     SPLIT_K = 1  # unused by this strategy
 
-    @classmethod
-    def _is_split_prime(cls, p: int) -> bool:
-        if p == cls.RAMIFIED_PRIME:
+    def _is_split_prime(self, p: int) -> bool:
+        if p == self.RAMIFIED_PRIME:
             return False
         if p == 2:
-            return -cls.RAMIFIED_PRIME % 8 == 1
-        return sqrt_mod(-cls.RAMIFIED_PRIME, p, all_roots=False) is not None
+            return -self.RAMIFIED_PRIME % 8 == 1
+        return sqrt_mod(-self.RAMIFIED_PRIME, p, all_roots=False) is not None
 
-    @classmethod
-    def _is_inert_prime(cls, p: int) -> bool:
-        if p == cls.RAMIFIED_PRIME:
+    def _is_inert_prime(self, p: int) -> bool:
+        if p == self.RAMIFIED_PRIME:
             return False
         if p == 2:
-            return -cls.RAMIFIED_PRIME % 8 == 5
-        return sqrt_mod(-cls.RAMIFIED_PRIME, p, all_roots=False) is None
+            return -self.RAMIFIED_PRIME % 8 == 5
+        return sqrt_mod(-self.RAMIFIED_PRIME, p, all_roots=False) is None
 
-    @classmethod
-    def _ramified_generator(cls, x: QuadInt) -> QuadInt:
+    def _ramified_generator(self, x: QuadInt) -> QuadInt:
         return x._make(0, 2)
 
     def _decompose_prime(self, p: int) -> tuple[int, int]:
