@@ -84,7 +84,7 @@ class QuadInt:
         """Return canonical representative among associates for stable factor output."""
 
         def key(w_: QuadInt) -> tuple[int, int, int, int, int]:
-            return abs(w_), abs(w_.b), abs(w_.a), w_.a, w_.b
+            return abs(abs(w_)), abs(w_.b), abs(w_.a), w_.a, w_.b
 
         best = self
         best_k = key(self)

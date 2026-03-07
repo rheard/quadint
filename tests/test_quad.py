@@ -1275,7 +1275,9 @@ class TestInvModAndNegativePow(QuadIntTests):
     def _find_invertible(Q: QuadraticRing, mod: QuadInt) -> tuple[QuadInt, QuadInt]:
         """
         Find a small element a with inverse modulo mod.
-        Returns (a, inv) with a*inv ≡ 1 (mod mod).
+
+        Returns:
+            (a, inv): with a*inv ≡ 1 (mod mod).
         """
         for a0 in range(-6, 7):
             for b0 in range(-6, 7):
@@ -1323,9 +1325,10 @@ class TestInvModAndNegativePow(QuadIntTests):
     def test_pow_negative_without_mod_raises(self):
         """Negative exponent without a modulus should still be rejected."""
         a = ZI(3, 2)
-        with pytest.raises(ValueError):
+        error_msg = r"Negative powers not supported.* without a modulus"
+        with pytest.raises(ValueError, match=error_msg):
             _ = a**-1
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=error_msg):
             _ = pow(a, -7)
 
     @pytest.mark.parametrize("Q", [ZI, ZE, Z2, Z5, Z69], ids=str)
@@ -1335,9 +1338,11 @@ class TestInvModAndNegativePow(QuadIntTests):
 
         m = self._embed_int(Q, 6)
         a = self._embed_int(Q, 2)  # shares a non-unit gcd with 6
-        with pytest.raises(ValueError):
+        error_msg = r".* is not invertible mod .* \(gcd\=.*\)"
+
+        with pytest.raises(ValueError, match=error_msg):
             _ = a.inv_mod(m)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=error_msg):
             _ = pow(a, -1, m)
 
     def test_inv_mod_requires_division(self):
