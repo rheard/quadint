@@ -401,6 +401,24 @@ class QuadInt:
 
         return g
 
+    def __index__(self) -> int:
+        """Return an integer if this element is a plain integer (b == 0), else raise TypeError."""
+        if self.b != 0:
+            raise TypeError("cannot convert non-integer quadratic integer to int")
+        return self.a // self.ring.den
+
+    def __float__(self) -> float:
+        """Return a float if this element is a plain integer (b == 0), else raise TypeError."""
+        if self.b != 0:
+            raise TypeError("cannot convert non-integer quadratic integer to float")
+        return float(self.a // self.ring.den)
+
+    def __complex__(self) -> complex:
+        """Return a complex if this element is a Gaussian integer (D == -1, den == 1), else raise TypeError."""
+        if self.ring.D != -1 or self.ring.den != 1:
+            raise TypeError("cannot convert non-Gaussian quadratic integer to complex")
+        return complex(self.a, self.b)
+
     def __bool__(self) -> bool:
         return (self.a | self.b) != 0
 

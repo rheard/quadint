@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import random
 
-from math import gcd, isqrt, prod
+from math import gcd, isclose, isqrt, prod
 
 import pytest
 
@@ -329,6 +329,76 @@ class TestUnits:
         assert ZE(-2, 0).is_unit()  # -1
         assert ZE(-1, 1).is_unit()  # ω
         assert ZE(1, -1).is_unit()  # -ω
+
+
+class TestIndex:
+    """Tests for __index__ (int conversion)"""
+
+    def test_pure_integer(self):
+        """A QuadInt with b=0 should convert to int."""
+        assert int(complexint(5, 0)) == 5
+        assert int(ZE(6, 0)) == 3  # den=2, so 6/2 = 3
+        assert int(Z2(7, 0)) == 7
+
+    def test_negative(self):
+        """Negative pure integers should convert correctly."""
+        assert int(complexint(-3, 0)) == -3
+
+    def test_zero(self):
+        """Zero should convert to 0."""
+        assert int(complexint(0, 0)) == 0
+
+    def test_non_integer_raises(self):
+        """A QuadInt with b!=0 should raise TypeError."""
+        with pytest.raises(TypeError):
+            int(complexint(1, 2))
+
+        with pytest.raises(TypeError):
+            int(Z2(3, 1))
+
+    def test_usable_as_index(self):
+        """__index__ should allow use in list indexing and range."""
+        items = [10, 20, 30]
+        assert items[complexint(1, 0)] == 20
+        assert list(range(complexint(3, 0))) == [0, 1, 2]
+
+
+class TestFloat:
+    """Tests for __float__ conversion"""
+
+    def test_pure_integer(self):
+        """A QuadInt with b=0 should convert to float."""
+        assert isclose(float(complexint(5, 0)), 5.0)
+        assert isclose(float(ZE(6, 0)), 3.0)  # den=2
+
+    def test_non_integer_raises(self):
+        """A QuadInt with b!=0 should raise TypeError."""
+        with pytest.raises(TypeError):
+            float(complexint(1, 2))
+
+
+class TestComplex:
+    """Tests for __complex__ conversion"""
+
+    def test_gaussian(self):
+        """Gaussian integers should convert to complex."""
+        assert complex(complexint(3, 4)) == (3 + 4j)
+        assert complex(complexint(-1, 0)) == (-1 + 0j)
+        assert complex(complexint(0, -2)) == -2j
+
+    def test_non_gaussian_raises(self):
+        """Non-Gaussian quadratic integers should raise TypeError."""
+        with pytest.raises(TypeError):
+            complex(ZE(2, 0))
+
+        with pytest.raises(TypeError):
+            complex(Z2(1, 0))
+
+    def test_roundtrip(self):
+        """Complex -> complexint -> complex should roundtrip."""
+        c = 3 + 7j
+        x = complexint.DEFAULT_RING.from_obj(c)
+        assert complex(x) == c
 
 
 class TestContent:
