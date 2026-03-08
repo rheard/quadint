@@ -200,6 +200,8 @@ class QuadraticRing:
     SUPPORTS_FACTORIZATION: ClassVar[bool] = False
     _CACHE: ClassVar[dict[tuple[int, int], object]] = {}
 
+    DEFAULT_KLASS: ClassVar[type[QuadInt]] = QuadInt
+
     D: int
     den: int
 
@@ -246,7 +248,8 @@ class QuadraticRing:
 
     def __call__(self, a: int = 0, b: int = 0) -> QuadInt:
         """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
-        return QuadInt(int(a), int(b), self)
+        cls = self.DEFAULT_KLASS
+        return cls(int(a), int(b), self)
 
     def __contains__(self, x: object) -> bool:
         """Return True iff x is a QuadInt element of this ring (by parameters)."""
@@ -274,12 +277,14 @@ class QuadraticRing:
     @property
     def zero(self) -> QuadInt:
         """Additive identity (0)."""
-        return QuadInt(0, 0, self)
+        cls = self.DEFAULT_KLASS
+        return cls(0, 0, self)
 
     @property
     def one(self) -> QuadInt:
         """Multiplicative identity (1)."""
-        return QuadInt(self.den, 0, self)
+        cls = self.DEFAULT_KLASS
+        return cls(self.den, 0, self)
 
     def from_obj(self, n: complex | int | float | QuadInt) -> QuadInt:
         """Embed integer (or float) n as (n*den + 0*sqrt(D))/den. Also supports complex if D==-1"""
@@ -301,13 +306,15 @@ class QuadraticRing:
             return NotImplemented
 
         # The only time b is not 0 is if self.den is 1 anyway... No need to multiply
-        return QuadInt(a * self.den, b, self)
+        cls = self.DEFAULT_KLASS
+        return cls(a * self.den, b, self)
 
     def from_ab(self, a: int, b: int) -> QuadInt:
         """Create an integer keeping in mind the denominator"""
         da = int(a) * self.den
         db = int(b) * self.den
-        return QuadInt(da, db, self)
+        cls = self.DEFAULT_KLASS
+        return cls(da, db, self)
 
     def supports_division(self) -> bool:
         """

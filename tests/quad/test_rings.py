@@ -10,7 +10,7 @@ import pytest
 
 import quadint
 
-from quadint import QuadInt
+from quadint import QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, _is_squarefree  # noqa: PLC2701
 from tests.quad.test_int import QuadIntTests
@@ -130,6 +130,16 @@ class TestQuadraticRing(RingTests):
         for _ in range(100):
             q2 = QuadraticRing(1, None)
             self.assert_same_ring_obj(q, q2)
+
+    def test_registered_subclasses(self):
+        """
+        Validate that subclasses of QuadInt are registered with their default rings,
+            and they use that type successfully.
+        """
+        assert isinstance(ZI(1, 2), complexint)
+        assert ZI.DEFAULT_KLASS is complexint
+
+        assert isinstance(ZI.one, complexint)
 
 
 class TestRingCapabilities:

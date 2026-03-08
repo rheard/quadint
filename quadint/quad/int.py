@@ -39,6 +39,13 @@ class QuadInt:
         if den == 2 and ((self.a ^ self.b) & 1):
             raise ValueError("For den=2, a and b must have the same parity")
 
+    def __init_subclass__(cls, *args: tuple, **kwargs: dict):
+        """Register a subclass with the ring if it is defined"""
+        super().__init_subclass__(*args, **kwargs)
+        ring = getattr(cls, "DEFAULT_RING", None)
+        if ring is not None:
+            ring.DEFAULT_KLASS = cls
+
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
         return self.__class__(a, b, self.ring)
