@@ -348,6 +348,10 @@ class QuadInt:
 
     # endregion
 
+    def is_unit(self) -> bool:
+        """Return True iff this element is a unit (invertible) in its ring."""
+        return abs(abs(self)) == 1
+
     def __abs__(self) -> int:
         """
         N((a+b√D)/den) = (a^2 - D*b^2) / den^2

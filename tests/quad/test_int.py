@@ -297,6 +297,39 @@ class TestUnits:
             y = x * u
             assert y._canonical_associate() == base
 
+    def test_units_are_units(self):
+        """Every element in .units should be a unit."""
+        for ring in [ZI, ZE, Z1, Z2, ZN7]:
+            one = ring.one
+            for u in one.units:
+                assert u.is_unit(), f"{u} in {ring} should be a unit"
+
+    def test_zero_is_not_unit(self):
+        """Zero is never a unit."""
+        assert not complexint(0, 0).is_unit()
+        assert not ZE(0, 0).is_unit()
+
+    def test_primes_are_not_units(self):
+        """Non-unit elements should return False."""
+        assert not complexint(1, 1).is_unit()  # norm 2
+        assert not complexint(2, 0).is_unit()  # norm 4
+        assert not Z2(3, 1).is_unit()  # norm 7
+
+    def test_gaussian_units(self):
+        """Verify the four Gaussian units."""
+        assert complexint(1, 0).is_unit()
+        assert complexint(-1, 0).is_unit()
+        assert complexint(0, 1).is_unit()
+        assert complexint(0, -1).is_unit()
+
+    def test_eisenstein_units(self):
+        """Verify the six Eisenstein units."""
+        # In internal numerator coords (den=2): units are ±1, ±ω, ±ω²
+        assert ZE(2, 0).is_unit()  # 1
+        assert ZE(-2, 0).is_unit()  # -1
+        assert ZE(-1, 1).is_unit()  # ω
+        assert ZE(1, -1).is_unit()  # -ω
+
 
 class TestContent:
     """Tests for the content method"""
