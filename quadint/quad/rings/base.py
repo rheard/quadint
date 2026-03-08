@@ -194,16 +194,15 @@ class QuadraticRing:
     This object is *not* a type factory (no nested classes) — it just carries parameters.
     """
 
-    __slots__ = ("D", "den")
+    __slots__ = ("D", "den", "DEFAULT_KLASS")
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
     SUPPORTS_FACTORIZATION: ClassVar[bool] = False
     _CACHE: ClassVar[dict[tuple[int, int], object]] = {}
 
-    DEFAULT_KLASS: ClassVar[type[QuadInt]] = QuadInt
-
     D: int
     den: int
+    DEFAULT_KLASS: type[QuadInt]
 
     def __new__(cls, D: int, den: int | None = None):
         """Handle singleton logic"""
@@ -228,6 +227,7 @@ class QuadraticRing:
         else:
             new_inst = super().__new__(cls)
 
+        new_inst.DEFAULT_KLASS = QuadInt
         cls._CACHE[key] = new_inst
         return new_inst
 

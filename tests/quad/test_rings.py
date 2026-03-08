@@ -141,6 +141,14 @@ class TestQuadraticRing(RingTests):
 
         assert isinstance(ZI.one, complexint)
 
+        # Now verify complexint isn't returned for the non-default ring
+        non_default_ZI = QuadraticRing(-1, 2)
+        assert non_default_ZI.DEFAULT_KLASS is not complexint
+
+        a = non_default_ZI(2, 4)
+        assert not isinstance(a, complexint)
+        assert not isinstance(non_default_ZI.one, complexint)
+
 
 class TestRingCapabilities:
     """Tests for lightweight capability helpers on QuadraticRing."""
