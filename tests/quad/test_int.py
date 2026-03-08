@@ -11,15 +11,6 @@ from quadint import QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
 
 
-def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
-    """Return sorted list of norms with multiplicity."""
-    out: list[int] = []
-    for p, k in primes.items():
-        out.extend([abs(p)] * k)
-    out.sort()
-    return out
-
-
 def brute_content(x: QuadInt) -> int:
     """Reference implementation: scan all divisors of gcd(a,b)."""
     g = gcd(abs(x.a), abs(x.b))

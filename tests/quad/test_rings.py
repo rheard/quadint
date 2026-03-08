@@ -4,7 +4,6 @@ import importlib.util
 import os
 import random
 
-from math import gcd, isqrt
 from pathlib import Path
 
 import pytest
@@ -44,30 +43,6 @@ def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
         out.extend([abs(p)] * k)
     out.sort()
     return out
-
-
-def brute_content(x: QuadInt) -> int:
-    """Reference implementation: scan all divisors of gcd(a,b)."""
-    g = gcd(abs(x.a), abs(x.b))
-    if g <= 1:
-        return 1
-
-    den = x.ring.den
-    best = 1
-    r = isqrt(g)
-    for d in range(1, r + 1):
-        if g % d:
-            continue
-        for cand in (d, g // d):
-            if cand <= best:
-                continue
-            a = x.a // cand
-            b = x.b // cand
-            if den == 2 and ((a ^ b) & 1):
-                continue
-            best = cand
-
-    return best
 
 
 @pytest.mark.skipif(
