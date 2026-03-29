@@ -206,9 +206,6 @@ class QuadraticRing:
 
     def __new__(cls, D: int, den: int | None = None):
         """Handle singleton logic"""
-        if cls is not QuadraticRing:
-            return super().__new__(cls)
-
         D0 = int(D)
         default_den = 2 if (D0 % 4) == 1 else 1
         den0 = default_den if den is None else _check_den(den)
@@ -218,14 +215,17 @@ class QuadraticRing:
         if inst is not None:
             return inst
 
-        # choose subclass
-        new_inst: QuadraticRing
-        for subcls in cls._subclasses():
-            if subcls.accept_override(D0, den0, default_den):
-                new_inst = subcls(D0, den0)
-                break
-        else:
+        if cls is not QuadraticRing:
             new_inst = super().__new__(cls)
+        else:
+            # choose subclass
+            new_inst: QuadraticRing
+            for subcls in cls._subclasses():
+                if subcls.accept_override(D0, den0, default_den):
+                    new_inst = subcls(D0, den0)
+                    break
+            else:
+                new_inst = super().__new__(cls)
 
         new_inst.DEFAULT_KLASS = QuadInt
         cls._CACHE[key] = new_inst
