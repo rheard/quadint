@@ -20,7 +20,6 @@ class CornacchiaRing(RealNormEuclidRing):
     SUPPORTS_FACTORIZATION: ClassVar[bool] = True
 
     RAMIFIED_PRIME: ClassVar[int]
-    SPLIT_K: ClassVar[int]
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
@@ -48,11 +47,12 @@ class CornacchiaRing(RealNormEuclidRing):
         return x._make(x0, y0)
 
     def _decompose_prime(self, p: int) -> tuple[int, int]:
-        """Find x,y with p = x**2 + k*y**2 for split primes, where k=SPLIT_K."""
+        """Find x,y with p = x**2 + k*y**2 for split primes, where k=abs(D)."""
         if not self._is_split_prime(p):
             raise ValueError(f"Could not decompose {p!r}")
 
-        root = sqrt_mod(-self.SPLIT_K, p, all_roots=False)
+        k = abs(self.D)
+        root = sqrt_mod(self.D, p, all_roots=False)
         if root is None:
             raise ValueError(f"Could not decompose {p!r}")
 
@@ -62,10 +62,10 @@ class CornacchiaRing(RealNormEuclidRing):
             a, b = b, a % b
 
         y2_num = p - b * b
-        if y2_num % self.SPLIT_K:
+        if y2_num % k:
             raise ValueError(f"Could not decompose {p!r}")
 
-        y2 = y2_num // self.SPLIT_K
+        y2 = y2_num // k
         y = isqrt(y2)
         if y * y != y2:
             raise ValueError(f"Could not decompose {p!r}")
@@ -165,7 +165,6 @@ class GaussianRing(CornacchiaRing):
     """Specialized factorization strategy for Gaussian integers Z[i]."""
 
     RAMIFIED_PRIME = 2
-    SPLIT_K = 1
 
     def _is_split_prime(self, p: int) -> bool:
         return p % 4 == 1
@@ -186,7 +185,6 @@ class SqrtMinusTwoRing(CornacchiaRing):
     """Specialized factorization strategy for Z[sqrt(-2)]."""
 
     RAMIFIED_PRIME = 2
-    SPLIT_K = 2
 
     def _is_split_prime(self, p: int) -> bool:
         return p % 8 in (1, 3)
@@ -207,7 +205,6 @@ class EisensteinRing(CornacchiaRing):
     """Specialized factorization strategy for Eisenstein integers Z[ω]."""
 
     RAMIFIED_PRIME = 3
-    SPLIT_K = 3
 
     def _is_split_prime(self, p: int) -> bool:
         return p % 3 == 1
