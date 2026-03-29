@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 
 from functools import cache
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from quadint.quad.rings.base import (
     QuadraticRing,
@@ -243,7 +243,7 @@ class HarperRing(RealNormEuclidRing):
             )
             return False
 
-        temp_ring = cls(D, den)
+        temp_ring: QuadraticRing = cls(D, den)
         disc = temp_ring.discriminant()
 
         # if isqrt(abs(disc)) ** 2 == abs(disc):
@@ -259,7 +259,7 @@ class HarperRing(RealNormEuclidRing):
         if disc <= 500:
             return True
 
-        return temp_ring._find_admissible_witness_primes() is not None
+        return HarperRing._find_admissible_witness_primes(cast("HarperRing", temp_ring)) is not None
 
     # region Finding admissible primes
     #   The code in this region is the code needed to add new entries to the HARDCODED caches above and below.

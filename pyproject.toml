@@ -72,6 +72,9 @@ test-command=[
 ]
 environment-pass = ["CI", "GITHUB_ACTIONS"]
 
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+
 [[tool.mypy.overrides]]
 module = ["cypari.*"]
 ignore_missing_imports = true

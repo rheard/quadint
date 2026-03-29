@@ -198,7 +198,7 @@ class QuadraticRing:
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
     SUPPORTS_FACTORIZATION: ClassVar[bool] = False
-    _CACHE: ClassVar[dict[tuple[int, int], object]] = {}
+    _CACHE: ClassVar[dict[tuple[int, int], QuadraticRing]] = {}
 
     D: int
     den: int
@@ -211,15 +211,15 @@ class QuadraticRing:
         den0 = default_den if den is None else _check_den(den)
 
         key = (D0, den0)
-        inst = cls._CACHE.get(key)
+        inst = QuadraticRing._CACHE.get(key)
         if inst is not None:
             return inst
 
+        new_inst: QuadraticRing
         if cls is not QuadraticRing:
             new_inst = super().__new__(cls)
         else:
             # choose subclass
-            new_inst: QuadraticRing
             for subcls in cls._subclasses():
                 if subcls.accept_override(D0, den0, default_den):
                     new_inst = subcls(D0, den0)
@@ -228,7 +228,7 @@ class QuadraticRing:
                 new_inst = super().__new__(cls)
 
         new_inst.DEFAULT_KLASS = QuadInt
-        cls._CACHE[key] = new_inst
+        QuadraticRing._CACHE[key] = new_inst
         return new_inst
 
     def __init__(self, D: int, den: int | None = None) -> None:
@@ -268,11 +268,15 @@ class QuadraticRing:
         other = x.ring
         return (other.D == self.D) and (other.den == self.den)
 
-    def __eq__(self, other: object):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, QuadraticRing):
             return False
 
         return self.D == other.D and self.den == other.den
+
+    def __ne__(self, other: object) -> bool:
+        # Work around occasional mypyc glue-generation assertions for __ne__.
+        return not self.__eq__(other)
 
     @property
     def zero(self) -> QuadInt:

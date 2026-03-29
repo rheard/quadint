@@ -19,7 +19,7 @@ class complexint(QuadInt):
     __slots__ = ()
 
     SYMBOL: ClassVar[str] = "j"
-    DEFAULT_RING = _ZI
+    DEFAULT_RING: ClassVar[QuadraticRing | None] = _ZI
 
     @property
     def real(self) -> int:
@@ -30,3 +30,7 @@ class complexint(QuadInt):
     def imag(self) -> int:
         """Alias for complexint"""
         return self.b
+
+
+# mypyc appears to have some issues around __init_subclass__; see issue 14188. Register explicitly.
+_ZI.DEFAULT_KLASS = complexint

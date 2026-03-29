@@ -14,7 +14,7 @@ setup(
     include_package_data=True,
     package_data={"quadint-stubs": ["*.pyi", "**/*.pyi"]},
     ext_modules=mypycify(
-        glob("quadint/**/*.py", recursive=True),  # noqa: PTH207
+        sorted(glob("quadint/**/*.py", recursive=True)),  # noqa: PTH207
         strip_asserts=True,
         strict_dunder_typing=True,
     ),
