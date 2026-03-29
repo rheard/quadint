@@ -918,7 +918,7 @@ class TestExactDivAndDivides(QuadIntTests):
         # Split-complex: a=±b => norm 0
         Q1 = QuadraticRing(1)  # default den=2
         x1 = Q1(6, 2)
-        z = Q1(2, 2)
+        z = Q1(0, 0)
         assert abs(z) == 0
         with pytest.raises(NotImplementedError):
             _ = x1.exact_div(z)
@@ -942,14 +942,14 @@ class TestGcdXgcd(QuadIntTests):
             _ = a.gcd(b)
 
     def test_xgcd_rejects_zero_divisor_rings(self):
-        """Verify xgcd is intentionally not implemented for D=0 and D=1."""
-        for Q in (QuadraticRing(0), QuadraticRing(1)):
-            a = Q(5, 9)
-            b = Q(3, 1)
-            with pytest.raises(NotImplementedError):
-                _ = a.xgcd(b)
-            with pytest.raises(NotImplementedError):
-                _ = a.gcd(b)
+        """Verify xgcd is intentionally not implemented for D=0 (dual numbers)."""
+        Q = QuadraticRing(0)
+        a = Q(5, 9)
+        b = Q(3, 1)
+        with pytest.raises(NotImplementedError):
+            _ = a.xgcd(b)
+        with pytest.raises(NotImplementedError):
+            _ = a.gcd(b)
 
     def test_xgcd_trivial_cases_obey_bezout(self):
         """Verify xgcd should satisfy Bézout identity even when one argument is 0."""
@@ -1236,7 +1236,7 @@ class TestFactorDetail(QuadIntTests):
         self.assert_factoring(x, f)
 
     def test_notimplemented_for_positive_D(self):
-        """Factorization implemented only for imaginary D"""
+        """Factorization not implemented for positive D (except D=1)."""
         x = Z2(5, 2)
         with pytest.raises(NotImplementedError):
             _ = x.factor_detail()

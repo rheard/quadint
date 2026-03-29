@@ -398,6 +398,44 @@ class QuadraticRing:
         """Return True iff x | y in this ring."""
         return self.exact_div(x, y) is not None
 
+    def _canonicalize_bezout_result(self, g: QuadInt, s: QuadInt, t: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
+        """
+        Normalize a Bézout triple to the ring's canonical gcd representative.
+
+        Given a triple (g, s, t) produced for some fixed inputs a and b
+        with s*a + t*b == g, replace g by its canonical associate and
+        multiply s and t by the same torsion unit so that the Bézout
+        identity remains exactly true.
+
+        This is a post-processing helper for xgcd-style routines. It makes gcd
+        output deterministic across associate choices while preserving the original
+        linear relation.
+
+        Args:
+            g: A gcd candidate, defined only up to multiplication by a unit.
+            s: Bézout coefficient for the first input.
+            t: Bézout coefficient for the second input.
+
+        Returns:
+            tuple[QuadInt, QuadInt, QuadInt]: A triple (g_can, s_can, t_can)
+            where g_can == g._canonical_associate() and the same Bézout identity
+            still holds with the adjusted coefficients.
+
+        Notes:
+            - Only torsion units are used to transport the identity.
+            - If g is already canonical, the input triple is returned unchanged.
+        """
+        g_can = g._canonical_associate()
+        if g_can != g:
+            for u in g.units:
+                if g * u == g_can:
+                    g = g_can
+                    s = s * u
+                    t = t * u
+                    break
+
+        return g, s, t
+
     def xgcd(self, a: QuadInt, b: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
         """
         Extended gcd in Euclidean quadratic rings.
@@ -411,9 +449,9 @@ class QuadraticRing:
         Returns:
             (g, s, t): such that s*a + t*b == g
         """
-        # TODO: For now: avoid the zero-divisor rings (dual/split), where "gcd" semantics differ.
-        if self.D in (0, 1):
-            raise NotImplementedError("xgcd not implemented for D=0 or D=1 (non-domains)")
+        # TODO: For now: avoid the zero-divisor rings (dual), where "gcd" semantics differ.
+        if self.D == 0:
+            raise NotImplementedError("xgcd not implemented for D=0 (non-domains)")
 
         if not self.supports_division():
             raise NotImplementedError("xgcd requires Euclidean-style division (supports_division()==True)")
@@ -456,21 +494,7 @@ class QuadraticRing:
             t0, t1 = t1, t0 - q * t1
 
         # r0 is a gcd up to a unit. Normalize it for stable output, and adjust (s,t).
-        g = r0
-        s = s0
-        t = t0
-
-        g_can = g._canonical_associate()
-        if g_can != g:
-            # Find u with g*u == g_can (torsion units only)
-            for u in g.units:  # finite torsion units
-                if g * u == g_can:
-                    g = g_can
-                    s = s * u
-                    t = t * u
-                    break
-
-        return g, s, t
+        return self._canonicalize_bezout_result(r0, s0, t0)
 
     def gcd(self, a: QuadInt, b: QuadInt) -> QuadInt:
         """
@@ -483,7 +507,7 @@ class QuadraticRing:
         Notes:
             - Implemented via `xgcd()`, so it is available exactly when `xgcd()` is available.
             - Raises `NotImplementedError` for non-Euclidean rings (supports_division()==False)
-              and for D in {0, 1} where the ring is not a domain.
+              and for D==0 where the ring is not a domain.
 
         Returns:
             g: A *canonical associate* such that g divides both `a` and `b`,

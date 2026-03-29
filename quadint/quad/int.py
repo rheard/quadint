@@ -333,7 +333,14 @@ class QuadInt:
 
     def gcd(self, x: QuadInt) -> QuadInt:
         """Greatest common divisor in Euclidean quadratic rings."""
-        return self.xgcd(x)[0]
+        if isinstance(x, _OTHER_OP_TYPES):
+            x = self._from_obj(x)
+
+        if not isinstance(x, QuadInt):
+            raise NotImplementedError
+
+        self.assert_same_ring(x)
+        return self.ring.gcd(self, x)
 
     def inv_mod(self, mod: complex | int | float | QuadInt) -> QuadInt:
         """Return the modular inverse of self modulo mod (if it exists)."""

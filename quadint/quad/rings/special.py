@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import gcd as igcd
 from typing import TYPE_CHECKING, ClassVar
 
 from quadint.quad.rings.base import (
@@ -11,6 +12,30 @@ from quadint.quad.rings.base import (
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
+
+
+def _int_xgcd(a: int, b: int) -> tuple[int, int, int]:
+    """Extended GCD for integers. Returns (g, s, t) with s*a + t*b == g, g >= 0."""
+    if a == 0:
+        return abs(b), 0, (1 if b >= 0 else -1)
+    if b == 0:
+        return abs(a), (1 if a >= 0 else -1), 0
+
+    r0, r1 = a, b
+    s0, s1 = 1, 0
+    t0, t1 = 0, 1
+
+    while r1:
+        q, r = divmod(r0, r1)
+        r0, r1 = r1, r
+        s0, s1 = s1, s0 - q * s1
+        t0, t1 = t1, t0 - q * t1
+
+    # Ensure g >= 0
+    if r0 < 0:
+        r0, s0, t0 = -r0, -s0, -t0
+
+    return r0, s0, t0
 
 
 class DualRing(QuadraticRing):
@@ -122,11 +147,115 @@ class SplitRing(QuadraticRing):
         )
 
         # Convert back: a = den*(qu+qv)/2, b = den*(qu-qv)/2
-        s = best_qu + best_qv
-        t = best_qu - best_qv
-        qa = (s * self.den) // 2
-        qb = (t * self.den) // 2
+        q = self._uv_to_ab(best_qu, best_qv)
 
-        q = x._make(qa, qb)
         r = x - q * y
         return q, r
+
+    def _uv_to_ab(self, u: int, v: int) -> QuadInt:
+        """Convert split coordinates (u, v) back to stored numerator coordinates (a, b)."""
+        # _split_uv: u = (a+b)/den, v = (a-b)/den
+        # Inverse: a = den*(u+v)/2, b = den*(u-v)/2
+        s = u + v
+        t = u - v
+        return self((s * self.den) // 2, (t * self.den) // 2)
+
+    def exact_div(self, x: QuadInt, y: QuadInt) -> QuadInt | None:
+        """Exact division in split coordinates (handles zero-norm divisors)."""
+        u1, v1 = _split_uv(x)
+        u2, v2 = _split_uv(y)
+
+        if u2 == 0 and v2 == 0:
+            raise NotImplementedError
+
+        # Both components must divide exactly (or be 0/0 which we skip)
+        if u2 == 0 or v2 == 0:
+            # Zero divisor: cannot divide uniquely in general
+            return None
+
+        if u1 % u2 != 0 or v1 % v2 != 0:
+            return None
+
+        qu = u1 // u2
+        qv = v1 // v2
+
+        # Parity check for den=1
+        if self.den == 1 and ((qu ^ qv) & 1):
+            return None
+
+        return self._uv_to_ab(qu, qv)
+
+    def _split_gcd(self, u1: int, v1: int, u2: int, v2: int) -> tuple[int, int]:
+        """Compute GCD in split coordinates, respecting den=1 parity constraints."""
+        gu = igcd(abs(u1), abs(u2))
+        gv = igcd(abs(v1), abs(v2))
+
+        if self.den != 1 or gu == 0 or gv == 0:
+            return gu, gv
+
+        # For den=1: (gu, gv) must be in L (same parity) AND quotients must be in L.
+        # If both gu, gv are odd, quotient parity is automatically satisfied.
+        # If both even, quotients might fail; halve both until it works.
+        inputs = [(u1, v1), (u2, v2)]
+
+        while gu > 0 and gv > 0:
+            # Ensure same parity
+            while (gu ^ gv) & 1:
+                if gu % 2 == 0:
+                    gu //= 2
+                else:
+                    gv //= 2
+
+            if gu == 0 or gv == 0:
+                break
+
+            # Both odd → guaranteed to work (proof: inputs have same parity,
+            # dividing by same-parity odd divisor preserves parity of quotient)
+            if gu & 1:
+                break
+
+            # Both even: check that all quotients have matching parity
+            ok = True
+            for ui, vi in inputs:
+                if ui == 0 and vi == 0:
+                    continue
+                qu = ui // gu
+                qv = vi // gv
+                if (qu ^ qv) & 1:
+                    ok = False
+                    break
+
+            if ok:
+                break
+
+            # Quotient parity mismatch: halve both
+            gu //= 2
+            gv //= 2
+
+        return gu, gv
+
+    def gcd(self, a: QuadInt, b: QuadInt) -> QuadInt:
+        """GCD in split coordinates, respecting sublattice parity constraints."""
+        u1, v1 = _split_uv(a)
+        u2, v2 = _split_uv(b)
+
+        gu, gv = self._split_gcd(u1, v1, u2, v2)
+
+        g = self._uv_to_ab(gu, gv)
+        return g._canonical_associate()
+
+    def xgcd(self, a: QuadInt, b: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
+        """Extended GCD in split coordinates (den=2 only; den=1 ring is not a PID)."""
+        if self.den == 1:
+            raise NotImplementedError(
+                "xgcd not supported for D=1 den=1 (ring has zero divisors and is not a PID); use gcd() instead",
+            )
+
+        u1, v1 = _split_uv(a)
+        u2, v2 = _split_uv(b)
+
+        gu, su, tu = _int_xgcd(u1, u2)
+        gv, sv, tv = _int_xgcd(v1, v2)
+
+        # For den=2, no parity constraint on (u, v) — the ring IS Z*Z.
+        return self._canonicalize_bezout_result(self._uv_to_ab(gu, gv), self._uv_to_ab(su, sv), self._uv_to_ab(tu, tv))
