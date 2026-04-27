@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+
 from dataclasses import dataclass
 from math import prod
 from typing import Callable, ClassVar
@@ -147,6 +149,11 @@ class _NeighborhoodSearch:
     @property
     def best_ab(self) -> tuple[int, int]:
         return self._best_a, self._best_b
+
+
+def _key(z, factors):
+    """This is required (for now) as it appears that mypyc is having problems with sub-functions/lambdas"""
+    return z[2] not in factors, z[1], abs(z[0].b), abs(z[0].a)
 
 
 def _choose_best_in_neighborhood(
@@ -573,7 +580,7 @@ class QuadraticRing:
         #   otherwise pick the minimum exponent...
         first_prime, first_k, first_prime_normed = min(
             ((x, y, x * unit) for x, y in factors.items()),
-            key=lambda z: (z[2] not in factors, z[1], abs(z[0].b), abs(z[0].a)),
+            key=functools.partial(_key, factors=factors),
         )
 
         if first_k == 1:

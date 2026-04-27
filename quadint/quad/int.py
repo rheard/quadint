@@ -9,6 +9,11 @@ if TYPE_CHECKING:
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
 
 
+def _key(w_: QuadInt) -> tuple[int, int, int, int, int]:
+    """This is required (for now) as it appears that mypyc is having problems with sub-functions/lambdas"""
+    return abs(abs(w_)), abs(w_.b), abs(w_.a), w_.a, w_.b
+
+
 class QuadInt:
     """
     Element of a specific QuadraticRing.
@@ -90,14 +95,11 @@ class QuadInt:
     def _canonical_associate(self) -> QuadInt:
         """Return canonical representative among associates for stable factor output."""
 
-        def key(w_: QuadInt) -> tuple[int, int, int, int, int]:
-            return abs(abs(w_)), abs(w_.b), abs(w_.a), w_.a, w_.b
-
         best = self
-        best_k = key(self)
+        best_k = _key(self)
         for u in self.units[1:]:
             w = self * u
-            kw = key(w)
+            kw = _key(w)
             if kw < best_k:
                 best, best_k = w, kw
 
