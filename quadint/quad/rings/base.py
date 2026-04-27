@@ -151,7 +151,7 @@ class _NeighborhoodSearch:
         return self._best_a, self._best_b
 
 
-def _key(z, factors):
+def _key(z: tuple[QuadInt, QuadInt, QuadInt], factors: dict[QuadInt, int]):
     """This is required (for now) as it appears that mypyc is having problems with sub-functions/lambdas"""
     return z[2] not in factors, z[1], abs(z[0].b), abs(z[0].a)
 
