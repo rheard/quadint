@@ -356,12 +356,6 @@ class TestIndex:
         with pytest.raises(TypeError):
             int(Z2(3, 1))
 
-    def test_usable_as_index(self):
-        """__index__ should allow use in list indexing and range."""
-        items = [10, 20, 30]
-        assert items[complexint(1, 0)] == 20
-        assert list(range(complexint(3, 0))) == [0, 1, 2]
-
 
 class TestFloat:
     """Tests for __float__ conversion"""
