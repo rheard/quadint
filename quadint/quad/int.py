@@ -410,6 +410,10 @@ class QuadInt:
 
         return g
 
+    def __int__(self) -> int:
+        """Return an int for pure integers (delegates to __index__)."""
+        return self.__index__()
+
     def __index__(self) -> int:
         """Return an integer if this element is a plain integer (b == 0), else raise TypeError."""
         if self.b != 0:
