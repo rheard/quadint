@@ -30,6 +30,12 @@ class QuadInt:
     SYMBOL: ClassVar[str] = "*sqrt({D})"
     DEFAULT_RING: ClassVar[QuadraticRing | None] = None
 
+    # (a, b)^T = M * (x, y)^T
+    BASIS_TO_INTERNAL: ClassVar[tuple[tuple[int, int], tuple[int, int]]] = ((1, 0), (0, 1))
+    # (x, y)^T = (N * (a, b)^T) / INTERNAL_TO_BASIS_DEN
+    INTERNAL_TO_BASIS: ClassVar[tuple[tuple[int, int], tuple[int, int]]] = ((1, 0), (0, 1))
+    INTERNAL_TO_BASIS_DEN: ClassVar[int] = 1
+
     def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = None) -> None:
         """Init and validate the integer works for this ring"""
         ring = ring or self.DEFAULT_RING
@@ -37,8 +43,7 @@ class QuadInt:
             raise ValueError("A ring must be specified in some form to use a quadratic integer!")
 
         self.ring = ring
-        self.a = int(a)
-        self.b = int(b)
+        self.a, self.b = self._basis_to_internal(int(a), int(b))
 
         den = self.ring.den
         if den == 2 and ((self.a ^ self.b) & 1):
@@ -53,7 +58,22 @@ class QuadInt:
 
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
-        return self.__class__(a, b, self.ring)
+        # x, y = self._internal_to_basis(a, b)
+        # return self.__class__(x, y, self.ring)
+        #   The above is what this method should be.
+        #   However doing that would require going to the basis vector just to undo it in __init__.
+        #       This code is an effort to avoid that and make this method a bit more efficient.
+        cls = type(self)
+        obj = cls.__new__(cls)
+        obj.ring = self.ring
+        obj.a = a
+        obj.b = b
+
+        den = self.ring.den
+        if den == 2 and ((a ^ b) & 1):
+            raise ValueError("For den=2, a and b must have the same parity")
+
+        return obj
 
     @property
     def zero(self) -> QuadInt:
@@ -132,6 +152,46 @@ class QuadInt:
     def conjugate(self):
         """(a + b√D)/den -> (a - b√D)/den."""
         return self._make(self.a, -self.b)
+
+    # region Basis vector operations
+    @classmethod
+    def _basis_to_internal(cls, x: int, y: int) -> tuple[int, int]:
+        """Convert from basis coords to internal a and b coords"""
+        (m00, m01), (m10, m11) = cls.BASIS_TO_INTERNAL
+        return m00 * x + m01 * y, m10 * x + m11 * y
+
+    @property
+    def basis(self):
+        """The number in the basis vector"""
+        (n00, n01), (n10, n11) = self.INTERNAL_TO_BASIS
+        den = self.INTERNAL_TO_BASIS_DEN
+        x_num = n00 * self.a + n01 * self.b
+        y_num = n10 * self.a + n11 * self.b
+
+        if x_num % den or y_num % den:
+            raise ArithmeticError("Internal coordinates do not map cleanly to declared basis")
+
+        return x_num // den, y_num // den
+
+    @property
+    def basis_a(self):
+        """a in the basis vector"""  # noqa: D403
+        (n00, n01), _ = self.INTERNAL_TO_BASIS
+        den = self.INTERNAL_TO_BASIS_DEN
+        x_num = n00 * self.a + n01 * self.b
+
+        return x_num // den
+
+    @property
+    def basis_b(self):
+        """b in the basis vector"""  # noqa: D403
+        _, (n10, n11) = self.INTERNAL_TO_BASIS
+        den = self.INTERNAL_TO_BASIS_DEN
+        y_num = n10 * self.a + n11 * self.b
+
+        return y_num // den
+
+    # endregion
 
     def __add__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _OTHER_OP_TYPES):
@@ -436,16 +496,16 @@ class QuadInt:
         return (self.a | self.b) != 0
 
     def __iter__(self) -> Iterator[int]:
-        return iter((self.a, self.b))
+        return iter(self.basis)
 
     def __len__(self) -> int:
         return 2
 
     def __getitem__(self, idx: int) -> int:
         if idx == 0:
-            return self.a
+            return self.basis_a
         if idx == 1:
-            return self.b
+            return self.basis_b
         raise IndexError("Quadratic integer index out of range (valid: 0 or 1)")
 
     def __eq__(self, other: object) -> bool:

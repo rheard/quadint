@@ -62,11 +62,13 @@ class QuadIntTests:
     @staticmethod
     def assert_quad_equal(res: tuple | QuadInt, res_int: QuadInt):
         """Validate the QuadInt is equal to the validation object, and that it is still backed by integers"""
-        assert res[0] == res_int.a
-        assert res[1] == res_int.b
+        assert res[0] == res_int.basis_a
+        assert res[1] == res_int.basis_b
 
         assert isinstance(res_int.a, int)
         assert isinstance(res_int.b, int)
+        assert isinstance(res_int.basis_a, int)
+        assert isinstance(res_int.basis_b, int)
 
         assert isinstance(res_int, QuadInt)
 

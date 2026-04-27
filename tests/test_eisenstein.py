@@ -78,6 +78,21 @@ class TestEq(EisensteinIntTests):
         assert self.b_int != c
 
 
+class TestSequence:
+    """Validate sequence behavior for Eisenstein basis coordinates."""
+
+    def test_iter_returns_basis_values(self):
+        """Validate that __iter__ returns eisenstein values"""
+        z = eisenstein(5, -2)
+        assert tuple(z) == (5, -2)
+
+    def test_getitem_returns_basis_values(self):
+        """Validate that __getitem__ returns eisenstein values"""
+        z = eisenstein(-3, 4)
+        assert z[0] == -3
+        assert z[1] == 4
+
+
 class TestAdd(EisensteinIntTests):
     """Tests for __add__"""
 

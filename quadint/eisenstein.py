@@ -16,29 +16,25 @@ class eisensteinint(QuadInt):
 
     __slots__ = ()
 
+    # user basis: x + y*ω, where ω = (-1 + sqrt(-3))/2
+    # internal numerator basis: (2x - y) + y*sqrt(-3) over den=2
+    BASIS_TO_INTERNAL = ((2, -1), (0, 1))
+    INTERNAL_TO_BASIS = ((1, 1), (0, 2))
+    INTERNAL_TO_BASIS_DEN = 2
+
     def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = _ZW) -> None:
         """Initialize an eisensteinint instance."""
-        # user basis: a + b*ω, where ω = (-1 + sqrt(-3))/2
-        # internal numerator basis: (2a - b) + b*sqrt(-3) over den=2
-        a, b = int(a), int(b)
-        super().__init__(2 * a - b, b, ring)
-
-    def _make(self, A: int, B: int) -> eisensteinint:
-        # A,B are internal numerators for (A + B*sqrt(-3))/2
-        # Convert back to ω-basis: a = (A + B)/2, b = B
-        a = (A + B) // 2
-        b = B
-        return super()._make(a, b)
+        super().__init__(a, b, ring)
 
     @property
     def real(self) -> int:
         """Alias for eisensteinint"""
-        return (self.a + self.b) // 2
+        return self.basis_a
 
     @property
     def omega(self) -> int:
         """Alias for eisensteinint"""
-        return self.b
+        return self.basis_b
 
     def __repr__(self) -> str:
         parens = self.real != 0
