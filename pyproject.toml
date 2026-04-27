@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "mypy[mypyc]",
+    "mypy[mypyc]>=1.20.2",
     "setuptools",
 
     # This is for the build system, only used for mypyc linkage.
@@ -20,10 +20,9 @@ authors = [
 ]
 description = "A quadint class, for using quadratic integers."
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -42,7 +41,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "mypy[mypyc]",
+    "mypy[mypyc]>=1.20.2",
     "setuptools",
     "pytest-xdist",
     "ruff",
@@ -57,7 +56,7 @@ Repository = "https://github.com/rheard/quadint"
 
 [tool.cibuildwheel]
 # TODO: Android, iOS?
-build = "cp3{9,10,11,12,13,14}-{win,macosx,manylinux}*"
+build = "cp3{10,11,12,13,14}-{win,macosx,manylinux}*"
 
 before-test = [
     'mkdir "{project}/temp"',

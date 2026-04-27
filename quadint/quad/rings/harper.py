@@ -776,5 +776,5 @@ for (D_, den_), ((p1_a_, p1_b_), (p2_a_, p2_b_)) in _POST_HARDCODED.items():
     if (D_, den_) in HarperRing._HARDCODED:
         continue
 
-    _ring = QuadraticRing(D_, den_)
+    _ring = HarperRing(D_, den_)
     HarperRing._HARDCODED[D_, den_] = (_ring(p1_a_, p1_b_), _ring(p2_a_, p2_b_))

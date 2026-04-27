@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import functools
 
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 from math import prod
-from typing import Callable, ClassVar
+from typing import ClassVar
 
 from quadint.quad.int import QuadInt
 from quadint.utils import requires_modules
@@ -151,7 +152,7 @@ class _NeighborhoodSearch:
         return self._best_a, self._best_b
 
 
-def _key(z: tuple[QuadInt, QuadInt, QuadInt], factors: dict[QuadInt, int]):
+def _key(z: tuple, factors: dict[QuadInt, int]):
     """This is required (for now) as it appears that mypyc is having problems with sub-functions/lambdas"""
     return z[2] not in factors, z[1], abs(z[0].b), abs(z[0].a)
 
