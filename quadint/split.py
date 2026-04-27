@@ -22,6 +22,9 @@ class splitint(QuadInt):
 
     __slots__ = ()
 
+    # It is worth noting that the Python convention is to the use j for complex numbers,
+    #   but the mathematical convention is to use j for split numbers...
+    #   I'm conflicted on what to do, so I guess having identical string values is correct?
     SYMBOL: ClassVar[str] = "j"
     DEFAULT_RING = _ZJ
 
