@@ -15,6 +15,8 @@ from quadint.eisenstein import eisensteinint as eisenstein
 from tests.quad.test_int import QuadIntTests
 from tests.quad.test_rings import norm_multiset
 
+ZE = QuadraticRing(-3)
+
 
 @pytest.mark.skipif(os.getenv("CI", "").lower() not in {"1", "true", "yes"}, reason="Compiled-only test")
 def test_compiled_tests():
@@ -27,12 +29,13 @@ def test_is_instance():
     """Verify that basic isinstance checks work"""
     assert isinstance(eisenstein(1, 2), eisenstein)
     assert not isinstance(complex(1, 2), eisenstein)
+    assert not isinstance(ZE(2, 4), eisenstein)  # eisenstein is NOT the default for Z[-3]
 
 
 def test_ring_is_singleton():
     """Eisensteinint should use the cached D=-3 ring and match QuadraticRing(-3)."""
     w = eisenstein(1, 2)
-    assert w.ring is QuadraticRing(-3)
+    assert w.ring is ZE
 
 
 class EisensteinIntTests:
