@@ -58,22 +58,10 @@ class QuadInt:
 
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
-        # x, y = self._internal_to_basis(a, b)
-        # return self.__class__(x, y, self.ring)
-        #   The above is what this method should be.
-        #   However doing that would require going to the basis vector just to undo it in __init__.
-        #       This code is an effort to avoid that and make this method a bit more efficient.
-        cls = type(self)
-        obj = cls.__new__(cls)
-        obj.ring = self.ring
-        obj.a = a
-        obj.b = b
-
-        den = self.ring.den
-        if den == 2 and ((a ^ b) & 1):
-            raise ValueError("For den=2, a and b must have the same parity")
-
-        return obj
+        # TODO: This basically converts to basis values just to convert back again in __init__...
+        #   However mypyc is NOT happy about me using __new__ to bypass that.
+        x, y = self._internal_to_basis(a, b)
+        return self.__class__(x, y, self.ring)
 
     @property
     def zero(self) -> QuadInt:
@@ -155,26 +143,31 @@ class QuadInt:
 
     # region Basis vector operations
     @classmethod
-    def _basis_to_internal(cls, x: int, y: int) -> tuple[int, int]:
-        """Convert from basis coords to internal a and b coords"""
-        (m00, m01), (m10, m11) = cls.BASIS_TO_INTERNAL
-        return m00 * x + m01 * y, m10 * x + m11 * y
-
-    @property
-    def basis(self):
-        """The number in the basis vector"""
-        (n00, n01), (n10, n11) = self.INTERNAL_TO_BASIS
-        den = self.INTERNAL_TO_BASIS_DEN
-        x_num = n00 * self.a + n01 * self.b
-        y_num = n10 * self.a + n11 * self.b
+    def _internal_to_basis(cls, a: int, b: int) -> tuple[int, int]:
+        """Convert from internal a and b coords to basis coords"""
+        (n00, n01), (n10, n11) = cls.INTERNAL_TO_BASIS
+        den = cls.INTERNAL_TO_BASIS_DEN
+        x_num = n00 * a + n01 * b
+        y_num = n10 * a + n11 * b
 
         if x_num % den or y_num % den:
             raise ArithmeticError("Internal coordinates do not map cleanly to declared basis")
 
         return x_num // den, y_num // den
 
+    @classmethod
+    def _basis_to_internal(cls, x: int, y: int) -> tuple[int, int]:
+        """Convert from basis coords to internal a and b coords"""
+        (m00, m01), (m10, m11) = cls.BASIS_TO_INTERNAL
+        return m00 * x + m01 * y, m10 * x + m11 * y
+
     @property
-    def basis_a(self):
+    def basis(self) -> tuple[int, int]:
+        """The number in the basis vector"""
+        return self._internal_to_basis(self.a, self.b)
+
+    @property
+    def basis_a(self) -> int:
         """a in the basis vector"""  # noqa: D403
         (n00, n01), _ = self.INTERNAL_TO_BASIS
         den = self.INTERNAL_TO_BASIS_DEN
@@ -183,7 +176,7 @@ class QuadInt:
         return x_num // den
 
     @property
-    def basis_b(self):
+    def basis_b(self) -> int:
         """b in the basis vector"""  # noqa: D403
         _, (n10, n11) = self.INTERNAL_TO_BASIS
         den = self.INTERNAL_TO_BASIS_DEN
