@@ -6,7 +6,7 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
 - **`QuadInt` / `QuadraticRing`**: a general quadratic-integer implementation for elements of the form  
   $(a + b\sqrt{D}) / \mathrm{den}$ with $den ∈ {1,2}$. 
   - By default, `QuadraticRing(D)` chooses `den = 2` when `D % 4 == 1`, otherwise `den = 1` (and you can override with `QuadraticRing(D, den=1)` / `den=2` to work in a non-default order).
-- **`eisensteinint`**: Eisenstein integers in the ω-basis (`a + bω`, where `ω = (-1 + √-3)/2`).
+- **`eisensteinint`**: Eisenstein integers in the ω-basis (`a + bω`, where $ω = (-1 + \sqrt{-3})/2$).
 - **`dualint`**: dual integers of the form `a + bε` where **`ε² = 0`** and **`ε != 0`**.
 - **`splitint`**: split-complex (hyperbolic) integers of the form `a + bj` where **`j² = 1`** and **`j != 1`**.
  
@@ -17,6 +17,7 @@ New helper methods on every quadratic integer value:
 * `x.content()` — largest positive integer `n` such that `x = n*y` in the same ring.
 * `x.factor_detail()` — structured factorization as `Factorization(unit, primes)`.
 * `x.factor()` — a plain `{prime_like_factor: exponent}` mapping whose product is exactly `x`.
+* `x.basis`, `x.basis_a`, `x.basis_b` — public/user-facing basis coordinates, which may differ from the internal `(a, b)` numerator coordinates.
 
 ---
 
@@ -149,6 +150,50 @@ print(a / 3.5)   # "(1+2j)"  (3.5 -> 3 by int(...) conversion)
 print(a + 1)     # "(4+6j)"
 print(a + 1.5)   # "(4+6j)"  (1.5 -> 1)
 ```
+
+---
+
+## Basis-vector coordinates
+
+`QuadInt` separates public basis coordinates from the internal numerator coordinates used by the arithmetic engine. 
+  Internally, every value is still stored as `(a, b)` numerators for $(a + b\sqrt{D}) / \mathrm{den}$
+
+For most quadratic integer types, the public basis is the identity basis, 
+  so the coordinates you pass to the constructor are the same coordinates used internally. 
+  Subclasses can override that by defining conversion matrices:
+
+* `BASIS_TO_INTERNAL` maps constructor/user coordinates `(x, y)` into internal numerator coordinates `(a, b)`.
+* `INTERNAL_TO_BASIS` and `INTERNAL_TO_BASIS_DEN` map internal numerator coordinates back to public basis coordinates.
+
+This is mainly useful when the natural mathematical notation for a type is not the raw `1, √D` basis. 
+  Eisenstein integers are the motivating example. Users write them as `a + bω`, where $ω = (-1 + \sqrt{-3})/2$,
+  but the shared quadratic-integer engine stores values over `QuadraticRing(-3)` as $(a + b\sqrt{D}) / \mathrm{den}$.
+
+So `eisensteinint(x, y)` converts from the public ω-basis to the internal numerator basis as:
+
+```text
+x + yω = ((2x - y) + y√-3) / 2
+```
+
+Example:
+
+```python
+from quadint.eisenstein import eisensteinint
+
+z = eisensteinint(2, 3)
+
+print(z)             # (2+3ω)
+print(z.real)        # 2
+print(z.omega)       # 3
+print(z.basis)       # (2, 3)
+print(tuple(z))      # (2, 3)
+
+# Internal numerator coordinates are still available, but usually only useful
+# for implementing rings/subclasses or debugging low-level arithmetic.
+print(z.a, z.b, z.ring.den)  # 1 3 2
+```
+
+Prefer `basis`, `basis_a`, `basis_b`, and type-specific aliases such as `real` / `omega` when presenting values to users. Prefer the internal `.a` and `.b` fields only when implementing arithmetic, division, factorization, or another low-level ring operation.
 
 ---
 
