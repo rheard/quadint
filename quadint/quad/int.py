@@ -36,14 +36,19 @@ class QuadInt:
     INTERNAL_TO_BASIS: ClassVar[tuple[tuple[int, int], tuple[int, int]]] = ((1, 0), (0, 1))
     INTERNAL_TO_BASIS_DEN: ClassVar[int] = 1
 
-    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = None) -> None:
+    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = None, *, skip_basis: bool = False):
         """Init and validate the integer works for this ring"""
         ring = ring or self.DEFAULT_RING
         if ring is None:
             raise ValueError("A ring must be specified in some form to use a quadratic integer!")
 
         self.ring = ring
-        self.a, self.b = self._basis_to_internal(int(a), int(b))
+        if not skip_basis:
+            a, b = self._basis_to_internal(int(a), int(b))
+        else:
+            a, b = int(a), int(b)
+
+        self.a, self.b = a, b
 
         den = self.ring.den
         if den == 2 and ((self.a ^ self.b) & 1):
@@ -58,10 +63,7 @@ class QuadInt:
 
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
-        # TODO: This basically converts to basis values just to convert back again in __init__...
-        #   However mypyc is NOT happy about me using __new__ to bypass that.
-        x, y = self._internal_to_basis(a, b)
-        return self.__class__(x, y, self.ring)
+        return self.__class__(a, b, self.ring, skip_basis=True)
 
     @property
     def zero(self) -> QuadInt:

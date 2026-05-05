@@ -22,9 +22,10 @@ class eisensteinint(QuadInt):
     INTERNAL_TO_BASIS = ((1, 1), (0, 2))
     INTERNAL_TO_BASIS_DEN = 2
 
-    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = _ZW) -> None:
+    # Cannot use DEFAULT_RING here as that would register eisensteinint as the default for Z[-3], which it isn't.
+    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = _ZW, *, skip_basis: bool = False):
         """Initialize an eisensteinint instance."""
-        super().__init__(a, b, ring)
+        super().__init__(a, b, ring, skip_basis=skip_basis)
 
     @property
     def real(self) -> int:
