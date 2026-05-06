@@ -17,6 +17,15 @@ _HEEGNER_D = {1, 2, 3, 7, 11, 19, 43, 67, 163}
 _EUCLIDEAN_HEEGNER_D = {x for x in _HEEGNER_D if x < 15}  # Only the first 5 are Euclidean
 
 
+def _factor_input(n: dict[int, int] | int) -> tuple[int, dict[int, int]]:
+    """Return `(n, factorization)` whether the caller provided n or its factors."""
+    if not isinstance(n, dict):
+        return n, factorint(n)
+
+    n_int = math.prod(p**k for p, k in n.items())
+    return n_int, n
+
+
 def _canonical_pair(
     A: int,
     B: int,
@@ -270,21 +279,13 @@ def decompose_number(
     """
 
     # Step 1: Factor n. This is the most time consuming step, especially on larger numbers. Avoid if possible
-    factors: dict[int, int]
-    if isinstance(n, dict):
-        factors = n
-
-        n = 1
-        for p, k in factors.items():
-            n *= p**k
-    else:
-        factors = factorint(n)
+    n_int, factors = _factor_input(n)
 
     # Step 1.1: Sanitize d
     sf_d, y_scale = _squarefree_part_and_scale(d)
     if y_scale != 1:
         raw = decompose_number(
-            n,
+            n_int,
             sf_d,
             check_count=None,
             limited_checks=limited_checks,
@@ -413,19 +414,22 @@ def decompose_number(
         z_ = Q(a, b)
         p_ring_pairs[p] = (z_, z_.conjugate())
 
+    # This is purely to help mypyc with type-checking,
+    #   to guarantee that base will be a QuadInt
+    base_quad: QuadInt = Q.one
+    base_quad *= base
+
     if no_trivial_solutions:
         # Base-item trick: fix one factor to reduce symmetry.
         first_p = next(iter(representable))
         representable[first_p] -= 1  # consume one occurrence as the fixed base
-        base *= p_ring_pairs[first_p][0]
-    else:
-        base *= Q.one  # This is purely to help mypyc with type-checking, to guarentee that base will be a QuadInt
+        base_quad *= p_ring_pairs[first_p][0]
 
     found: set[tuple[int, int]] = set()
 
     total_slots = sum(representable.values())
     for choices in product([0, 1], repeat=total_slots):  # runs once if repeat=0
-        total: QuadInt = base
+        total = base_quad
         choice_i = 0
         for p, k in representable.items():
             for _ in range(k):

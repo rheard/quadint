@@ -284,6 +284,28 @@ Useful options:
 
 Completeness is best-supported for the class-number-one Heegner values used by the package: `d in {1, 2, 3, 7, 11, 19, 43, 67, 163}`. Other `d` values may work, and results are still validated as true solutions, but completeness is not guaranteed.
 
+### Eisenstein norm decompositions: `quadint.sums.eisenstein`
+
+There is also a small companion module for decomposing Eisenstein norms of the form:
+
+```text
+a^2 - a*b + b^2 = n
+```
+
+This is mostly a fun helper built on the Eisenstein integer machinery rather than a central part of the package. It mirrors the main `quadint.sums` API:
+
+```python
+from quadint.sums.eisenstein import decompose_prime, decompose_number
+
+print(decompose_prime(7))
+# (1, 3)  # because 1^2 - 1*3 + 3^2 == 7
+
+print(decompose_number(91, no_trivial_solutions=False))
+# returns canonical pairs (a, b) with a^2 - a*b + b^2 == 91
+```
+
+`no_trivial_solutions=True` filters the obvious square-like rays where `a == 0`, `b == 0`, or `a == b`. As with the rest of `quadint.sums`, a factorization dictionary may be passed instead of an integer.
+
 ---
 
 ## Minimal API overview
