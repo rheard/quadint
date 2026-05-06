@@ -330,10 +330,10 @@ class QuadraticRing:
 
     def supports_division(self) -> bool:
         """
-        Return whether this ring advertises Euclidean-style ``divmod`` support.
+        Return whether this ring advertises Euclidean-style `divmod` support.
 
         Returns:
-            bool: Whether this ring class sets ``SUPPORTS_DIVISION``.
+            bool: Whether this ring class sets `SUPPORTS_DIVISION`.
         """
         return self.SUPPORTS_DIVISION
 
@@ -342,7 +342,7 @@ class QuadraticRing:
         Return whether this ring advertises prime-factorization support.
 
         Returns:
-            bool: Whether this ring class sets ``SUPPORTS_FACTORIZATION``.
+            bool: Whether this ring class sets `SUPPORTS_FACTORIZATION`.
         """
         return self.SUPPORTS_FACTORIZATION
 

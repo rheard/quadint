@@ -52,7 +52,7 @@ class CornacchiaRing(RealNormEuclidRing):
         Return a structured factorization for Cornacchia-style imaginary quadratic rings.
 
         The result is returned as `Factorization(unit, primes)` where `primes` is a
-            mapping ``{prime_element: exponent}`` and:
+            mapping `{prime_element: exponent}` and:
 
         * `unit * prod(p**e for p, e in primes.items()) == x`
         * each listed `prime_element` is a non-unit irreducible in this ring
@@ -61,7 +61,7 @@ class CornacchiaRing(RealNormEuclidRing):
 
         1. Normalize by extracting a canonical unit associate.
         2. Remove powers of the ramified prime generator.
-        3. Factor the remaining integer norm with ``sympy.factorint``.
+        3. Factor the remaining integer norm with `sympy.factorint`.
         4. For each rational prime factor, use split/inert classification:
            * inert primes stay prime in the ring,
            * split primes are decomposed via Cornacchia's method and tested (with conjugates)
@@ -71,7 +71,7 @@ class CornacchiaRing(RealNormEuclidRing):
             x: A non-zero element of this ring.
 
         Returns:
-            Factorization: The unit and prime-power data for ``x``.
+            Factorization: The unit and prime-power data for `x`.
 
         Raises:
             ValueError: If `x` is zero (zero has no finite prime factorization).
