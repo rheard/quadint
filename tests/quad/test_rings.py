@@ -1263,16 +1263,6 @@ class TestFactorDetail(QuadIntTests):
         self.assert_factoring(x, f)
         assert norm_multiset(f.primes) == [9]
 
-    @pytest.mark.parametrize("p", [5, 11], ids=str)
-    def test_heegner_non_euclid_split_prime_decomposition(self, p: int):
-        """_decompose_prime should return (A,B) with A^2 - D*B^2 = 4p and π=(A+B√D)/2 having norm p."""
-        A, B = ZN19._decompose_prime(p)
-        assert 4 * p == (A * A - ZN19.D * (B * B))
-        assert ((A ^ B) & 1) == 0  # den=2 parity constraint
-
-        pi = ZN19(A, B)
-        assert abs(pi) == p
-
     def test_heegner_non_euclid_69_1337(self):
         """Regression: ensure (69 + 1337*sqrt(-19))/2 factors and round-trips."""
         x = ZN19(69, 1337)

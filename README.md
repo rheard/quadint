@@ -197,6 +197,95 @@ Prefer `basis`, `basis_a`, `basis_b`, and type-specific aliases such as `real` /
 
 ---
 
+## Sums of squares and quadratic-form decompositions: `quadint.sums`
+
+`quadint.sums` provides small number-theory helpers for decomposing primes and integers into non-negative integer solutions of:
+
+```text
+x^2 + d*y^2 = n
+```
+
+The default `d=1` gives the classic sum-of-two-squares problem.
+
+```python
+from quadint.sums import decompose_prime, decompose_number
+
+print(decompose_prime(19889))
+# (17, 140)
+
+print(decompose_number(19890))
+# {(69, 123), (57, 129), (3, 141), (87, 111)}
+```
+
+Use `d` to solve related forms:
+
+```python
+from quadint.sums import decompose_prime, decompose_number
+
+print(decompose_prime(19, d=3))
+# (4, 1) because 4^2 + 3*1^2 == 19
+
+print(decompose_number(12, d=3, no_trivial_solutions=False))
+# {(0, 2), (3, 1)} because 0^2 + 3*2^2 == 12 and 3^2 + 3*1^2 == 12
+```
+
+### `decompose_prime(p, d=1, den=1)`
+
+Return a non-negative pair `(x, y)` for a prime-like input where:
+
+```text
+x^2 + d*y^2 = den^2 * p
+```
+
+For normal public use, leave `den=1`. Passing `den=2` is mainly useful when working with denominator-2 quadratic orders, where the returned pair is in numerator coordinates.
+
+```python
+from quadint.sums import decompose_prime
+
+print(decompose_prime(5))
+# (1, 2)
+
+print(decompose_prime(7, d=3))
+# (2, 1)
+
+print(decompose_prime(2, d=7, den=2))
+# (1, 1) because 1^2 + 7*1^2 == 2^2 * 2
+```
+
+### `decompose_number(n, d=1, ...)`
+
+Return all canonical non-negative integer pairs `(x, y)` satisfying:
+
+```text
+x^2 + d*y^2 = n
+```
+
+```python
+from quadint.sums import decompose_number
+
+print(decompose_number(325, no_trivial_solutions=False))
+# {(1, 18), (6, 17), (10, 15)}
+```
+
+`decompose_number` accepts either an integer or a precomputed factorization dictionary:
+
+```python
+from quadint.sums import decompose_number
+
+print(decompose_number({2: 1, 3: 2, 5: 1, 13: 1, 17: 1}))
+# same result as decompose_number(19890)
+```
+
+Useful options:
+
+* `d=1` by default; use another positive integer for `x^2 + d*y^2 = n`.
+* `no_trivial_solutions=True` by default; set it to `False` to include solutions with a zero coordinate and symmetric `d=1` solutions such as `(0, 2)` for `n=4`.
+* `check_count=N` returns an empty set early when the predicted number of solutions is below `N`.
+
+Completeness is best-supported for the class-number-one Heegner values used by the package: `d in {1, 2, 3, 7, 11, 19, 43, 67, 163}`. Other `d` values may work, and results are still validated as true solutions, but completeness is not guaranteed.
+
+---
+
 ## Minimal API overview
 
 ### Constructors
@@ -224,3 +313,9 @@ Prefer `basis`, `basis_a`, `basis_b`, and type-specific aliases such as `real` /
 * `x.factor()` (returns plain `dict[QuadInt, int]`)
 * `divmod(x, y)`, `x // y`, `x % y` (where supported)
 * Iteration/indexing over the stored coefficients: `list(x)`, `x[0]`, `x[1]`
+
+
+### `quadint.sums`
+
+* `decompose_prime(p: int, d: int = 1, den: int = 1) -> tuple[int, int]`
+* `decompose_number(n: int | dict[int, int], d: int = 1, check_count: int | None = None, *, limited_checks: bool = False, no_trivial_solutions: bool = True, warn: bool = True) -> set[tuple[int, int]]`

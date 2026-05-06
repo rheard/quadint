@@ -1,7 +1,7 @@
 from glob import glob
 
 from mypyc.build import mypycify
-from setuptools import setup
+from setuptools import find_packages, setup
 
 setup(
     name="quadint",
@@ -10,7 +10,7 @@ setup(
     #
     # However: When I do that, quadint/__init__.py *itself* is included in the wheel which we don't want,
     #   because then the python version will be used instead of the mypyc-compiled pyd version.
-    packages=["quadint-stubs", "quadint-stubs.quad"],
+    packages=find_packages(include=["quadint-stubs", "quadint-stubs.*"]),
     include_package_data=True,
     package_data={"quadint-stubs": ["*.pyi", "**/*.pyi"]},
     ext_modules=mypycify(

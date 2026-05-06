@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from math import isqrt
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import factorint, sqrt_mod
+from sympy import factorint
 
 from quadint.quad.rings.base import Factorization
 from quadint.quad.rings.norm_euclid import RealNormEuclidRing
+from quadint.sums import decompose_prime
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
@@ -40,37 +40,12 @@ class CornacchiaRing(RealNormEuclidRing):
         return self.RAMIFIED_PRIME
 
     def _inert_generator(self, x: QuadInt, p: int) -> QuadInt:
-        return x._make(p, 0)
+        # Integer p in numerator coordinates is (2p + 0*sqrt(D)) / 2
+        return x._make(self.den * p, 0)
 
     def _split_generator(self, x: QuadInt, p: int) -> QuadInt:
-        x0, y0 = self._decompose_prime(p)
+        x0, y0 = decompose_prime(p, -self.D, self.den)
         return x._make(x0, y0)
-
-    def _decompose_prime(self, p: int) -> tuple[int, int]:
-        """Find x,y with p = x**2 + k*y**2 for split primes, where k=abs(D)."""
-        if not self._is_split_prime(p):
-            raise ValueError(f"Could not decompose {p!r}")
-
-        k = abs(self.D)
-        root = sqrt_mod(self.D, p, all_roots=False)
-        if root is None:
-            raise ValueError(f"Could not decompose {p!r}")
-
-        a = p
-        b = min(root, p - root)
-        while b * b > p:
-            a, b = b, a % b
-
-        y2_num = p - b * b
-        if y2_num % k:
-            raise ValueError(f"Could not decompose {p!r}")
-
-        y2 = y2_num // k
-        y = isqrt(y2)
-        if y * y != y2:
-            raise ValueError(f"Could not decompose {p!r}")
-
-        return b, y
 
     def factor_detail(self, x: QuadInt) -> Factorization:
         """
@@ -146,7 +121,7 @@ class CornacchiaRing(RealNormEuclidRing):
                 for cand in (cand_base, cand_base.conjugate()):
                     if abs(cand) <= 1:
                         continue
-                    while rem != self.den:
+                    while True:
                         q = self.exact_div(rem, cand)
                         if q is None:
                             break
@@ -214,14 +189,6 @@ class EisensteinRing(CornacchiaRing):
 
     def _ramified_generator(self, x: QuadInt) -> QuadInt:
         return x._make(3, 1)
-
-    def _inert_generator(self, x: QuadInt, p: int) -> QuadInt:
-        return x._make(2 * p, 0)
-
-    def _split_generator(self, x: QuadInt, p: int) -> QuadInt:
-        x0, y0 = self._decompose_prime(p)
-        # Convert x0**2 + 3*y0**2 = p into internal numerator basis (A + B*sqrt(-3))/2.
-        return x._make(2 * x0, 2 * y0)
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
