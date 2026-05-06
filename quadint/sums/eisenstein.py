@@ -12,7 +12,7 @@ from quadint.sums import (
 
 
 def _norm(a: int, b: int) -> int:
-    """Return the Eisenstein norm ``a**2 - a*b + b**2``."""
+    """Return the Eisenstein norm `a**2 - a*b + b**2`."""
     return a * a - a * b + b * b
 
 
@@ -57,7 +57,7 @@ def _canonical_pair(
 
 
 def _prime_element(p: int) -> eisensteinint:
-    """Return an Eisenstein integer with norm ``p`` for split or ramified primes."""
+    """Return an Eisenstein integer with norm `p` for split or ramified primes."""
     A, B = _decompose_quadratic_prime(p, 3, 2)
     return eisensteinint(A, B, skip_basis=True)
 
@@ -89,25 +89,25 @@ def decompose_number(
     """
     Decompose a number into canonical Eisenstein norm-form solutions.
 
-    Returns pairs ``(a, b)`` such that:
+    Returns pairs `(a, b)` such that:
 
         a**2 - a*b + b**2 == n
 
     The returned pairs are canonical representatives under the Eisenstein unit and
     conjugation symmetries. By default, trivial square-like solutions with
-    ``a == 0``, ``b == 0``, or ``a == b`` are omitted.
+    `a == 0`, `b == 0`, or `a == b` are omitted.
 
     Args:
-        n: An integer to factor, or an already factored dictionary ``{prime: exp}``.
-        check_count: If provided, return ``set()`` when the quick upper-bound on
+        n: An integer to factor, or an already factored dictionary `{prime: exp}`.
+        check_count: If provided, return `set()` when the quick upper-bound on
             the number of split-prime choices is less than this value.
-        limited_checks: Accepted for API symmetry with ``quadint.sums.decompose_number``.
+        limited_checks: Accepted for API symmetry with `quadint.sums.decompose_number`.
             Fundamental inert-prime parity checks are still performed.
         no_trivial_solutions: Whether to discard axis and diagonal square-like
             solutions.
 
     Returns:
-        A set of canonical nonnegative pairs ``(a, b)``.
+        A set of canonical nonnegative pairs `(a, b)`.
     """
     n_int, factors = _factor_input(n)
     if n_int < 1:
