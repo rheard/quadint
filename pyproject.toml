@@ -45,6 +45,7 @@ test = [
     "setuptools",
     "pytest-xdist",
     "ruff",
+    "pylint",
 ]
 
 pari = [
@@ -62,10 +63,12 @@ before-test = [
     'mkdir "{project}/temp"',
     'mv "{project}/quadint" "{project}/temp/quadint"',  # Move the .py files away so they are not used in testing
 ]
-test-requires=["pytest", "pytest-xdist"]
+test-requires=["pytest", "pytest-xdist", "pylint"]
 test-command=[
     "python -m pytest -n auto {project}/tests",
 
+    # Require docstrings on all unit tests!
+    'python -m pylint {project}/tests --disable=all --enable=C0115,C0116 --no-docstring-rgx="^(?!(test_|Test)).*"',
     'mv "{project}/temp/quadint" "{project}/quadint"',  # Move the .py files back so they are ready for the next build
     'rm -rf "{project}/temp"',
 ]
