@@ -633,6 +633,52 @@ class TestClassNumber:
         assert (QuadraticRing(D, den).class_number == 1) is expected
 
 
+class TestFundamentalUnit:
+    """Tests QuadraticRing.fundamental_unit."""
+
+    def test_den_one(self):
+        """The fundamental unit in Z[sqrt(2)] is the smallest unit greater than 1."""
+        ring = QuadraticRing(2)
+
+        unit = ring.fundamental_unit()
+
+        assert unit == ring(1, 1)
+        assert abs(unit) == -1
+
+    def test_den_two(self):
+        """The fundamental unit respects the half-integral basis when den is 2."""
+        ring = QuadraticRing(5)
+
+        unit = ring.fundamental_unit()
+
+        assert unit == ring(1, 1)
+        assert abs(unit) == -1
+
+    def test_can_have_norm_one(self):
+        """Some real quadratic rings have fundamental unit of norm 1."""
+        ring = QuadraticRing(3)
+
+        unit = ring.fundamental_unit()
+
+        assert unit == ring(2, 1)
+        assert abs(unit) == 1
+
+    def test_uses_order_not_just_field(self):
+        """The non-maximal order Z[sqrt(5)] has a different fundamental unit than O_Q(sqrt(5))."""
+        ring = QuadraticRing(5, den=1)
+
+        unit = ring.fundamental_unit()
+
+        assert unit == ring(2, 1)
+        assert abs(unit) == -1
+
+    def test_is_cached(self):
+        """The cached method returns the same object on repeated access."""
+        ring = QuadraticRing(69)
+
+        assert ring.fundamental_unit() is ring.fundamental_unit()
+
+
 class TestHarperAcceptOverride(RingTests):
     """Tests for HarperRing selection logic and hardcoded coverage."""
 

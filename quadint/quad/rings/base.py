@@ -383,6 +383,105 @@ class QuadraticRing:
         """Return the class number of this quadratic order."""
         return self.class_group.order
 
+    @functools.cache
+    def fundamental_unit(self) -> QuadInt:
+        """
+        Return the smallest unit greater than 1 in this real quadratic order.
+
+        This uses the continued fraction for the positive generator of the order:
+
+            den == 1:  sqrt(D)
+            den == 2:  w = (1 + sqrt(D)) / 2
+
+        If p/q is a convergent to that generator, then the corresponding quadratic integer eventually has norm ±1.
+            The first such unit found is the fundamental unit.
+
+        Raises:
+            ArithmeticError: If a converging continued fraction is impossible to find.
+
+        Returns:
+            QuadInt: The fundamental unit.
+        """
+        D = self.D
+        sqrt_d = isqrt(D)
+
+        if D <= 0 or sqrt_d * sqrt_d == D:
+            raise NotImplementedError("fundamental units require a nonsquare real quadratic order")
+
+        if self.den == 1:
+            # We are expanding sqrt(D), written as (P + sqrt(D)) / Q.
+            P = 0
+            Q = 1
+        elif self.den == 2 and D % 4 == 1:
+            # We are expanding w = (1 + sqrt(D)) / 2.
+            P = 1
+            Q = 2
+        else:
+            raise NotImplementedError("fundamental units only support den=1 or den=2 with D ≡ 1 mod 4")
+
+        cls = self.DEFAULT_KLASS
+
+        def unit_candidate(p: int, q: int) -> QuadInt:
+            """
+            Convert a continued-fraction convergent p/q into a positive element.
+
+            For den == 1, p/q approximates sqrt(D), so p + q*sqrt(D) is the natural positive candidate.
+
+            For den == 2, p/q approximates w = (1 + sqrt(D)) / 2.
+                The small element is p - q*w, so the positive conjugate is:
+
+                p - q*w' = p - q*(1 - sqrt(D))/2
+                         = (2*p - q + q*sqrt(D)) / 2
+
+            Returns:
+                QuadInt: The unit candidate.
+            """
+            if self.den == 1:
+                return cls(p, q, self, skip_basis=True)
+
+            return cls(2 * p - q, q, self, skip_basis=True)
+
+        # Standard convergent recurrence:
+        #     p_n = a_n*p_{n-1} + p_{n-2}
+        #     q_n = a_n*q_{n-1} + q_{n-2}
+        #
+        # The starting values encode p[-2]/q[-2] = 0/1 and p[-1]/q[-1] = 1/0.
+        prev_p, curr_p = 0, 1
+        prev_q, curr_q = 1, 0
+
+        while True:
+            # Current continued-fraction term for (P + sqrt(D)) / Q.
+            a = (sqrt_d + P) // Q
+
+            next_p = a * curr_p + prev_p
+            next_q = a * curr_q + prev_q
+
+            candidate = unit_candidate(next_p, next_q)
+            if candidate.is_unit():
+                return candidate
+
+            prev_p, curr_p = curr_p, next_p
+            prev_q, curr_q = curr_q, next_q
+
+            # Move to the next complete quotient:
+            #     (P + sqrt(D)) / Q
+            #
+            # where:
+            #     P_next = a*Q - P
+            #     Q_next = (D - P_next**2) / Q
+            next_P = a * Q - P
+            next_Q_num = D - next_P * next_P
+
+            if next_Q_num % Q:
+                raise ArithmeticError("continued-fraction state became non-integral")
+
+            next_Q = next_Q_num // Q
+            if next_Q <= 0:
+                raise ArithmeticError("continued-fraction search left the real quadratic cycle")
+
+            P = next_P
+            Q = next_Q
+
     def supports_division(self) -> bool:
         """
         Return whether this ring advertises Euclidean-style `divmod` support.
