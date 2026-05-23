@@ -558,7 +558,7 @@ class TestPrimeIdealDataOver:
         assert item.p == 3
         assert item.index == 1
         assert item.root is None
-        assert item.root_p2 is None
+        assert item.root_p2() is None
         assert item.ideal == ZI.ideal(3)
         assert item.ideal.norm == 9
         assert item.ideal.is_prime()
@@ -572,7 +572,7 @@ class TestPrimeIdealDataOver:
         item = data[0]
         assert item.root == 1
         assert (item.root * item.root - ZI.D) % item.p == 0
-        assert item.root_p2 is None
+        assert item.root_p2() is None
         assert item.ideal.norm == 2
         assert item.ideal.is_prime()
         assert item.ideal**2 == ZI.ideal(2)
@@ -604,9 +604,9 @@ class TestPrimeIdealDataOver:
 
         for item in data:
             assert item.root is not None
-            assert item.root_p2 is not None
-            assert item.root_p2 % item.p == item.root
-            assert (item.root_p2 * item.root_p2 - ring.D) % (item.p * item.p) == 0
+            assert item.root_p2() is not None
+            assert item.root_p2() % item.p == item.root
+            assert (item.root_p2() * item.root_p2() - ring.D) % (item.p * item.p) == 0
 
     def test_root_p2_den_two(self):
         """The p squared lift should also satisfy the den=2 defining polynomial modulo p squared."""
@@ -618,20 +618,19 @@ class TestPrimeIdealDataOver:
 
         for item in data:
             assert item.root is not None
-            assert item.root_p2 is not None
-            assert item.root_p2 % item.p == item.root
-            assert (item.root_p2 * item.root_p2 - item.root_p2 - 1) % (item.p * item.p) == 0
+            assert item.root_p2() is not None
+            assert item.root_p2() % item.p == item.root
+            assert (item.root_p2() * item.root_p2() - item.root_p2() - 1) % (item.p * item.p) == 0
 
     def test_root_p2_is_cached_on_data_object(self):
         """Repeated root_p2 access should reuse the stored lift on the PrimeIdealData object."""
         item = QuadraticRing(14).prime_ideals_data_over(5)[0]
 
-        first = item.root_p2
-        second = item.root_p2
+        first = item.root_p2()
+        second = item.root_p2()
 
         assert first is not None
-        assert first == second
-        assert item._root_p2 == first
+        assert first is second
 
     @pytest.mark.parametrize("p", [-3, 0, 1, 4, 9], ids=str)
     def test_invalid(self, p: int):

@@ -43,14 +43,13 @@ class PrimeIdealData:
     For odd unramified primes, root_p2 lazily lifts root from modulo p to modulo p**2.
     """
 
-    __slots__ = ("ring", "p", "index", "ideal", "root", "_root_p2")
+    __slots__ = ("ring", "p", "index", "ideal", "root")
 
     ring: QuadraticRing
     p: int
     index: int
     ideal: Ideal
     root: int | None
-    _root_p2: int | None
 
     def __init__(
         self,
@@ -60,7 +59,6 @@ class PrimeIdealData:
         index: int,
         ideal: Ideal,
         root: int | None = None,
-        root_p2: int | None = None,
     ) -> None:
         """Create prime-ideal data."""
         self.ring = ring
@@ -68,14 +66,10 @@ class PrimeIdealData:
         self.index = int(index)
         self.ideal = ideal
         self.root = None if root is None else int(root)
-        self._root_p2 = None if root_p2 is None else int(root_p2)
 
-    @property
+    @functools.cache
     def root_p2(self) -> int | None:
         """Return root lifted modulo p**2 when this prime ideal has such a lift."""
-        if self._root_p2 is not None:
-            return self._root_p2
-
         if self.root is None:
             return None
 
@@ -106,8 +100,25 @@ class PrimeIdealData:
         #     f(root)//p + t*f'(root) == 0 mod p
         error = f_root // p
         correction = -error * pow(f_prime_root % p, -1, p)
-        self._root_p2 = root + (correction % p) * p
-        return self._root_p2
+        return root + (correction % p) * p
+
+    def residue_mod_p2(self, x: QuadInt) -> int:
+        """Compute the residue mod self.root_p2"""
+        root = self.root_p2()
+        if root is None:
+            raise ValueError("residue_mod_p2 requires an odd unramified split prime ideal")
+
+        element = self.ring.from_obj(x)
+        if element is NotImplemented:
+            raise TypeError(f"Cannot coerce {type(x).__name__} into {self.ring!r}")
+
+        if self.ring.den == 1:
+            c0, c1 = element.a, element.b
+        else:
+            c0, c1 = (element.a - element.b) // 2, element.b
+
+        mod = self.p * self.p
+        return (c0 + c1 * root) % mod
 
     def __repr__(self) -> str:
         args = [
@@ -120,10 +131,32 @@ class PrimeIdealData:
         if self.root is not None:
             args.append(f"root={self.root!r}")
 
-        if self._root_p2 is not None:
-            args.append(f"root_p2={self._root_p2!r}")
-
         return f"PrimeIdealData({', '.join(args)})"
+
+    def __eq__(self, other: object) -> bool:
+        """Return True iff two prime-ideal records describe the same indexed prime ideal."""
+        if not isinstance(other, PrimeIdealData):
+            return False
+
+        return (
+            self.ring is other.ring
+            and self.p == other.p
+            and self.index == other.index
+            and self.ideal == other.ideal
+            and self.root == other.root
+        )
+
+    def __hash__(self) -> int:
+        """Hash the immutable identity of this prime-ideal record."""
+        return hash(
+            (
+                self.ring,
+                self.p,
+                self.index,
+                self.ideal.hnf,
+                self.root,
+            ),
+        )
 
 
 def _check_den(den: int) -> int:
