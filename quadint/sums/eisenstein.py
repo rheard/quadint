@@ -48,7 +48,7 @@ def _canonical_pair(
             if a < 0 or b < 0:
                 continue
 
-            if no_trivial_solutions and (a == 0 or b == 0 or a == b):
+            if no_trivial_solutions and (a == 0 or b in (0, a)):
                 continue
 
             candidates.append((a, b))

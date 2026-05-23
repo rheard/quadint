@@ -60,7 +60,7 @@ def _canonical_eisenstein_pair(
             if x < 0 or y < 0:
                 continue
 
-            if no_trivial_solutions and (x == 0 or y == 0 or x == y):
+            if no_trivial_solutions and (x == 0 or y in (0, x)):
                 continue
 
             candidates.append((x, y))
