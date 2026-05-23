@@ -135,6 +135,7 @@ ignore=[
     # These next 2 mess with mypyc
     "ANN202",  # Missing return type annotation for private function
     "ANN204",  # Missing return type annotation for special method
+    "B019",  # Use of `functools.lru_cache` or `functools.cache` on methods can lead to memory leaks (duh, but I'm careful and we're slow ;) )
     "D100",    # Missing docstring in public module
     "D104",    # Missing docstring in public package
     "D105",    # Missing docstring in magic method
