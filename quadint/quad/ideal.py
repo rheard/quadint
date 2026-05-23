@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cache
 from itertools import product
 from math import gcd, isqrt, pi, sqrt
 from typing import TYPE_CHECKING
@@ -134,6 +135,7 @@ class Ideal:
         p = next(iter(factors))
         return any(self == prime_ideal for prime_ideal in self.ring.prime_ideals_over(p))
 
+    @cache
     def principal_generator(self) -> QuadInt | None:
         """Return a generator for this ideal if one is found, otherwise None."""
         if self.norm == 0:
@@ -494,10 +496,10 @@ class Ideal:
         if not isinstance(other, Ideal):
             return False
 
-        return self.ring is other.ring and self.hnf == other.hnf
+        return self.ring == other.ring and self.hnf == other.hnf
 
     def __hash__(self) -> int:
-        return hash((self.ring.D, self.ring.den, self.hnf))
+        return hash((self.ring, self.hnf))
 
     def __repr__(self) -> str:
         if self.norm == 0:
