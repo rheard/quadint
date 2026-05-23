@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 def _int_xgcd(a: int, b: int) -> tuple[int, int, int]:
     """Extended GCD for integers. Returns (g, s, t) with s*a + t*b == g, g >= 0."""
+    # TODO: Surely there is a way to delete this method in favor of QuadraticRing.xgcd? The super class?
     if a == 0:
         return abs(b), 0, (1 if b >= 0 else -1)
     if b == 0:

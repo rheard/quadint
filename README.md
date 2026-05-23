@@ -153,6 +153,22 @@ print(a + 1.5)   # "(4+6j)"  (1.5 -> 1)
 
 ---
 
+## Ideals and class numbers
+
+`quadint` can work with integral ideals of quadratic orders.
+
+```python
+from quadint import QuadraticRing
+
+O = QuadraticRing(-5)
+I = O.ideal(3, O(1, 1))
+
+assert not I.is_principal()
+assert O.class_number == 2
+```
+
+---
+
 ## Basis-vector coordinates
 
 `QuadInt` separates public basis coordinates from the internal numerator coordinates used by the arithmetic engine. 

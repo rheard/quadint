@@ -4,21 +4,23 @@ import importlib.util
 import os
 import random
 
+from math import prod
 from pathlib import Path
 
 import pytest
 
 import quadint
 
-from quadint import QuadInt, complexint
+from quadint import Ideal, QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
-from quadint.quad.rings import HarperRing, _is_squarefree  # noqa: PLC2701
+from quadint.quad.rings import HarperRing
 from tests.quad.test_int import QuadIntTests
 
 ZN19 = QuadraticRing(-19)
 ZN17 = QuadraticRing(-17)
 ZN11 = QuadraticRing(-11)
 ZN7 = QuadraticRing(-7)
+ZN5 = QuadraticRing(-5)
 ZN2 = QuadraticRing(-2)
 Z1 = QuadraticRing(1)
 Z2 = QuadraticRing(2)
@@ -34,6 +36,11 @@ requires_cypari = pytest.mark.skipif(
     importlib.util.find_spec("cypari") is None,
     reason="requires cypari",
 )
+
+
+def ideal_prod(ring: QuadraticRing, factors: tuple[Ideal, ...]) -> Ideal:
+    """Return the product of a tuple of ideals."""
+    return prod(factors, start=ring.unit_ideal())
 
 
 def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
@@ -432,43 +439,6 @@ class TestHarperHelpers:
     """Tests for the standalone helper functions used by HarperRing."""
 
     @pytest.mark.parametrize(
-        ("n", "expected"),
-        [
-            (0, False),
-            (1, False),
-            (-1, False),
-            (2, True),
-            (3, True),
-            (4, False),
-            (5, True),
-            (6, True),
-            (8, False),
-            (9, False),
-            (10, True),
-            (12, False),
-            (14, True),
-            (15, True),
-            (16, False),
-            (18, False),
-            (21, True),
-            (22, True),
-            (23, True),
-            (24, False),
-            (29, True),
-            (31, True),
-            (45, False),
-            (61, True),
-            (69, True),  # 69 = 3 * 23, squarefree
-            (-14, True),
-            (-18, False),
-        ],
-        ids=str,
-    )
-    def test_squarefree(self, n: int, *, expected: bool):
-        """Verify the squarefree helper handles signs and repeated prime factors correctly."""
-        assert _is_squarefree(n) is expected
-
-    @pytest.mark.parametrize(
         ("D", "den", "expected_disc"),
         [
             (14, None, 56),  # default den=1 -> disc = 4D
@@ -493,20 +463,6 @@ class TestHarperHelpers:
 @requires_cypari
 class TestHarperPariHelpers:
     """Tests for PARI-backed helpers used by HarperRing."""
-
-    @pytest.mark.parametrize(
-        ("D", "den", "expected"),
-        [
-            (14, 1, True),  # Q(sqrt(14)) maximal order
-            (61, 2, True),  # Q(sqrt(61)) maximal order
-            (69, 2, True),  # Q(sqrt(69)) maximal order
-            (15, 1, False),  # Q(sqrt(15)) has class number > 1
-        ],
-        ids=str,
-    )
-    def test_class_number_is_one(self, D: int, den: int, expected: bool):  # noqa: FBT001
-        """Verify the class-number helper on a few known real quadratic discriminants."""
-        assert (QuadraticRing(D, den).class_number() == 1) is expected
 
     @pytest.mark.parametrize(
         ("D", "den"),
@@ -549,6 +505,132 @@ class TestHarperPariHelpers:
 
         p1, p2 = out
         assert p1 != p2
+
+
+class TestPrimeIdealsOver:
+    """Tests for QuadraticRing.prime_ideals_over."""
+
+    @pytest.mark.parametrize(
+        ("ring", "p", "expected_norms"),
+        [
+            (ZI, 5, (5, 5)),  # split in Z[i]
+            (ZI, 3, (9,)),  # inert in Z[i]
+            (ZI, 2, (2,)),  # ramified in Z[i]
+            (ZN7, 2, (2, 2)),  # split in den=2 imaginary order
+            (QuadraticRing(10), 3, (3, 3)),  # split in a real quadratic order
+            (QuadraticRing(10), 7, (49,)),  # inert in a real quadratic order
+            (Z5, 5, (5,)),  # ramified in a den=2 real quadratic order
+        ],
+        ids=str,
+    )
+    def test_decomposition(self, ring: QuadraticRing, p: int, expected_norms: tuple[int, ...]):
+        """Prime ideals over p should have the expected splitting type and reconstruct (p)."""
+        ideals = ring.prime_ideals_over(p)
+
+        assert tuple(ideal.norm for ideal in ideals) == expected_norms
+        assert all(ideal.is_prime() for ideal in ideals)
+        assert all(p in ideal for ideal in ideals)
+
+        if len(ideals) == 1 and ideals[0].norm == p:
+            assert ideals[0] ** 2 == ring.ideal(p)
+        else:
+            assert ideal_prod(ring, ideals) == ring.ideal(p)
+
+    @pytest.mark.parametrize(
+        ("ring", "p"),
+        [
+            (ZI, 5),
+            (ZN7, 2),
+            (QuadraticRing(10), 3),
+            (QuadraticRing(10), 7),
+            (Z5, 5),
+        ],
+        ids=str,
+    )
+    def test_roots(self, ring: QuadraticRing, p: int):
+        """Prime ideals over p should correspond to roots of the integral-basis minimal polynomial mod p."""
+        roots = set()
+        for ideal in ring.prime_ideals_over(p):
+            _, b, c = ideal.hnf
+            if c == 1:
+                roots.add((-b) % p)
+
+        if ring.den == 1:
+            expected_roots = {r for r in range(p) if (r * r - ring.D) % p == 0}
+        else:
+            constant = (1 - ring.D) // 4
+            expected_roots = {r for r in range(p) if (r * r - r + constant) % p == 0}
+
+        assert roots == expected_roots
+
+    @pytest.mark.parametrize("p", [-3, 0, 1, 4, 9], ids=str)
+    def test_invalid(self, p: int):
+        """Only rational primes should be accepted."""
+        with pytest.raises(ValueError, match="prime"):
+            ZI.prime_ideals_over(p)
+
+
+class TestClassNumber:
+    """Tests for QuadraticRing.class_number."""
+
+    @pytest.mark.parametrize(
+        "ring",
+        [
+            ZI,
+            ZE,
+            ZN2,
+            ZN7,
+            ZN11,
+            ZN19,
+        ],
+        ids=str,
+    )
+    def test_imaginary_class_number_one(self, ring: QuadraticRing):
+        """The standard Heegner/PID examples should have class number one."""
+        assert ring.class_number == 1
+        assert len(ring.class_group) == 1
+
+    def test_imaginary_class_number_two(self):
+        """Z[sqrt(-5)] should have class number two."""
+        assert ZN5.class_number == 2
+        assert len(ZN5.class_group) == 2
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        HarperRing._HARDCODED,
+        ids=str,
+    )
+    def test_harper_hardcoded_class_number_one(self, D: int, den: int):
+        """Every hardcoded Harper ring should have class number one."""
+        assert QuadraticRing(D, den).class_number == 1
+
+    @pytest.mark.parametrize(
+        "ring",
+        [
+            QuadraticRing(0),
+            QuadraticRing(1),
+            QuadraticRing(4),
+        ],
+        ids=str,
+    )
+    def test_non_field_rejected(self, ring: QuadraticRing):
+        """Class numbers should not be defined for dual, split, or positive-square rings."""
+        with pytest.raises(NotImplementedError, match="quadratic field"):
+            _ = ring.class_number
+
+    @pytest.mark.parametrize(
+        ("D", "den", "expected"),
+        [
+            (14, 1, True),  # Q(sqrt(14)) maximal order
+            (61, 2, True),  # Q(sqrt(61)) maximal order
+            (69, 2, True),  # Q(sqrt(69)) maximal order
+            (15, 1, False),  # Q(sqrt(15)) has class number > 1
+        ],
+        ids=str,
+    )
+    def test_class_number_is_one(self, D: int, den: int, expected: bool):  # noqa: FBT001
+        """Verify the class-number helper on a few known real quadratic discriminants."""
+        assert (QuadraticRing(D, den).class_number == 1) is expected
 
 
 class TestHarperAcceptOverride(RingTests):

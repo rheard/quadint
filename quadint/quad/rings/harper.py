@@ -11,21 +11,10 @@ from quadint.quad.rings.base import (
     _round_div_ties_away_from_zero,
 )
 from quadint.quad.rings.norm_euclid import RealNormEuclidRing
-from quadint.utils import requires_modules
+from quadint.utils import _is_squarefree, requires_modules
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
-
-
-def _is_squarefree(n: int) -> bool:
-    from sympy import factorint  # noqa: PLC0415
-
-    n = abs(n)
-    if n <= 1:
-        return False
-
-    facts = factorint(n)
-    return all(i < 2 for i in facts.values())
 
 
 class Clark69Ring(RealNormEuclidRing):
@@ -250,7 +239,7 @@ class HarperRing(RealNormEuclidRing):
         #     return False
 
         # Must be a PID
-        if temp_ring.class_number() != 1:
+        if temp_ring.class_number != 1:
             return False
 
         # Murty-Srinivas-Subramani state that Harper's thesis established

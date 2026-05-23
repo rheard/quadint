@@ -5,6 +5,7 @@ import importlib
 
 from typing import Callable, Iterable, TypeVar  # noqa: UP035
 
+from sympy import factorint
 from typing_extensions import ParamSpec
 
 P = ParamSpec("P")
@@ -57,3 +58,12 @@ def requires_modules(
         return wrapper
 
     return decorator
+
+
+def _is_squarefree(n: int) -> bool:
+    n = abs(n)
+    if n <= 1:
+        return False
+
+    facts = factorint(n)
+    return all(i < 2 for i in facts.values())
