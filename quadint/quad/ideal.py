@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from itertools import product
 from math import gcd, isqrt, pi, sqrt
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sympy import Matrix, factorint, gcdex, primerange
 from sympy.matrices.normalforms import hermite_normal_form
@@ -596,23 +596,45 @@ class IdealClass:
         return f"[{self.representative}]"
 
 
+# @cache
+# This is a trick I learned recently to make a singleton class and would work here, and does in pure python
+# But boy does mypyc hate it, it completely crashes everything...
+# we'll have to make singleton classes the old-fashioned way...
 class ClassGroup:
     """Ideal class group of a quadratic order."""
 
-    __slots__ = ("ring", "_classes", "_generators")
+    __slots__ = ("ring", "_classes", "_generators", "_initialized")
+
+    _CACHE: ClassVar[dict[tuple[type, int, int], ClassGroup]] = {}
 
     ring: QuadraticRing
     _classes: tuple[IdealClass, ...] | None
     _generators: tuple[IdealClass, ...] | None
+    _initialized: bool
+
+    def __new__(cls, ring: QuadraticRing):
+        """Return the cached class group for this exact kind of quadratic ring."""
+        if ring.D in (0, 1) or (ring.D != -1 and not _is_squarefree(ring.D)):
+            raise NotImplementedError("Class groups require a quadratic field/order")
+
+        key = (type(ring), ring.D, ring.den)
+        inst = cls._CACHE.get(key)
+        if inst is not None:
+            return inst
+
+        inst = super().__new__(cls)
+        cls._CACHE[key] = inst
+        return inst
 
     def __init__(self, ring: QuadraticRing) -> None:
         """Create the ideal class group of ring."""
-        if ring.D in (0, 1) or (ring.D != -1 and not _is_squarefree(ring.D)):
-            raise NotImplementedError("Class groups require a quadratic field/order")
+        if getattr(self, "_initialized", False):
+            return
 
         self.ring = ring
         self._classes = None
         self._generators = None
+        self._initialized = True
 
     @property
     def minkowski_bound(self) -> int:
