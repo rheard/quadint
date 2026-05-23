@@ -573,11 +573,11 @@ class QuadraticRing:
         If p/q is a convergent to that generator, then the corresponding quadratic integer eventually has norm ±1.
             The first such unit found is the fundamental unit.
 
-        Raises:
-            ArithmeticError: If a converging continued fraction is impossible to find.
-
         Returns:
             QuadInt: The fundamental unit.
+
+        Raises:
+            ArithmeticError: If a converging continued fraction is impossible to find.
         """
         D = self.D
         sqrt_d = isqrt(D)
