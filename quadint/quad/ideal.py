@@ -613,20 +613,13 @@ class ClassGroup:
         self._generators = None
 
     @property
-    def discriminant(self) -> int:
-        """Return the discriminant of the quadratic order."""
-        if self.ring.den == 1:
-            return 4 * self.ring.D
-
-        return self.ring.D
-
-    @property
     def minkowski_bound(self) -> int:
         """Return a norm bound for ideal-class representatives."""
-        if self.discriminant < 0:
-            return int(2 * sqrt(abs(self.discriminant)) / pi) + 1
+        disc = self.ring.discriminant()
+        if disc < 0:
+            return int(2 * sqrt(abs(disc)) / pi) + 1
 
-        return int(sqrt(self.discriminant) / 2) + 1
+        return int(sqrt(disc) / 2) + 1
 
     @property
     def generators(self) -> tuple[IdealClass, ...]:

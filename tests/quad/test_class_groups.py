@@ -52,24 +52,7 @@ class TestConstruct:
 
 
 class TestBounds:
-    """Tests for discriminants and Minkowski bounds."""
-
-    @pytest.mark.parametrize(
-        ("ring", "expected"),
-        [
-            (ZI, -4),
-            (ZE, -3),
-            (ZN5, -20),
-            (ZN7, -7),
-            (Z5, 5),
-            (Z14, 56),
-            (Z15, 60),
-        ],
-        ids=str,
-    )
-    def test_discriminant(self, ring: QuadraticRing, expected: int):
-        """ClassGroup.discriminant should follow the ring denominator convention."""
-        assert ClassGroup(ring).discriminant == expected
+    """Tests for Minkowski bounds."""
 
     @pytest.mark.parametrize(
         ("ring", "expected"),
@@ -128,7 +111,7 @@ class TestTrivialGroups:
         """In Z[sqrt(14)], prime ideals up to the bound should all be principal."""
         group = ClassGroup(Z14)
 
-        assert group.discriminant == 56
+        assert group.ring.discriminant() == 56
         assert group.minkowski_bound == 4
         assert group.order == 1
         assert group.generators == ()
@@ -149,7 +132,7 @@ class TestNontrivialGroups:
         prime_two = ZN5.prime_ideals_over(2)[0]
         prime_three = next(ideal for ideal in ZN5.prime_ideals_over(3) if ideal.hnf == (3, 1, 1))
 
-        assert group.discriminant == -20
+        assert group.ring.discriminant() == -20
         assert group.minkowski_bound == 3
         assert group.order == 2
         assert group.class_number() == 2
@@ -172,7 +155,7 @@ class TestNontrivialGroups:
         prime_two = Z15.prime_ideals_over(2)[0]
         prime_three = Z15.prime_ideals_over(3)[0]
 
-        assert group.discriminant == 60
+        assert group.ring.discriminant() == 60
         assert group.minkowski_bound == 4
         assert group.order == 2
         assert group.class_number() == 2
