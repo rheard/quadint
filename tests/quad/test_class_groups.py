@@ -42,11 +42,13 @@ class TestConstruct:
             QuadraticRing(1),
             QuadraticRing(4),
             QuadraticRing(12),
+            QuadraticRing(-8),
+            QuadraticRing(-9),
         ],
         ids=str,
     )
     def test_not_field(self, ring: QuadraticRing):
-        """Class groups should reject dual, split, square, and nonsquarefree positive D cases."""
+        """Class groups should reject dual, split, square, and nonsquarefree D cases."""
         with pytest.raises(NotImplementedError, match="quadratic field"):
             ClassGroup(ring)
 

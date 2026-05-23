@@ -605,7 +605,7 @@ class ClassGroup:
 
     def __init__(self, ring: QuadraticRing) -> None:
         """Create the ideal class group of ring."""
-        if ring.D in (0, 1) or (ring.D > 1 and not _is_squarefree(ring.D)):
+        if ring.D in (0, 1) or (ring.D != -1 and not _is_squarefree(ring.D)):
             raise NotImplementedError("Class groups require a quadratic field/order")
 
         self.ring = ring
