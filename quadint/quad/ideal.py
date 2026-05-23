@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import cached_property
 from itertools import product
 from math import gcd, isqrt, pi, sqrt
 from typing import TYPE_CHECKING
@@ -197,7 +196,9 @@ class Ideal:
         if not unit_solutions:
             raise ArithmeticError("Failed to find a fundamental Pell unit")
 
-        u, v = unit_solutions[0]
+        u_, v_ = unit_solutions[0]
+        u = int(u_)
+        v = int(v_)
         denom = 2 * A
         modulus = abs(denom)
 
@@ -514,7 +515,10 @@ class Ideal:
 class IdealClass:
     """Ideal class represented by a nonzero integral ideal."""
 
+    __slots__ = ("representative", "_order")
+
     representative: Ideal
+    _order: int | None
 
     def __init__(self, representative: Ideal) -> None:
         """Create the ideal class represented by a nonzero integral ideal."""
@@ -522,21 +526,26 @@ class IdealClass:
             raise ValueError("The zero ideal does not define an ideal class")
 
         self.representative = representative
+        self._order = None
 
     @property
     def ring(self) -> QuadraticRing:
         """Return the underlying quadratic ring."""
         return self.representative.ring
 
-    @cached_property
+    @property
     def order(self) -> int:
         """Return the multiplicative order of this ideal class."""
+        if self._order is not None:
+            return self._order
+
         power = self.representative
         order = 1
         while not power.is_principal():
             power *= self.representative
             order += 1
 
+        self._order = order
         return order
 
     def is_trivial(self) -> bool:
@@ -588,7 +597,11 @@ class IdealClass:
 class ClassGroup:
     """Ideal class group of a quadratic order."""
 
+    __slots__ = ("ring", "_classes", "_generators")
+
     ring: QuadraticRing
+    _classes: tuple[IdealClass, ...] | None
+    _generators: tuple[IdealClass, ...] | None
 
     def __init__(self, ring: QuadraticRing) -> None:
         """Create the ideal class group of ring."""
@@ -596,6 +609,8 @@ class ClassGroup:
             raise NotImplementedError("Class groups require a quadratic field/order")
 
         self.ring = ring
+        self._classes = None
+        self._generators = None
 
     @property
     def discriminant(self) -> int:
@@ -613,9 +628,12 @@ class ClassGroup:
 
         return int(sqrt(self.discriminant) / 2) + 1
 
-    @cached_property
+    @property
     def generators(self) -> tuple[IdealClass, ...]:
         """Return prime ideal classes that generate this class group."""
+        if self._generators is not None:
+            return self._generators
+
         out: list[IdealClass] = []
 
         for p in primerange(2, self.minkowski_bound + 1):
@@ -627,17 +645,22 @@ class ClassGroup:
                 if not cls.is_trivial() and not self._contains_class(out, cls):
                     out.append(cls)
 
-        return tuple(out)
+        self._generators = tuple(out)
+        return self._generators
 
-    @cached_property
+    @property
     def classes(self) -> tuple[IdealClass, ...]:
         """Return all ideal classes in this class group."""
+        if self._classes is not None:
+            return self._classes
+
         out = [IdealClass(self.ring.unit_ideal())]
 
         for generator in self.generators:
             self._adjoin(out, generator)
 
-        return tuple(out)
+        self._classes = tuple(out)
+        return self._classes
 
     @property
     def order(self) -> int:
