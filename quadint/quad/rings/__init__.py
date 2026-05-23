@@ -20,7 +20,6 @@ from quadint.quad.rings.cornacchia import (
 from quadint.quad.rings.harper import (
     Clark69Ring as Clark69Ring,
     HarperRing as HarperRing,
-    _is_squarefree as _is_squarefree,
 )
 from quadint.quad.rings.heegner import (
     HeegnerDen2Ring as HeegnerDen2Ring,
