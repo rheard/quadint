@@ -378,17 +378,19 @@ class QuadraticRing:
         return (other.D == self.D) and (other.den == self.den)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, QuadraticRing):
-            return False
-
-        return self.D == other.D and self.den == other.den
+        # Type is checked here (and in hash) because it can cause problems with cached methods during setup
+        #   when determining which quadratic ring class to use. Then when actually using the ring, the `self` variable
+        #   is the old cached value we determined would not work.
+        # Adding type here (and in hash) makes sure that we can still easily and simply cache those methods, while
+        #   still making sure each QuadraticRing type's cache is separate from each other
+        return type(self) is type(other) and self.D == other.D and self.den == other.den
 
     def __ne__(self, other: object) -> bool:
         # Work around occasional mypyc glue-generation assertions for __ne__.
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.D, self.den))
+        return hash((type(self), self.D, self.den))
 
     @property
     def zero(self) -> QuadInt:
