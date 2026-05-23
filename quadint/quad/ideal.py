@@ -204,6 +204,34 @@ class Ideal:
         denom = 2 * A
         modulus = abs(denom)
 
+        fundamental_unit = self.ring.fundamental_unit()
+        conjugate_unit = fundamental_unit.conjugate()
+
+        def key(z: QuadInt) -> tuple[int, int, int, int, int]:
+            return (max(abs(z.a), abs(z.b)), abs(z.a), abs(z.b), z.a, z.b)
+
+        def reduce_unit_associate(z: QuadInt) -> QuadInt:
+            """Choose a smaller generator among unit associates of z."""
+            best = z
+
+            while True:
+                candidates = (
+                    best,
+                    -best,
+                    best * fundamental_unit,
+                    -(best * fundamental_unit),
+                    best * conjugate_unit,
+                    -(best * conjugate_unit),
+                )
+
+                new_best = min(candidates, key=key)
+                if key(new_best) >= key(best):
+                    return best
+
+                best = new_best
+
+        best_candidate: QuadInt | None = None
+
         for target in (self.norm, -self.norm):
             rhs = 4 * A * target
 
@@ -236,15 +264,14 @@ class Ideal:
                             and candidate in self
                             and Ideal(self.ring, candidate) == self
                         ):
-                            return candidate
+                            candidate = reduce_unit_associate(candidate)
 
-                    # Multiply X + Y*sqrt(delta) by the fundamental unit
-                    # u + v*sqrt(delta).  We only need to search one full
-                    # period modulo 2*A, because the divisibility condition
-                    # for recovering m depends only on X and Y modulo 2*A.
+                            if best_candidate is None or key(candidate) < key(best_candidate):
+                                best_candidate = candidate
+
                     x, y = u * x + delta * v * y, v * x + u * y
 
-        return None
+        return best_candidate
 
     def is_principal(self) -> bool:
         """Return True iff this ideal is principal."""

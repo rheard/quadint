@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import os
 import random
 
@@ -30,12 +29,6 @@ Z69 = QuadraticRing(69)
 
 ZI = QuadraticRing(-1)
 ZE = QuadraticRing(-3)
-
-
-requires_cypari = pytest.mark.skipif(
-    importlib.util.find_spec("cypari") is None,
-    reason="requires cypari",
-)
 
 
 def ideal_prod(ring: QuadraticRing, factors: tuple[Ideal, ...]) -> Ideal:
@@ -365,7 +358,6 @@ class TestDivClark69:
 
                 assert Z69.phi(r) < Z69.phi(y), f"phi did not reduce: x={x}, y={y}, q={q}, r={r}"
 
-    @requires_cypari
     def test_harper_ring_similar(self):
         """While the Harper ring is not required to produce identical results, some are (and logically should be)"""
         # The only real problem with this is we NEED cypari to compute the admissible pairs in real time.
@@ -460,9 +452,11 @@ class TestHarperHelpers:
         assert QuadraticRing(D, den).discriminant() == expected_disc
 
 
-@requires_cypari
 class TestHarperPariHelpers:
     """Tests for PARI-backed helpers used by HarperRing."""
+
+    # Note: These methods don't actually use cypari anymore, we've dropped that requirement.
+    #   But the tests are very useful to verify underlying machinery for rarely used real quadratic rings.
 
     @pytest.mark.parametrize(
         ("D", "den"),
@@ -970,7 +964,6 @@ class TestHarperDiv:
         [(101, 2), (103, 1)],
         ids=str,
     )
-    @requires_cypari
     def test_random_phi_reducing_not_cached(self, D: int, den: int):
         """Randomized regression: Harper divmod should always preserve identity and reduce phi."""
         assert (D, den) not in HarperRing._HARDCODED

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import warnings
-
 from quadint.quad.rings.base import (
     Factorization as Factorization,
     QuadraticRing as QuadraticRing,
@@ -35,14 +33,3 @@ from quadint.quad.rings.special import (
     DualRing as DualRing,
     SplitRing as SplitRing,
 )
-
-try:
-    import cypari  # noqa: F401
-except ImportError:
-    warnings.warn(
-        "cypari is not installed. "
-        "Without it, Harper-like division is only available with rings that have a D value below 100 "
-        "(because these are hard-coded).",
-        ImportWarning,
-        stacklevel=2,
-    )

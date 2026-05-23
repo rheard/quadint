@@ -3,15 +3,20 @@ from __future__ import annotations
 import warnings
 
 from functools import cache
+from math import gcd
 from typing import TYPE_CHECKING, ClassVar, cast
 
+from sympy import sieve
+from sympy.ntheory import discrete_log, primitive_root
+
 from quadint.quad.rings.base import (
+    PrimeIdealData,
     QuadraticRing,
     _NeighborhoodSearch,
     _round_div_ties_away_from_zero,
 )
 from quadint.quad.rings.norm_euclid import RealNormEuclidRing
-from quadint.utils import _is_squarefree, requires_modules
+from quadint.utils import _is_squarefree
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
@@ -158,6 +163,13 @@ class HarperRing(RealNormEuclidRing):
     Therefor without cypari, this will only work for the D values that have been hard-coded and validated.
     Even with cypari, the default behavior will be to tend towards accuracy, so division algorithms may be slow
         (or heck, untested or incorrect).
+
+    CORRECTION: I have since written `Ideal`, `IdealClass`, and a whole host of classes and methods specifically
+        to replace cypari. Yes, in calculating the `class_number`, but also explicitly here: when it comes to finding
+        the admissible pairs.
+
+        As such we can now find new admissible pairs without cypari at all. While it is a bit slower,
+            it also means we can eliminate a dependency which is not supported on all platforms and versions.
     """
 
     SUPPORTS_DIVISION = True  # once divmod is implemented
@@ -191,7 +203,7 @@ class HarperRing(RealNormEuclidRing):
         #   Instead they need to be converted to principal generators (which are quadratic integers),
         #       and use a slightly different (read slower) algorithm.
         #   See _POST_HARDCODED at end of file.
-        # (71, 1): (5, 23),
+        # (71, 1): (5, 1, 23, 1),
         (77, 2): (13, 1, 23, 1),
         # D=83 was also quite fun, and required expansion of the heuristic search area to beyond 60,000.
         #   I worry this means the heuristic search area will need to increase for larger D values...
@@ -201,7 +213,7 @@ class HarperRing(RealNormEuclidRing):
         (89, 2): (11, 1, 17, 1),
         (93, 2): (7, 1, 11, 1),
         (94, 1): (3, 1, 5, 1),
-        (97, 2): (3, 1, 11, 2),
+        (97, 2): (3, 1, 11, 1),
     }
 
     @classmethod
@@ -213,16 +225,6 @@ class HarperRing(RealNormEuclidRing):
 
         if (D, den) in cls._HARDCODED:
             return True
-
-        try:
-            import cypari  # noqa: PLC0415, F401
-        except ImportError:
-            warnings.warn(
-                "This may be a Harper-like ring, however without cypari installed we cannot use it as such.",
-                ImportWarning,
-                stacklevel=3,
-            )
-            return False
 
         if not _is_squarefree(D):
             warnings.warn(
@@ -257,206 +259,98 @@ class HarperRing(RealNormEuclidRing):
     #   You will need to turn the witness primess into the more reliable principal generators,
     #       by passing the witness primes set to _principal_generators_from_witness, and then add these
     #       to _POST_HARDCODED at the end of the file.
-    @requires_modules(["cypari"])
+    @cache
+    def _is_admissible_pair(
+        self,
+        P1: PrimeIdealData,
+        P2: PrimeIdealData,
+        epsilon: QuadInt,
+    ) -> bool:
+        """Return True iff P1, P2 satisfy Harper's admissible-pair unit condition."""
+        p1 = P1.p
+        p2 = P2.p
+
+        if p1 == p2:
+            return False
+        if p1 == 2 or p2 == 2:
+            return False
+        if self.discriminant() % p1 == 0 or self.discriminant() % p2 == 0:
+            return False
+        if P1.root_p2() is None or P2.root_p2() is None:
+            return False
+        if P1.ideal.norm != p1 or P2.ideal.norm != p2:
+            return False
+
+        mod1 = p1 * p1
+        mod2 = p2 * p2
+
+        g1 = primitive_root(mod1)
+        g2 = primitive_root(mod2)
+
+        neg = -self.one
+
+        neg_logs = (
+            int(discrete_log(mod1, P1.residue_mod_p2(neg), g1)),
+            int(discrete_log(mod2, P2.residue_mod_p2(neg), g2)),
+        )
+        eps_logs = (
+            int(discrete_log(mod1, P1.residue_mod_p2(epsilon), g1)),
+            int(discrete_log(mod2, P2.residue_mod_p2(epsilon), g2)),
+        )
+
+        n1 = p1 * (p1 - 1)
+        n2 = p2 * (p2 - 1)
+
+        a1, a2 = neg_logs
+        b1, b2 = eps_logs
+
+        index = abs(n1 * n2)
+        index = gcd(index, abs(n1 * a2))
+        index = gcd(index, abs(n1 * b2))
+        index = gcd(index, abs(n2 * a1))
+        index = gcd(index, abs(n2 * b1))
+        index = gcd(index, abs(a1 * b2 - a2 * b1))
+
+        return index == 1
+
+    @cache
     def _find_admissible_witness_primes(
         self,
         *,
         prime_bound: int = 200,
     ) -> tuple[int, int, int, int] | None:
-        """
-        Search for a Harper-style admissible prime-ideal pair for the real quadratic field
-        with discriminant `disc`, and return a *Harper-like* witness (small generators).
+        """Search for a Harper admissible split-prime witness pair."""
+        epsilon = self.fundamental_unit()
 
-        Returns:
-            None if not found within prime_bound.
-            Otherwise (p1, i1, p2, i2) where:
-              - p1, p2 are rational primes
-              - i1 is the 1-based index of the chosen prime ideal in idealprimedec(nf,p1)
-              - i2 is the 1-based index of the chosen prime ideal in idealprimedec(nf,p2)
-        """
-        from cypari import pari  # noqa: PLC0415
+        candidates: list[PrimeIdealData] = []
+        for p in sieve.primerange(3, prime_bound + 1):
+            if self.discriminant() % p == 0:
+                continue
 
-        disc0 = int(self.discriminant())
-        B = int(prime_bound)
+            candidates.extend(
+                data for data in self.prime_ideals_data_over(p) if data.ideal.norm == p and data.root_p2() is not None
+            )
 
-        # We do the heavy lifting in GP to avoid depending on cypari object APIs.
-        # Strategy:
-        #  - Build bnf/nf and fundamental unit eps.
-        #  - Loop over rational primes p1<p2 up to B.
-        #  - For each split prime ideal P with Norm(P)=p, try pairs (P1,P2).
-        #  - Let I=P1^2*P2^2, compute bid=idealstar(nf,I,2) with invariants cyc.
-        #  - Compute v(-1), v(eps) = ideallog(...) vectors mod cyc.
-        #  - Decide if these generate the full group via Smith normal form index test.
-        #
-        # Return [] if none found, or [p1,i1,p2,i2] if found.
+        for i, P1 in enumerate(candidates):
+            for P2 in candidates[i + 1 :]:
+                if self._is_admissible_pair(P1, P2, epsilon):
+                    return P1.p, P1.index, P2.p, P2.index
 
-        gp = f"""
-    {{
-      my(disc={disc0}, B={B});
-      my(bnf = bnfinit(quadpoly(disc)));
-      my(nf  = bnf.nf);
-      my(eps = Vec(bnf.fu)[1]);   /* normalize */
+        return None
 
-      my(res = []);
-      my(found = 0);
-
-      forprime(p1=3, B,
-        if(found, break);
-        if(p1==2 || (disc % p1)==0, next);
-
-        my(dec1 = Vec(idealprimedec(nf, p1)));
-        for(i1=1, #dec1,
-          if(found, break);
-          my(P1 = dec1[i1]);
-          if(idealnorm(nf, P1) != p1, next);  /* split prime ideal of norm p1 */
-
-          forprime(p2=p1+1, B,
-            if(found, break);
-            if(p2==2 || (disc % p2)==0, next);
-
-            my(dec2 = Vec(idealprimedec(nf, p2)));
-            for(i2=1, #dec2,
-              if(found, break);
-              my(P2 = dec2[i2]);
-              if(idealnorm(nf, P2) != p2, next);
-
-              my(I = idealmul(nf, idealpow(nf, P1, 2), idealpow(nf, P2, 2)));
-              my(bid = idealstar(nf, I, 2));
-
-              my(cyc = Vec(bid.cyc));
-              my(k = #cyc);
-
-              /* trivial group => surjective */
-              if(k==0, res = [p1,i1,p2,i2]; found=1; break);
-
-              my(v1 = Vec(ideallog(nf, -1,  bid)));
-              my(v2 = Vec(ideallog(nf, eps, bid)));
-
-              /* M = [diag(cyc) | v1 | v2] is k x (k+2) over Z */
-              my(M = matrix(k, k+2, i,j, 0));
-              for(i=1,k,
-                M[i,i]   = cyc[i];
-                M[i,k+1] = v1[i];
-                M[i,k+2] = v2[i];
-              );
-
-              /* Index of lattice generated by columns:
-                 idx = abs(det(mathnf(M))) when rank = k */
-              my(H = mathnf(M));
-              my(idx = abs(matdet(H)));
-
-              if(idx==1, res = [p1,i1,p2,i2]; found=1; break);
-            );
-          );
-        );
-      );
-
-      res
-    }}
-    """
-        out = pari(gp)
-
-        # `out` is either [] (empty GP vector) or [p1,i1,p2,i2].
-        try:
-            if len(out) == 0:
-                return None
-            # PARI vectors are 1-indexed; cypari wrappers usually expose 0-indexed python access.
-            # We therefore read by python indexing first, and fall back to 1-index style if needed.
-            try:
-                p1, i1, p2, i2 = (int(out[0]), int(out[1]), int(out[2]), int(out[3]))
-            except (ValueError, TypeError):
-                p1, i1, p2, i2 = (int(out[1]), int(out[2]), int(out[3]), int(out[4]))
-        except Exception:
-            # Extremely defensive: if wrapper doesn't support len()/indexing cleanly
-            s = str(out)
-            if s in ("[]", "Vecsmall([])", "vector([])"):
-                return None
-            raise
-
-        return p1, i1, p2, i2
-
-    @requires_modules(["cypari"])
     def _principal_generator_from_witness_prime(self, p: int, i: int) -> QuadInt:
-        """
-        Convert one PARI witness component (p, i) into a principal generator π of the
-            chosen prime ideal P = idealprimedec(nf,p)[i], returned as a QuadInt.
+        """Return a principal generator for the selected prime ideal over p."""
+        data = self.prime_ideals_data_over(p)[i - 1]
 
-        The result is only defined up to multiplication by a unit.
+        if data.ideal.norm != p:
+            raise ValueError("witness does not select a norm-p split prime ideal")
 
-        Returns:
-            QuadInt: The principal generator π.
-        """
-        from cypari import pari  # noqa: PLC0415
+        x = data.ideal.principal_generator()
+        if x is None:
+            raise ArithmeticError("selected witness prime ideal is not principal")
 
-        disc = int(self.discriminant())
-        p0 = int(p)
-        i0 = int(i)
-        den0 = int(self.den)
-
-        # We use bnfinit(...,1) so PARI has exact algebraic data for generators/units.
-        # Then:
-        #   P = idealprimedec(nf,p)[i]
-        #   [e,t] = bnfisprincipal(bnf,P)
-        # In class number 1, e is empty (or zero vector), and t generates P up to units.
-        #
-        # Convert t to integral-basis coordinates c = [c0,c1] relative to nf.zk = [1,w]
-        # where w = sqrt(D) if den=1, and w = (1+sqrt(D))/2 if den=2.
-        # Then map to internal numerators (a + b*sqrt(D))/den:
-        #   den=1: a=c0, b=c1
-        #   den=2: c0 + c1*w = (2*c0 + c1 + c1*sqrt(D))/2
-        #          so internal (a,b) = (2*c0 + c1, c1)
-        gp = f"""
-    {{
-      my(disc={disc}, p={p0}, idx={i0}, den={den0});
-      my(bnf = bnfinit(quadpoly(disc), 1));
-      my(nf  = bnf.nf);
-
-      my(dec = Vec(idealprimedec(nf, p)));
-      if(idx < 1 || idx > #dec, error("witness index out of range"));
-
-      my(P = dec[idx]);
-
-      /* Must be a prime ideal of norm p (split case in your search). */
-      if(idealnorm(nf, P) != p, error("idealprimedec witness is not norm-p prime ideal"));
-
-      my(v = bnfisprincipal(bnf, P));  /* [e, t] */
-      my(e = v[1], t = v[2]);
-
-      /* In class number 1, PARI returns empty e-vector; in general, require trivial class. */
-      if(#e > 0,
-        for(k=1, #e, if(e[k] != 0, error("prime ideal is not principal in this field")))
-      );
-
-      my(c = Vec(nfalgtobasis(nf, t)));
-      if(#c != 2, error("expected quadratic field basis coordinates"));
-
-      /* c = [c0,c1] in integral basis [1,w]. Convert to your QuadInt numerators. */
-      if(den == 1,
-        [c[1], c[2]],
-        [2*c[1] + c[2], c[2]]
-      )
-    }}
-    """
-        out = pari(gp)
-
-        try:
-            a = int(out[0])
-            b = int(out[1])
-        except (ValueError, TypeError):
-            a = int(out[1])
-            b = int(out[2])
-
-        x = self(a, b)
-
-        # Normalize only by ± and conjugation so literature comparison is obvious.
-        # (Real quadratic torsion units are usually ±1, so this is the relevant ambiguity.)
         candidates = (x, -x, x.conjugate(), (-x).conjugate())
-
-        def key(z: QuadInt) -> tuple[int, int, int, int]:
-            # prefer smaller |a|, then |b|, then sign-tie-breakers
-            return abs(z.a), abs(z.b), z.a, z.b
-
-        return min(candidates, key=key)
+        return min(candidates, key=lambda z: (abs(z.a), abs(z.b), z.a, z.b))
 
     def _principal_generators_from_witness(
         self,
