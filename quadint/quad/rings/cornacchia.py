@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
 
 
-# region Cornacchia rings (for factorization)
 class CornacchiaRing(RealNormEuclidRing):
     """Shared split-prime factorization flow for rings with norm form x**2 + k*y**2."""
 
@@ -194,6 +193,3 @@ class EisensteinRing(CornacchiaRing):
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
         """Should this class be used for the given values?"""
         return D == -3 and den == 2
-
-
-# endregion

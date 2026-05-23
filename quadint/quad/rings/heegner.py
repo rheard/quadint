@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
 
 
-# region Heegner rings
 class HeegnerDen2Ring(CornacchiaRing):
     """Shared split-prime factorization helper for D=-7 and D=-11 (den=2)."""
 
@@ -92,6 +91,3 @@ class HeegnerNonEuclidUfdRing(HeegnerDen2Ring):
     def _ramified_prime(self) -> int:
         # For these D, the discriminant is D itself (odd prime), so the unique ramified prime is |D|.
         return -self.D
-
-
-# endregion
