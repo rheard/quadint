@@ -507,6 +507,139 @@ class TestHarperPariHelpers:
         assert p1 != p2
 
 
+class TestPrimeIdealDataOver:
+    """Tests for QuadraticRing.prime_ideals_data_over."""
+
+    @staticmethod
+    def _root_polynomial_value(ring: QuadraticRing, root: int) -> int:
+        """Evaluate the integral-basis defining polynomial at root."""
+        if ring.den == 1:
+            return root * root - ring.D
+
+        constant = (1 - ring.D) // 4
+        return root * root - root + constant
+
+    def test_matches_prime_ideals_over(self):
+        """prime_ideals_over should be the ideal-only view of prime_ideals_data_over."""
+        ring = QuadraticRing(-5)
+        data = ring.prime_ideals_data_over(3)
+
+        assert tuple(item.ideal for item in data) == ring.prime_ideals_over(3)
+        assert all(item.ring is ring for item in data)
+        assert all(item.p == 3 for item in data)
+
+    def test_split_prime_data(self):
+        """A split rational prime should record both roots and the corresponding prime ideals."""
+        ring = QuadraticRing(-5)
+        data = ring.prime_ideals_data_over(3)
+
+        assert len(data) == 2
+        assert tuple(item.index for item in data) == (1, 2)
+        assert {item.root for item in data} == {1, 2}
+        assert {item.ideal.hnf for item in data} == {(3, 1, 1), (3, 2, 1)}
+
+        for item in data:
+            assert item.root is not None
+            assert (item.root * item.root - ring.D) % item.p == 0
+            assert item.ideal.norm == item.p
+            assert item.ideal.is_prime()
+            assert item.p in item.ideal
+
+        assert ideal_prod(ring, tuple(item.ideal for item in data)) == ring.ideal(3)
+
+    def test_inert_prime_data(self):
+        """An inert rational prime should have no defining root and remain the ideal (p)."""
+        data = ZI.prime_ideals_data_over(3)
+
+        assert len(data) == 1
+
+        item = data[0]
+        assert item.ring is ZI
+        assert item.p == 3
+        assert item.index == 1
+        assert item.root is None
+        assert item.root_p2 is None
+        assert item.ideal == ZI.ideal(3)
+        assert item.ideal.norm == 9
+        assert item.ideal.is_prime()
+
+    def test_ramified_prime_data(self):
+        """A ramified rational prime should have one root and square to the principal ideal (p)."""
+        data = ZI.prime_ideals_data_over(2)
+
+        assert len(data) == 1
+
+        item = data[0]
+        assert item.root == 1
+        assert (item.root * item.root - ZI.D) % item.p == 0
+        assert item.root_p2 is None
+        assert item.ideal.norm == 2
+        assert item.ideal.is_prime()
+        assert item.ideal**2 == ZI.ideal(2)
+
+    def test_den_two_prime_data(self):
+        """Prime-ideal data should use the half-integral basis polynomial when den is 2."""
+        ring = Z5
+        data = ring.prime_ideals_data_over(11)
+
+        assert ring.den == 2
+        assert len(data) == 2
+        assert {item.root for item in data} == {4, 8}
+
+        for item in data:
+            assert item.root is not None
+            assert (item.root * item.root - item.root - 1) % item.p == 0
+            assert item.ideal.norm == item.p
+            assert item.ideal.is_prime()
+            assert item.p in item.ideal
+
+        assert ideal_prod(ring, tuple(item.ideal for item in data)) == ring.ideal(11)
+
+    def test_root_p2_den_one(self):
+        """For odd unramified split primes, root_p2 should lift the root to a solution modulo p squared."""
+        ring = QuadraticRing(14)
+        data = ring.prime_ideals_data_over(5)
+
+        assert len(data) == 2
+
+        for item in data:
+            assert item.root is not None
+            assert item.root_p2 is not None
+            assert item.root_p2 % item.p == item.root
+            assert (item.root_p2 * item.root_p2 - ring.D) % (item.p * item.p) == 0
+
+    def test_root_p2_den_two(self):
+        """The p squared lift should also satisfy the den=2 defining polynomial modulo p squared."""
+        ring = Z5
+        data = ring.prime_ideals_data_over(11)
+
+        assert ring.den == 2
+        assert len(data) == 2
+
+        for item in data:
+            assert item.root is not None
+            assert item.root_p2 is not None
+            assert item.root_p2 % item.p == item.root
+            assert (item.root_p2 * item.root_p2 - item.root_p2 - 1) % (item.p * item.p) == 0
+
+    def test_root_p2_is_cached_on_data_object(self):
+        """Repeated root_p2 access should reuse the stored lift on the PrimeIdealData object."""
+        item = QuadraticRing(14).prime_ideals_data_over(5)[0]
+
+        first = item.root_p2
+        second = item.root_p2
+
+        assert first is not None
+        assert first == second
+        assert item._root_p2 == first
+
+    @pytest.mark.parametrize("p", [-3, 0, 1, 4, 9], ids=str)
+    def test_invalid(self, p: int):
+        """Only rational primes should be accepted by prime_ideals_data_over."""
+        with pytest.raises(ValueError, match="prime"):
+            _ = ZI.prime_ideals_data_over(p)
+
+
 class TestPrimeIdealsOver:
     """Tests for QuadraticRing.prime_ideals_over."""
 

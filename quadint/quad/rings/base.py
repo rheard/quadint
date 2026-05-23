@@ -4,7 +4,7 @@ import functools
 
 from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
-from math import prod
+from math import isqrt, prod
 from typing import ClassVar
 
 from sympy import isprime, sqrt_mod
@@ -25,6 +25,105 @@ class Factorization:
     def prod(self):
         """Recreate the number using prod"""
         return prod((p**k for p, k in self.primes.items()), start=self.unit)
+
+
+class PrimeIdealData:
+    """
+    A prime ideal over a rational prime, plus defining root data when available.
+
+    If root is not None, then the ideal is represented as:
+
+        P = (p, w - root)
+
+    where w is the integral-basis generator:
+
+        den == 1: w = sqrt(D)
+        den == 2: w = (1 + sqrt(D)) / 2
+
+    For odd unramified primes, root_p2 lazily lifts root from modulo p to modulo p**2.
+    """
+
+    __slots__ = ("ring", "p", "index", "ideal", "root", "_root_p2")
+
+    ring: QuadraticRing
+    p: int
+    index: int
+    ideal: Ideal
+    root: int | None
+    _root_p2: int | None
+
+    def __init__(
+        self,
+        *,
+        ring: QuadraticRing,
+        p: int,
+        index: int,
+        ideal: Ideal,
+        root: int | None = None,
+        root_p2: int | None = None,
+    ) -> None:
+        """Create prime-ideal data."""
+        self.ring = ring
+        self.p = int(p)
+        self.index = int(index)
+        self.ideal = ideal
+        self.root = None if root is None else int(root)
+        self._root_p2 = None if root_p2 is None else int(root_p2)
+
+    @property
+    def root_p2(self) -> int | None:
+        """Return root lifted modulo p**2 when this prime ideal has such a lift."""
+        if self._root_p2 is not None:
+            return self._root_p2
+
+        if self.root is None:
+            return None
+
+        # Harper will only use odd, unramified split primes here.
+        # For p == 2 or ramified primes, the simple Hensel lift is not valid/useful.
+        # TODO: Will this be a problem? I think it will be?
+        if self.p == 2 or self.ring.discriminant() % self.p == 0:
+            return None
+
+        root = self.root
+        p = self.p
+
+        if self.ring.den == 1:
+            # f(x) = x**2 - D
+            f_root = root * root - self.ring.D
+            f_prime_root = 2 * root
+        else:
+            # f(x) = x**2 - x + (1-D)//4
+            c = (1 - self.ring.D) // 4
+            f_root = root * root - root + c
+            f_prime_root = 2 * root - 1
+
+        # We want root_p2 = root + t*p, with f(root_p2) == 0 mod p**2.
+        #
+        # Since f(root + t*p) == f(root) + t*p*f'(root) mod p**2,
+        # we need:
+        #
+        #     f(root)//p + t*f'(root) == 0 mod p
+        error = f_root // p
+        correction = -error * pow(f_prime_root % p, -1, p)
+        self._root_p2 = root + (correction % p) * p
+        return self._root_p2
+
+    def __repr__(self) -> str:
+        args = [
+            f"ring={self.ring!r}",
+            f"p={self.p!r}",
+            f"index={self.index!r}",
+            f"ideal={self.ideal!r}",
+        ]
+
+        if self.root is not None:
+            args.append(f"root={self.root!r}")
+
+        if self._root_p2 is not None:
+            args.append(f"root_p2={self._root_p2!r}")
+
+        return f"PrimeIdealData({', '.join(args)})"
 
 
 def _check_den(den: int) -> int:
@@ -345,33 +444,76 @@ class QuadraticRing:
         """Return the zero ideal of this ring."""
         return self.ideal(0)
 
-    def prime_ideals_over(self, p: int):
-        """Return the prime ideals lying over the rational prime p."""
+    @functools.cache
+    def prime_ideals_data_over(self, p: int) -> tuple[PrimeIdealData, ...]:
+        """Return prime ideals over p together with their defining root data."""
         p = int(p)
         if not isprime(p):
             raise ValueError(f"p must be prime, got {p!r}")
 
         cls = self.DEFAULT_KLASS
+
         if self.den == 1:
+            # O = Z[sqrt(D)]
+            #
+            # The defining polynomial is:
+            #     f(x) = x**2 - D
+            #
+            # A root r modulo p gives the prime ideal:
+            #     P = (p, sqrt(D) - r)
             w = cls(0, 1, self, skip_basis=True)
-            if p == 2:
-                roots = [r for r in range(2) if (r * r - self.D) % 2 == 0]
-            else:
-                roots = list(sqrt_mod(self.D % p, p, all_roots=True))
+            roots = sqrt_mod(self.D % p, p, all_roots=True)
+
         else:
+            if self.D % 4 != 1:
+                raise NotImplementedError("den=2 prime ideals require D ≡ 1 mod 4")
+
+            # O = Z[w], where w = (1 + sqrt(D)) / 2
+            #
+            # The defining polynomial is:
+            #     f(x) = x**2 - x + (1-D)//4
+            #
+            # For odd p, we can find roots by first finding sqrt(D) mod p:
+            #     w = (1 + sqrt(D)) / 2
             w = cls(1, 1, self, skip_basis=True)
-            c = (1 - self.D) // 4
+
             if p == 2:
+                c = (1 - self.D) // 4
                 roots = [r for r in range(2) if (r * r - r + c) % 2 == 0]
             else:
                 inv2 = pow(2, -1, p)
-                roots = [((1 + s) * inv2) % p for s in sqrt_mod(self.D % p, p, all_roots=True)]
+                roots = [((1 + int(s)) * inv2) % p for s in sqrt_mod(self.D % p, p, all_roots=True)]
 
-        roots = sorted({int(r) for r in roots})
+        roots = tuple(sorted({int(root) for root in roots}))
+
+        # No roots means p is inert, so (p) itself is prime.
         if not roots:
-            return (self.ideal(p),)
+            return (
+                PrimeIdealData(
+                    ring=self,
+                    p=p,
+                    index=1,
+                    ideal=self.ideal(p),
+                ),
+            )
 
-        return tuple(self.ideal(p, w - r) for r in roots)
+        out = []
+        for index, root in enumerate(roots, start=1):
+            out.append(
+                PrimeIdealData(
+                    ring=self,
+                    p=p,
+                    index=index,
+                    ideal=self.ideal(p, w - root),
+                    root=root,
+                ),
+            )
+
+        return tuple(out)
+
+    def prime_ideals_over(self, p: int) -> tuple[Ideal, ...]:
+        """Return the prime ideals lying over the rational prime p."""
+        return tuple(data.ideal for data in self.prime_ideals_data_over(p))
 
     @property
     def class_group(self) -> ClassGroup:
