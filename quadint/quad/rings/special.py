@@ -174,11 +174,10 @@ class SplitRing(QuadraticRing):
             # Zero divisor: cannot divide uniquely in general
             return None
 
-        if u1 % u2 != 0 or v1 % v2 != 0:
+        qu, ru = divmod(u1, u2)
+        qv, rv = divmod(v1, v2)
+        if ru != 0 or rv != 0:
             return None
-
-        qu = u1 // u2
-        qv = v1 // v2
 
         # Parity check for den=1
         if self.den == 1 and ((qu ^ qv) & 1):

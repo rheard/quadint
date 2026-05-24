@@ -188,10 +188,12 @@ def _split_uv(x: QuadInt) -> tuple[int, int]:
     den = x.ring.den
     apb = x.a + x.b
     amb = x.a - x.b
-    if apb % den or amb % den:
+    qp, rp = divmod(apb, den)
+    qm, rm = divmod(amb, den)
+    if rp or rm:
         # should be impossible if ring invariants hold
         raise ArithmeticError("Non-integral split-complex coordinates; check ring parameters/parity")
-    return apb // den, amb // den
+    return qp, qm
 
 
 class _NeighborhoodSearch:
@@ -849,17 +851,17 @@ class QuadraticRing:
 
         # IMPORTANT: keep representation /den (same rule as __mul__ and divmod)
         if self.den != 1:
-            if (num_a % self.den) != 0 or (num_b % self.den) != 0:
+            num_a, rA = divmod(num_a, self.den)
+            num_b, rB = divmod(num_b, self.den)
+
+            if rA != 0 or rB != 0:
                 return None
-            num_a //= self.den
-            num_b //= self.den
 
         # integrality test: coordinates divisible by |N|
-        if (num_a % N) != 0 or (num_b % N) != 0:
+        qa, ra = divmod(num_a, N)
+        qb, rb = divmod(num_b, N)
+        if ra != 0 or rb != 0:
             return None
-
-        qa = num_a // N
-        qb = num_b // N
 
         if self.den == 2 and ((qa ^ qb) & 1):
             return None

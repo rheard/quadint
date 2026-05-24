@@ -35,11 +35,10 @@ def _canonical_pair(
     no_trivial_solutions: bool,
 ) -> tuple[int, int] | None:
     """Convert numerator coordinates into a returned integer solution."""
-    if A % den or B % den:
+    x, rA = divmod(abs(A), den)
+    y, rB = divmod(abs(B), den)
+    if rA or rB:
         return None
-
-    x = abs(A) // den
-    y = abs(B) // den
 
     if d == 1 and y < x:
         x, y = y, x
@@ -134,10 +133,13 @@ def _decompose_prime_den1(p: int, d: int = 1) -> tuple[int, int]:
             return None
 
         rhs = p - x * x
-        if rhs < 0 or rhs % d != 0:
+        if rhs < 0:
             return None
 
-        y2 = rhs // d
+        y2, r_rhs = divmod(rhs, d)
+        if r_rhs != 0:
+            return None
+
         y = math.isqrt(y2)
         if y * y != y2:
             return None
@@ -195,10 +197,10 @@ def _decompose_prime_den2(p: int, d: int = 1) -> tuple[int, int]:
                 continue
 
             rhs = target - A * A
-            if rhs % d:
+            B2, B2_r = divmod(rhs, d)
+            if B2_r:
                 continue
 
-            B2 = rhs // d
             B = math.isqrt(B2)
             if B * B != B2:
                 continue
@@ -305,10 +307,9 @@ def decompose_number(
                 candidates.append((z, x))
 
             for x0, z0 in candidates:
-                if z0 % y_scale:
+                y, y_r = divmod(z0, y_scale)
+                if y_r:
                     continue
-
-                y = z0 // y_scale
 
                 # d here is the original d, not sf_d. For d=4, x/y are not symmetric.
                 if d == 1 and y < x0:
@@ -398,7 +399,7 @@ def decompose_number(
     # Predicted upper bound on #solutions from conjugate-choice enumeration:
     # product over representable primes of (k+1)
     if check_count:
-        predicted = math.prod(k + 1 for k in representable)
+        predicted = math.prod(k + 1 for k in representable.values())
         if predicted < check_count:
             return set()
 

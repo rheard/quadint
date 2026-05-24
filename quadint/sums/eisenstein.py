@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 from itertools import product
+from typing import cast
 
 from quadint.eisenstein import eisensteinint
 from quadint.sums import (
@@ -147,10 +148,7 @@ def decompose_number(
 
     found: set[tuple[int, int]] = set()
     for choices in product(*split_parts):
-        total = base
-        for part in choices:
-            total *= part
-
+        total = cast("eisensteinint", cast("object", math.prod(choices, start=base)))
         sol = _canonical_pair(total, no_trivial_solutions=no_trivial_solutions)
         if sol is not None:
             found.add(sol)

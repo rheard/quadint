@@ -61,10 +61,11 @@ class RealNormEuclidRing(QuadraticRing):
         num_b = a2 * b1 - a1 * b2
 
         if self.den != 1:
-            if (num_a % self.den) != 0 or (num_b % self.den) != 0:
+            num_a, rA = divmod(num_a, self.den)
+            num_b, rB = divmod(num_b, self.den)
+
+            if rA != 0 or rB != 0:
                 raise ArithmeticError("Non-integral product; check ring parameters / parity")
-            num_a //= self.den
-            num_b //= self.den
 
         A0 = _round_div_ties_away_from_zero(num_a, y_norm)
         B0 = _round_div_ties_away_from_zero(num_b, y_norm)

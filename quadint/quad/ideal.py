@@ -455,10 +455,10 @@ class Ideal:
 
         a, b, c = self.hnf
         x0, y0 = _coords(element)
-        if y0 % c:
+        n, yr = divmod(y0, c)
+        if yr:
             return False
 
-        n = y0 // c
         return (x0 - b * n) % a == 0
 
     def __iter__(self) -> Iterator[QuadInt]:

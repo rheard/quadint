@@ -30,6 +30,7 @@ def test_is_instance():
     assert isinstance(eisenstein(1, 2), eisenstein)
     assert not isinstance(complex(1, 2), eisenstein)
     assert not isinstance(ZE(2, 4), eisenstein)  # eisenstein is NOT the default for Z[-3]
+    assert isinstance(eisenstein(1, 2)._from_obj(6), eisenstein)
 
 
 def test_ring_is_singleton():

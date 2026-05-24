@@ -157,10 +157,12 @@ class QuadInt:
         x_num = n00 * a + n01 * b
         y_num = n10 * a + n11 * b
 
-        if x_num % den or y_num % den:
+        qX, rX = divmod(x_num, den)
+        qY, rY = divmod(y_num, den)
+        if rX or rY:
             raise ArithmeticError("Internal coordinates do not map cleanly to declared basis")
 
-        return x_num // den, y_num // den
+        return qX, qY
 
     @classmethod
     def _basis_to_internal(cls, x: int, y: int) -> tuple[int, int]:
@@ -246,11 +248,10 @@ class QuadInt:
             b_out = a1 * b2 + a2 * b1
 
             if den != 1:
-                if (a_out % den) != 0 or (b_out % den) != 0:
+                a_out, rA = divmod(a_out, den)
+                b_out, rB = divmod(b_out, den)
+                if rA != 0 or rB != 0:
                     raise ArithmeticError("Non-integral product; check ring parameters / parity")
-
-                a_out //= den
-                b_out //= den
 
             return self._make(a_out, b_out)
 

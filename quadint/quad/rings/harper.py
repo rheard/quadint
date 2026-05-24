@@ -57,9 +57,11 @@ class Clark69Ring(RealNormEuclidRing):
 
         p = cls._BAD_P
         e = 0
-        while (n % p) == 0:
-            n //= p
+        qn, rn = divmod(n, p)
+        while rn == 0:
+            n = qn
             e += 1
+            qn, rn = divmod(n, p)
 
         if e:
             n *= pow(cls._BAD_REPL, e)
@@ -389,9 +391,11 @@ class HarperRing(RealNormEuclidRing):
 
         for p, p_new in replacements.items():
             e = 0
-            while n % p == 0:
-                n //= p
+            qn, rn = divmod(n, p)
+            while rn == 0:
+                n = qn
                 e += 1
+                qn, rn = divmod(n, p)
             if e:
                 n *= pow(p_new, e)
 
