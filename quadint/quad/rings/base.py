@@ -904,8 +904,8 @@ class QuadraticRing:
             for u in g.units:
                 if g * u == g_can:
                     g = g_can
-                    s = s * u
-                    t = t * u
+                    s *= u
+                    t *= u
                     break
 
         return g, s, t

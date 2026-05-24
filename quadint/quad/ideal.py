@@ -305,7 +305,7 @@ class Ideal:
                 power = self.ring.unit_ideal()
                 multiplicity = 0
                 for _ in range(exponent):
-                    power = power * prime_ideal
+                    power *= prime_ideal
                     if power.divides(self):
                         multiplicity += 1
                     else:

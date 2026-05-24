@@ -291,11 +291,11 @@ class QuadInt:
             result = self.one
             while e:
                 if e & 1:
-                    result = result * base
+                    result *= base
 
                 e >>= 1
                 if e:
-                    base = base * base
+                    base *= base
 
             return result
 
