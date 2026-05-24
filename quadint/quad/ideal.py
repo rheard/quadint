@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cache
 from itertools import product
-from math import gcd, isqrt, pi, sqrt
+from math import gcd, isqrt, pi, prod, sqrt
 from typing import TYPE_CHECKING, ClassVar
 
 from sympy import Matrix, factorint, gcdex, primerange
@@ -312,10 +312,7 @@ class Ideal:
                         break
                 out.extend([prime_ideal] * multiplicity)
 
-        check = self.ring.unit_ideal()
-        for prime_ideal in out:
-            check = check * prime_ideal
-
+        check = prod(out, start=self.ring.unit_ideal())
         if check != self:
             raise ArithmeticError("Prime-ideal factorization did not reconstruct the ideal")
 
