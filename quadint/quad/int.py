@@ -122,14 +122,17 @@ class QuadInt:
         if isinstance(n, (int, float)):
             a = int(n)
             b = 0
-        elif isinstance(n, QuadInt):
-            return n
         elif isinstance(n, complex):
             if self.ring.D != -1 or self.ring.den != 1:
                 raise TypeError("Cannot mix QuadInt from different rings")
 
             a = int(n.real)
             b = int(n.imag)
+        elif isinstance(n, QuadInt):
+            if n.ring is not self:
+                raise TypeError("Cannot mix QuadInt from different rings")
+
+            return n
         else:
             return NotImplemented
 
