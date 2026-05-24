@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import random
 
+from itertools import islice
 from math import prod
 from pathlib import Path
 
@@ -694,6 +695,142 @@ class TestPrimeIdealsOver:
         """Only rational primes should be accepted."""
         with pytest.raises(ValueError, match="prime"):
             ZI.prime_ideals_over(p)
+
+
+class TestElementsWithNorm:
+    """Tests for finite norm-solution enumeration."""
+
+    def test_gaussian_elements_with_norm_five(self):
+        """The Gaussian elements of norm 5 are exactly the integer solutions to a**2 + b**2 = 5."""
+        expected = {
+            ZI(1, 2),
+            ZI(1, -2),
+            ZI(-1, 2),
+            ZI(-1, -2),
+            ZI(2, 1),
+            ZI(2, -1),
+            ZI(-2, 1),
+            ZI(-2, -1),
+        }
+
+        actual = set(ZI.elements_with_norm(5))
+
+        assert actual == expected
+        assert all(abs(z) == 5 for z in actual)
+
+    def test_gaussian_elements_with_norm_three_is_empty(self):
+        """There are no Gaussian integers with norm 3 because a**2 + b**2 = 3 has no integer solution."""
+        assert list(ZI.elements_with_norm(3)) == []
+
+    def test_gaussian_elements_with_norm_zero(self):
+        """The only Gaussian integer with norm 0 is 0."""
+        assert list(ZI.elements_with_norm(0)) == [ZI(0, 0)]
+
+    def test_negative_norm_is_empty_in_imaginary_order(self):
+        """Imaginary quadratic norm forms are positive definite, so negative norms have no elements."""
+        assert list(ZN5.elements_with_norm(-1)) == []
+        assert list(ZN5.elements_with_norm(-3)) == []
+
+    def test_eisenstein_units_have_norm_one(self):
+        """The maximal order for D=-3 has exactly six elements of norm 1."""
+        expected = {
+            ZE(2, 0),
+            ZE(-2, 0),
+            ZE(1, 1),
+            ZE(1, -1),
+            ZE(-1, 1),
+            ZE(-1, -1),
+        }
+
+        actual = set(ZE.elements_with_norm(1))
+
+        assert actual == expected
+        assert all(abs(z) == 1 for z in actual)
+
+    def test_z_sqrt_minus_five_elements_with_norm_nine(self):
+        """In Z[sqrt(-5)], the elements of norm 9 solve a**2 + 5*b**2 = 9."""
+        expected = {
+            ZN5(3, 0),
+            ZN5(-3, 0),
+            ZN5(2, 1),
+            ZN5(2, -1),
+            ZN5(-2, 1),
+            ZN5(-2, -1),
+        }
+
+        actual = set(ZN5.elements_with_norm(9))
+
+        assert actual == expected
+        assert all(abs(z) == 9 for z in actual)
+
+    def test_z_sqrt_minus_five_has_no_elements_with_norm_two_or_three(self):
+        """The equations a**2 + 5*b**2 = 2 and a**2 + 5*b**2 = 3 have no integer solutions."""
+        assert list(ZN5.elements_with_norm(2)) == []
+        assert list(ZN5.elements_with_norm(3)) == []
+
+    def test_real_norm_generator_yields_solutions(self):
+        """The first several generated solutions to a**2 - 2*b**2 = -1 all have norm -1."""
+        values = list(islice(Z2.elements_with_norm(-1), 12))
+
+        assert len(values) == 12
+        assert all(abs(z) == -1 for z in values)
+        assert len(set(values)) == len(values)
+
+    def test_real_norm_generator_includes_unit_orbit_values(self):
+        """Solutions to a real norm equation include unit multiples of Pell seed solutions."""
+        seed = Z2(1, 1)
+        unit = Z2(3, 2)
+
+        assert abs(seed) == -1
+        assert abs(unit) == 1
+        assert seed * unit == Z2(7, 5)
+        assert seed * unit.conjugate() == Z2(-1, 1)
+
+        values = set(islice(Z2.elements_with_norm(-1), 20))
+
+        assert Z2(1, 1) in values
+        assert Z2(-1, -1) in values
+        assert Z2(7, 5) in values
+        assert Z2(-1, 1) in values
+        assert all(abs(z) == -1 for z in values)
+
+    def test_real_norm_generator_stops_when_no_seed_solutions_exist(self):
+        """The equation a**2 - 2*b**2 = 3 has no integer solution, so the iterator stops immediately."""
+        assert list(Z2.elements_with_norm(3)) == []
+
+    def test_real_norm_zero_has_only_zero_solution(self):
+        """For nonsquare D, the equation a**2 - D*b**2 = 0 has only the zero solution."""
+        assert list(Z2.elements_with_norm(0)) == [Z2(0, 0)]
+
+    def test_degenerate_orders_are_rejected(self):
+        """The norm-equation iterator should reject degenerate quadratic orders."""
+        for ring in (QuadraticRing(0), Z1):
+            with pytest.raises(NotImplementedError):
+                list(ring.elements_with_norm(1))
+
+
+class TestHasElementWithNorm:
+    """Tests for the terminating existence predicate used by irreducibility checks."""
+
+    def test_has_element_with_norm_finds_existing_imaginary_solution(self):
+        """The existence predicate detects a Gaussian element with norm 5."""
+        assert ZI.has_element_with_norm(5)
+
+    def test_has_element_with_norm_rejects_missing_imaginary_solution(self):
+        """The existence predicate rejects a Gaussian norm equation with no solution."""
+        assert not ZI.has_element_with_norm(3)
+
+    def test_has_element_with_norm_finds_existing_real_solution(self):
+        """The existence predicate terminates successfully when a real norm equation has seed solutions."""
+        assert Z2.has_element_with_norm(-1)
+
+    def test_has_element_with_norm_rejects_missing_real_solution(self):
+        """The existence predicate terminates when a real norm equation has no seed solutions."""
+        assert not Z2.has_element_with_norm(3)
+
+    def test_has_element_with_norm_works_for_negative_imaginary_norm(self):
+        """The existence predicate rejects negative norms in imaginary quadratic orders."""
+        assert not ZN5.has_element_with_norm(-1)
 
 
 class TestClassNumber:

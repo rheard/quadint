@@ -3,6 +3,8 @@ from __future__ import annotations
 from math import gcd
 from typing import TYPE_CHECKING, ClassVar, Iterator  # noqa: UP035
 
+from sympy import factorint, isprime
+
 if TYPE_CHECKING:
     from quadint.quad.rings import Factorization, QuadraticRing
 
@@ -416,6 +418,53 @@ class QuadInt:
         """Return True iff this element is a unit (invertible) in its ring."""
         return abs(abs(self)) == 1
 
+    def is_irreducible(self) -> bool:
+        """
+        Return True iff this element is irreducible in its quadratic order.
+
+        An element is irreducible if it is nonzero, not a unit,
+            and every factorization `self = a*b` has either `a` or `b` a unit.
+
+        For rings with explicit factorization support, this delegates to `factor_detail()`
+            and checks whether the factorization contains exactly one irreducible factor.
+
+        For rings without full factorization support, this still recognizes two
+        standard norm-based certificates:
+
+        * If `|N(self)|` is rational-prime, then `self` is irreducible.
+        * If `|N(self)| == p**2` and the ring has no element of norm `p` or `-p`, then `self` is irreducible.
+
+        Returns:
+            bool: Is this quadratic integer irreducible?
+
+        Raises:
+            NotImplementedError: If irreducibility cannot be determined with the
+                available ring algorithms.
+        """
+        if not self:
+            return False
+
+        abs_norm = abs(abs(self))
+        # if self.is_unit():
+        if abs_norm == 1:
+            return False
+
+        if isprime(abs_norm):
+            return True
+
+        if self.ring.supports_factorization():
+            factorization = self.factor_detail()
+            total_factors = sum(factorization.primes.values())
+            return total_factors == 1
+
+        norm_factors = factorint(abs_norm)
+        if len(norm_factors) == 1:
+            p, exponent = next(iter(norm_factors.items()))
+            if exponent == 2 and not self.ring.has_element_with_norm(p) and not self.ring.has_element_with_norm(-p):
+                return True
+
+        raise NotImplementedError("Irreducibility is not implemented for this ring")
+
     def __abs__(self) -> int:
         """
         N((a+b√D)/den) = (a^2 - D*b^2) / den^2
@@ -431,9 +480,10 @@ class QuadInt:
         den = self.ring.den
         num = self.a * self.a - self.ring.D * self.b * self.b
         dd = den * den
-        if (num % dd) != 0:
+        d, m = divmod(num, dd)
+        if m != 0:
             raise ArithmeticError("Non-integral norm; check ring parameters / parity")
-        return num // dd
+        return d
 
     def factor(self) -> dict[QuadInt, int]:
         """Return a plain factor dict whose product is `self`."""

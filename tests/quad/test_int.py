@@ -37,6 +37,9 @@ def brute_content(x: QuadInt) -> int:
 
 ZN17 = QuadraticRing(-17)
 ZN7 = QuadraticRing(-7)
+ZN6 = QuadraticRing(-6)
+ZN5 = QuadraticRing(-5)
+ZN2 = QuadraticRing(-2)
 Z1 = QuadraticRing(1)
 Z2 = QuadraticRing(2)
 Z5 = QuadraticRing(5)
@@ -331,6 +334,134 @@ class TestUnits:
         assert ZE(-2, 0).is_unit()  # -1
         assert ZE(-1, 1).is_unit()  # ω
         assert ZE(1, -1).is_unit()  # -ω
+
+
+class TestIrreducible:
+    """Tests for QuadInt.is_irreducible"""
+
+    def test_zero_is_not_irreducible(self):
+        """The zero element is not irreducible."""
+        assert not ZI(0, 0).is_irreducible()
+
+    def test_gaussian_units_are_not_irreducible(self):
+        """Gaussian units are not irreducible because irreducible elements must be non-units."""
+        assert not ZI(1, 0).is_irreducible()
+        assert not ZI(-1, 0).is_irreducible()
+        assert not ZI(0, 1).is_irreducible()
+        assert not ZI(0, -1).is_irreducible()
+
+    def test_eisenstein_units_are_not_irreducible(self):
+        """Eisenstein units are not irreducible."""
+        for unit in ZE.elements_with_norm(1):
+            assert unit.is_unit()
+            assert not unit.is_irreducible()
+
+    def test_prime_norm_element_is_irreducible(self):
+        """An element with rational-prime norm is irreducible."""
+        z = ZN2(1, 1)
+
+        assert abs(z) == 3
+        assert z.is_irreducible()
+
+    def test_rational_two_is_reducible(self):
+        """The rational integer 2 factors as (1 + i)(1 - i) in Z[i]."""
+        two = ZI(2, 0)
+
+        assert ZI(1, 1) * ZI(1, -1) == two
+        assert not two.is_irreducible()
+
+    def test_rational_three_is_irreducible(self):
+        """The rational integer 3 is irreducible in Z[i] because a**2 + b**2 = 3 has no solution."""
+        three = ZI(3, 0)
+
+        assert abs(three) == 9
+        assert not ZI.has_element_with_norm(3)
+        assert three.is_irreducible()
+
+    def test_rational_five_is_reducible(self):
+        """The rational integer 5 factors as (2 + i)(2 - i) in Z[i]."""
+        five = ZI(5, 0)
+
+        assert ZI(2, 1) * ZI(2, -1) == five
+        assert not five.is_irreducible()
+
+    def test_composite_product_is_reducible(self):
+        """The element 6 is reducible because it is the product of the non-units 2 and 3."""
+        six = ZI(6, 0)
+
+        assert ZI(2, 0) * ZI(3, 0) == six
+        assert not six.is_irreducible()
+
+    def test_three_is_reducible(self):
+        """The rational integer 3 factors as (1 + sqrt(-2))(1 - sqrt(-2))."""
+        three = ZN2(3, 0)
+
+        assert ZN2(1, 1) * ZN2(1, -1) == three
+        assert not three.is_irreducible()
+
+    def test_five_is_irreducible(self):
+        """The rational integer 5 is irreducible in Z[sqrt(-2)] because there is no element of norm 5."""
+        five = ZN2(5, 0)
+
+        assert abs(five) == 25
+        assert not ZN2.has_element_with_norm(5)
+        assert five.is_irreducible()
+
+    def test_seven_is_irreducible(self):
+        """The rational integer 7 is irreducible in Z[sqrt(-2)] because a**2 + 2*b**2 = 7 has no solution."""
+        seven = ZN2(7, 0)
+
+        assert abs(seven) == 49
+        assert not ZN2.has_element_with_norm(7)
+        assert seven.is_irreducible()
+
+    def test_two_is_irreducible_in_z_sqrt_minus_five(self):
+        """The element 2 is irreducible in Z[sqrt(-5)] because there are no elements of norm 2 or -2."""
+        two = ZN5(2, 0)
+
+        assert abs(two) == 4
+        assert not ZN5.has_element_with_norm(2)
+        assert not ZN5.has_element_with_norm(-2)
+        assert two.is_irreducible()
+
+    def test_three_is_irreducible_in_z_sqrt_minus_five(self):
+        """The element 3 is irreducible in Z[sqrt(-5)] because there are no elements of norm 3 or -3."""
+        three = ZN5(3, 0)
+
+        assert abs(three) == 9
+        assert not ZN5.has_element_with_norm(3)
+        assert not ZN5.has_element_with_norm(-3)
+        assert three.is_irreducible()
+
+    def test_six_has_two_distinct_factorizations(self):
+        """The classic equality 2*3 = (1 + sqrt(-5))*(1 - sqrt(-5)) holds in Z[sqrt(-5)]."""
+        assert ZN5(2, 0) * ZN5(3, 0) == ZN5(6, 0)
+        assert ZN5(1, 1) * ZN5(1, -1) == ZN5(6, 0)
+
+    def test_composite_unknown_case_raises(self):
+        """Unsupported composite-norm cases should raise instead of guessing incorrectly."""
+        six = ZN5(6, 0)
+
+        assert abs(six) == 36
+
+        with pytest.raises(NotImplementedError):
+            six.is_irreducible()
+
+    def test_unsupported_composite_norm_raises(self):
+        """An unsupported composite-norm case should raise instead of returning a false mathematical answer."""
+        z = ZN6(4, 1)
+
+        assert abs(z) == 22
+
+        with pytest.raises(NotImplementedError):
+            z.is_irreducible()
+
+    def test_unsupported_prime_norm_still_returns_true(self):
+        """A prime norm is a ring-independent certificate of irreducibility."""
+        z = ZN6(1, 1)
+
+        assert abs(z) == 7
+        assert z.is_irreducible()
 
 
 class TestIndex:

@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import functools
 
-from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
+from itertools import count
 from math import isqrt, prod
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from sympy import isprime, sqrt_mod
+from sympy.solvers.diophantine.diophantine import diop_DN
 
 from quadint.quad.ideal import ClassGroup, Ideal
 from quadint.quad.int import QuadInt
+from quadint.utils import _is_squarefree
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 
 # TODO: Once Py3.9 support has been dropped, add slots=True
@@ -549,6 +554,139 @@ class QuadraticRing:
     def prime_ideals_over(self, p: int) -> tuple[Ideal, ...]:
         """Return the prime ideals lying over the rational prime p."""
         return tuple(data.ideal for data in self.prime_ideals_data_over(p))
+
+    def elements_with_norm(self, n: int) -> Iterator[QuadInt]:
+        """
+        Yield quadratic integers in this order with norm `n`.
+
+        Elements of this ring are stored as `(a + b*sqrt(D)) / den`, so this method solves the integer norm equation:
+            a**2 - D*b**2 == den**2 * n
+
+        For imaginary quadratic orders, the norm form is positive definite.
+            The solution set is finite, so this iterator yields every solution and then stops.
+
+        For real quadratic orders, a nonzero norm equation may have infinitely many solutions.
+            In that case, this method first finds finitely many Pell seed solutions and then yields their unit orbits.
+            If there are no seed solutions, the iterator stops immediately.
+
+        Args:
+            n: The signed norm to solve for.
+
+        Yields:
+            QuadInt: Elements of this order with norm `n`.
+
+        Raises:
+            NotImplementedError: If called for a degenerate quadratic order where
+                this norm-equation interpretation is not appropriate.
+        """
+        n = int(n)
+
+        if self.D in (0, 1):
+            raise NotImplementedError("elements_with_norm requires a quadratic field order")
+
+        if self.D != -1 and not _is_squarefree(self.D):
+            raise NotImplementedError("elements_with_norm requires nonsquare D")
+
+        target = n * self.den * self.den
+        cls = self.DEFAULT_KLASS
+
+        if target == 0:
+            yield self.zero
+            return
+
+        seen: set[tuple[int, int]] = set()
+
+        if self.D < 0:
+            if target < 0:
+                return
+
+            max_b = isqrt(target // abs(self.D)) + 1
+
+            for b in range(-max_b, max_b + 1):
+                a_squared = target + self.D * b * b
+                if a_squared < 0:
+                    continue
+
+                a_abs = isqrt(a_squared)
+                if a_abs * a_abs != a_squared:
+                    continue
+
+                a_values = (0,) if a_abs == 0 else (-a_abs, a_abs)
+
+                for a in a_values:
+                    if self.den == 2 and ((a ^ b) & 1):
+                        continue
+
+                    key = (a, b)
+                    if key in seen:
+                        continue
+
+                    seen.add(key)
+                    yield cls(a, b, self, skip_basis=True)
+
+            return
+
+        seed_values: list[QuadInt] = []
+        for a_raw, b_raw in diop_DN(self.D, target):
+            a = int(a_raw)
+            b = int(b_raw)
+
+            if self.den == 2 and ((a ^ b) & 1):
+                continue
+
+            for candidate in (
+                cls(a, b, self, skip_basis=True),
+                cls(-a, -b, self, skip_basis=True),
+                cls(a, -b, self, skip_basis=True),
+                cls(-a, b, self, skip_basis=True),
+            ):
+                key = (candidate.a, candidate.b)
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                seed_values.append(candidate)
+
+        if not seed_values:
+            return
+
+        unit = self.fundamental_unit()
+        if abs(unit) == -1:
+            unit *= unit
+
+        unit_inverse = unit.conjugate()
+
+        yielded: set[tuple[int, int]] = set()
+
+        for seed in seed_values:
+            key = (seed.a, seed.b)
+            if key not in yielded:
+                yielded.add(key)
+                yield seed
+
+        positive_power = self.one
+        negative_power = self.one
+
+        for _ in count(1):
+            positive_power *= unit
+            negative_power *= unit_inverse
+
+            for seed in seed_values:
+                positive_candidate = seed * positive_power
+                positive_key = (positive_candidate.a, positive_candidate.b)
+                if positive_key not in yielded:
+                    yielded.add(positive_key)
+                    yield positive_candidate
+
+                negative_candidate = seed * negative_power
+                negative_key = (negative_candidate.a, negative_candidate.b)
+                if negative_key not in yielded:
+                    yielded.add(negative_key)
+                    yield negative_candidate
+
+    def has_element_with_norm(self, n: int) -> bool:
+        """Return True iff this order has at least one element with norm `n`."""
+        return next(self.elements_with_norm(n), None) is not None
 
     @property
     def class_group(self) -> ClassGroup:
