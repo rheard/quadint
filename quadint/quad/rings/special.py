@@ -3,6 +3,8 @@ from __future__ import annotations
 from math import gcd as igcd
 from typing import TYPE_CHECKING, ClassVar
 
+from sympy import gcdex
+
 from quadint.quad.rings.base import (
     QuadraticRing,
     _choose_best_in_neighborhood,
@@ -12,31 +14,6 @@ from quadint.quad.rings.base import (
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
-
-
-def _int_xgcd(a: int, b: int) -> tuple[int, int, int]:
-    """Extended GCD for integers. Returns (g, s, t) with s*a + t*b == g, g >= 0."""
-    # TODO: Surely there is a way to delete this method in favor of QuadraticRing.xgcd? The super class?
-    if a == 0:
-        return abs(b), 0, (1 if b >= 0 else -1)
-    if b == 0:
-        return abs(a), (1 if a >= 0 else -1), 0
-
-    r0, r1 = a, b
-    s0, s1 = 1, 0
-    t0, t1 = 0, 1
-
-    while r1:
-        q, r = divmod(r0, r1)
-        r0, r1 = r1, r
-        s0, s1 = s1, s0 - q * s1
-        t0, t1 = t1, t0 - q * t1
-
-    # Ensure g >= 0
-    if r0 < 0:
-        r0, s0, t0 = -r0, -s0, -t0
-
-    return r0, s0, t0
 
 
 class DualRing(QuadraticRing):
@@ -254,8 +231,12 @@ class SplitRing(QuadraticRing):
         u1, v1 = _split_uv(a)
         u2, v2 = _split_uv(b)
 
-        gu, su, tu = _int_xgcd(u1, u2)
-        gv, sv, tv = _int_xgcd(v1, v2)
+        su, tu, gu = gcdex(u1, u2)
+        sv, tv, gv = gcdex(v1, v2)
 
         # For den=2, no parity constraint on (u, v) — the ring IS Z*Z.
-        return self._canonicalize_bezout_result(self._uv_to_ab(gu, gv), self._uv_to_ab(su, sv), self._uv_to_ab(tu, tv))
+        return self._canonicalize_bezout_result(
+            self._uv_to_ab(int(gu), int(gv)),
+            self._uv_to_ab(int(su), int(sv)),
+            self._uv_to_ab(int(tu), int(tv)),
+        )
