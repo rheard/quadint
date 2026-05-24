@@ -677,9 +677,10 @@ class ClassGroup:
 
         out: list[IdealClass] = []
 
-        for p in primerange(2, self.minkowski_bound + 1):
+        mb = self.minkowski_bound
+        for p in primerange(2, mb + 1):
             for ideal in self.ring.prime_ideals_over(p):
-                if ideal.norm > self.minkowski_bound:
+                if ideal.norm > mb:
                     continue
 
                 cls = IdealClass(ideal)
