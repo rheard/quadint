@@ -11,6 +11,9 @@ def _is_squarefree(n: int | dict[int, int]) -> bool:
 
         facts = factorint(n)
     else:
+        if not n:
+            return False
+
         facts = n
 
     return all(i < 2 for i in facts.values())

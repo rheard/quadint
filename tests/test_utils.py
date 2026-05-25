@@ -33,6 +33,14 @@ from quadint.utils import _is_squarefree  # noqa: PLC2701
         (69, True),  # 69 = 3 * 23, squarefree
         (-14, True),
         (-18, False),
+        ({2: 1}, True),
+        ({2: 2}, False),
+        ({2: 1, 3: 1}, True),
+        ({2: 2, 3: 1}, False),
+        ({3: 1, 23: 1}, True),  # 69 = 3 * 23
+        ({2: 1, 3: 2}, False),  # 18 = 2 * 3**2
+        ({5: 1, 7: 1, 11: 1}, True),
+        ({5: 1, 7: 1, 11: 2}, False),
     ],
     ids=str,
 )
