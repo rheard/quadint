@@ -1569,6 +1569,15 @@ class TestFactorDetail(QuadIntTests):
         f = x.factor_detail()
         self.assert_factoring(x, f)
 
+    def test_iter(self):
+        """Factorization can be unpacked into unit and prime factors."""
+        x = ZN2(4, 53)
+        f = x.factor_detail()
+        unit, primes = f
+
+        assert unit == f.unit
+        assert primes == f.primes
+
     @pytest.mark.parametrize(
         "x",
         [

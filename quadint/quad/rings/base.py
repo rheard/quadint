@@ -27,6 +27,11 @@ class Factorization:
     unit: QuadInt
     primes: dict[QuadInt, int]
 
+    def __iter__(self) -> Iterator[QuadInt | dict[QuadInt, int]]:
+        """Return unit and primes for tuple unpacking."""
+        yield self.unit
+        yield self.primes
+
     def prod(self):
         """Recreate the number using prod"""
         return prod((p**k for p, k in self.primes.items()), start=self.unit)
