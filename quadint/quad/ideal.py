@@ -578,7 +578,7 @@ class IdealClass:
         """Return True iff this is the principal ideal class."""
         return self.representative.is_principal()
 
-    def inverse(self) -> IdealClass:
+    def __invert__(self) -> IdealClass:
         """Return the inverse ideal class."""
         return IdealClass(self.representative.conjugate())
 
@@ -597,7 +597,7 @@ class IdealClass:
             return IdealClass(self.ring.unit_ideal())
 
         if e < 0:
-            return self.inverse() ** -e
+            return (~self) ** -e
 
         return IdealClass(self.representative**e)
 

@@ -533,8 +533,8 @@ class TestIdealClassMath:
         prime = ZN5.prime_ideals_over(2)[0]
         ideal_class = IdealClass(prime)
 
-        assert ideal_class.inverse() == ideal_class
-        assert ideal_class * ideal_class.inverse() == IdealClass(ZN5.unit_ideal())
+        assert ~ideal_class == ideal_class
+        assert ideal_class * ~ideal_class == IdealClass(ZN5.unit_ideal())
 
     def test_power(self):
         """Powers of the nontrivial class should follow the class group of order two."""
