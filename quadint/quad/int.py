@@ -337,6 +337,13 @@ class QuadInt:
         self.assert_same_ring(other)
         return self.ring.divmod(self, other)
 
+    def __rdivmod__(self, other: int | float | complex):
+        if isinstance(other, _OTHER_OP_TYPES):
+            new_other = self._from_obj(other)
+            return new_other.__divmod__(self)
+
+        return NotImplemented
+
     def __truediv__(self, other: complex | int | float | QuadInt):
         return self.__floordiv__(other)
 

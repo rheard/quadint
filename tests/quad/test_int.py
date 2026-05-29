@@ -127,6 +127,24 @@ class TestDiv(QuadIntTests):
         res_int = mul_int / 3
         self.assert_quad_equal((self.a_int.a, self.a_int.b), res_int)
 
+    def test_rdivmod_int(self):
+        """Test divmod(int, QuadInt) embeds the int into the divisor's ring."""
+        y = ZI(2, 1)
+        expected = divmod(ZI(7), y)
+
+        got = divmod(7, y)
+
+        assert got == expected
+
+    def test_rdivmod_complex(self):
+        """Test divmod(complex, complexint) embeds the complex number into the Gaussian integers."""
+        y = complexint(2, 1)
+        expected = divmod(complexint(7, 4), y)
+
+        got = divmod(7 + 4j, y)
+
+        assert got == expected
+
     def test_div_float(self):
         """Test QuadInt / float in QuadraticRing(2)"""
         mul_int = self.a_int * 3
