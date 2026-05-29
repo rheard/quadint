@@ -1012,11 +1012,7 @@ class QuadraticRing:
         if abs(abs(g)) != 1:
             raise ValueError(f"{a} is not invertible mod {m} (gcd={g})")
 
-        # g^{-1} = conjugate(g) / N(g), and N(g) is ±1 here.
-        Ng = abs(g)  # signed norm
-        g_inv = g.conjugate() if Ng == 1 else -g.conjugate()
-
-        return (s * g_inv) % m
+        return (s * ~g) % m
 
     def factor_detail(self, x: QuadInt) -> Factorization:
         """Factor `x` and return structured details when supported by this ring."""

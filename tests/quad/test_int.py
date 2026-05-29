@@ -284,6 +284,45 @@ class TestDiv(QuadIntTests):
 class TestUnits:
     """Tests for the units"""
 
+    @pytest.mark.parametrize(
+        ("x", "expected"),
+        [
+            (ZI(0, 1), ZI(0, -1)),
+            (ZE(-1, 1), ZE(-1, -1)),
+            (Z2(3, 2), Z2(3, -2)),
+        ],
+        ids=str,
+    )
+    def test_invert_norm_one_units(self, x: QuadInt, expected: QuadInt):
+        """The ~ dunder should return the multiplicative inverse for norm-one units."""
+        assert abs(x) == 1
+        assert ~x == expected
+        assert x * ~x == x.one
+        assert ~x * x == x.one
+
+    def test_invert_norm_negative_one_unit(self):
+        """The ~ dunder should handle units with norm -1."""
+        x = Z2(1, 1)
+
+        assert abs(x) == -1
+        assert ~x == Z2(-1, 1)
+        assert x * ~x == x.one
+        assert ~x * x == x.one
+
+    def test_invert_preserves_subclass(self):
+        """The ~ dunder should preserve the concrete QuadInt subclass."""
+        x = complexint(0, 1)
+
+        assert ~x == complexint(0, -1)
+        assert isinstance(~x, complexint)
+
+    def test_invert_non_unit_raises(self):
+        """The ~ dunder should reject non-units."""
+        x = ZI(1, 1)
+
+        with pytest.raises(ValueError, match="is not a unit"):
+            _ = ~x
+
     def test_units_sizes(self):
         """Verify Gaussian and Eisenstein rings have the correct unit lengths"""
         assert len(Z1(2, 0).units) == 4

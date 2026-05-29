@@ -227,6 +227,14 @@ class QuadInt:
     def __pos__(self):
         return self._make(self.a, self.b)
 
+    def __invert__(self):
+        norm = abs(self)
+        if norm == 1:
+            return self.conjugate()
+        if norm == -1:
+            return -self.conjugate()
+        raise ValueError(f"{self} is not a unit")
+
     def __mul__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)

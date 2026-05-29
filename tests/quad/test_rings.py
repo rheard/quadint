@@ -1498,6 +1498,18 @@ class TestInvModAndNegativePow(QuadIntTests):
         with pytest.raises(ValueError, match=error_msg):
             _ = pow(a, -1, m)
 
+    def test_inv_mod_handles_unit_gcd_not_equal_one(self):
+        """inv_mod should normalize Bezout results whose gcd is a non-one unit."""
+        Q = QuadraticRing(2)
+        a = Q(-5, -5)
+        m = Q(7, 0)
+
+        g, _, _ = a.xgcd(m)
+        assert g == -Q.one
+
+        inv = a.inv_mod(m)
+        assert (a * inv) % m == Q.one % m
+
     def test_inv_mod_requires_division(self):
         """Rings without divmod/xgcd should reject inv_mod and negative modular pow."""
         assert Z15.supports_division() is False
