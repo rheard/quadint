@@ -74,6 +74,30 @@ class TestBounds:
         assert ClassGroup(ring).minkowski_bound == expected
 
 
+class TestEquality:
+    """Tests for class group equality."""
+
+    def test_equal(self):
+        """Class groups for the same ring should compare equal even when not identical."""
+        first = ClassGroup(ZN5)
+        key = (type(ZN5), ZN5.D, ZN5.den)
+
+        ClassGroup._CACHE.pop(key)
+        try:
+            second = ClassGroup(ZN5)
+
+            assert first is not second
+            assert first == second
+            assert hash(first) == hash(second)
+        finally:
+            ClassGroup._CACHE[key] = first
+
+    def test_different(self):
+        """Class groups for different rings should not compare equal."""
+        assert ClassGroup(ZN5) != ClassGroup(Z15)
+        assert ClassGroup(ZN5) != object()
+
+
 class TestTrivialGroups:
     """Tests for rings whose ideal class group is trivial."""
 

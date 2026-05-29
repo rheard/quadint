@@ -731,6 +731,9 @@ class ClassGroup:
     def __repr__(self) -> str:
         return f"ClassGroup({self.ring!r})"
 
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ClassGroup) and self.ring == other.ring
+
     def __hash__(self):
         return hash(self.ring)
 
