@@ -522,6 +522,10 @@ class Ideal:
 
         return self.ring == other.ring and self.hnf == other.hnf
 
+    def __ne__(self, other: object) -> bool:
+        # This shouldn't be required but mypyc is really messing this up...
+        return not self.__eq__(other)
+
     def __hash__(self) -> int:
         return hash((self.ring, self.hnf))
 
@@ -609,6 +613,10 @@ class IdealClass:
             return False
 
         return (self.representative * other.representative.conjugate()).is_principal()
+
+    def __ne__(self, other: object) -> bool:
+        # This shouldn't be required but mypyc is really messing this up...
+        return not self.__eq__(other)
 
     def __hash__(self) -> int:
         return hash(self.representative.ring)
@@ -733,6 +741,10 @@ class ClassGroup:
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, ClassGroup) and self.ring == other.ring
+
+    def __ne__(self, other: object) -> bool:
+        # This shouldn't be required but mypyc is really messing this up...
+        return not self.__eq__(other)
 
     def __hash__(self):
         return hash(self.ring)

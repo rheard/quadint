@@ -156,6 +156,10 @@ class PrimeIdealData:
             and self.root == other.root
         )
 
+    def __ne__(self, other: object) -> bool:
+        # This shouldn't be required but mypyc is really messing this up...
+        return not self.__eq__(other)
+
     def __hash__(self) -> int:
         """Hash the immutable identity of this prime-ideal record."""
         return hash(
