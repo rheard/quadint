@@ -18,9 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
 
-# TODO: Once Py3.9 support has been dropped, add slots=True
-# @dataclass(frozen=True, slots=True)
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Factorization:
     """x = unit * P1 * P2 * ... * Pk"""
 
