@@ -58,6 +58,13 @@ def _canonical_hnf(a: int, b: int, c: int) -> tuple[int, int, int]:
     return a, b % a, c
 
 
+def _key(z: QuadInt) -> tuple[int, int, int, int, int]:
+    """Prefer compact, deterministic generators when several associates are available."""
+    abs_z_a = abs(z.a)
+    abs_z_b = abs(z.b)
+    return (max(abs_z_a, abs_z_b), abs_z_a, abs_z_b, z.a, z.b)
+
+
 class Ideal:
     """
     Integral ideal in a quadratic order.
@@ -170,108 +177,45 @@ class Ideal:
         return None
 
     def _principal_generator_real(self) -> QuadInt | None:
-        """Return a real quadratic generator by solving the ideal's norm form."""
-        b0, b1 = self.basis
+        """
+        Return a real quadratic generator by solving the norm equation directly.
 
-        # Every element of this ideal is m*b0 + n*b1.
-        #
-        # Its norm is a binary quadratic form:
-        #
-        #     Q(m, n) = A*m**2 + B*m*n + C*n**2
-        #
-        # A principal generator exists iff Q(m, n) = ±self.norm has an
-        # integer solution and the resulting element actually reconstructs
-        # this ideal.
-        A = abs(b0)
-        C = abs(b1)
-        B = abs(b0 + b1) - A - C
+        A principal generator alpha must satisfy |N(alpha)| == Norm(I).
+            Conversely, if alpha is in I and has that norm, then (alpha) ⊆ I has the same index as I, so (alpha) == I.
 
-        delta = B * B - 4 * A * C
-        if delta <= 0:
-            raise ArithmeticError("Real quadratic norm form should have positive discriminant")
+        Returns:
+            A real quadratic generator, if one can be found.
+        """
+        ring = self.ring
+        den = ring.den
+        target_abs = self.norm * den * den
+        cls = ring.DEFAULT_KLASS
+        best: QuadInt | None = None
+        seen: set[tuple[int, int]] = set()
 
-        sqrt_delta = isqrt(delta)
-        if sqrt_delta * sqrt_delta == delta:
-            raise NotImplementedError("Principal-generator search requires a nonsquare real quadratic order")
+        for target in (target_abs, -target_abs):
+            for a_raw, b_raw in diop_DN(ring.D, target):
+                a = int(a_raw)
+                b = int(b_raw)
 
-        unit_solutions = diop_DN(delta, 1)
-        if not unit_solutions:
-            raise ArithmeticError("Failed to find a fundamental Pell unit")
+                for aa, bb in ((a, b), (-a, -b), (a, -b), (-a, b)):
+                    if den == 2 and ((aa ^ bb) & 1):
+                        continue
 
-        u_, v_ = unit_solutions[0]
-        u = int(u_)
-        v = int(v_)
-        denom = 2 * A
-        modulus = abs(denom)
+                    key = (aa, bb)
+                    if key in seen:
+                        continue
 
-        fundamental_unit = self.ring.fundamental_unit()
-        conjugate_unit = fundamental_unit.conjugate()
+                    seen.add(key)
+                    candidate = cls(aa, bb, ring, skip_basis=True)
+                    if (
+                        abs(abs(candidate)) == self.norm
+                        and candidate in self
+                        and (best is None or _key(candidate) < _key(best))
+                    ):
+                        best = candidate
 
-        def key(z: QuadInt) -> tuple[int, int, int, int, int]:
-            return (max(abs(z.a), abs(z.b)), abs(z.a), abs(z.b), z.a, z.b)
-
-        def reduce_unit_associate(z: QuadInt) -> QuadInt:
-            """Choose a smaller generator among unit associates of z."""
-            best = z
-
-            while True:
-                candidates = (
-                    best,
-                    -best,
-                    best * fundamental_unit,
-                    -(best * fundamental_unit),
-                    best * conjugate_unit,
-                    -(best * conjugate_unit),
-                )
-
-                new_best = min(candidates, key=key)
-                if key(new_best) >= key(best):
-                    return best
-
-                best = new_best
-
-        best_candidate: QuadInt | None = None
-
-        for target in (self.norm, -self.norm):
-            rhs = 4 * A * target
-
-            seeds: set[tuple[int, int]] = set()
-            for x0, y0 in diop_DN(delta, rhs):
-                seeds.add((int(x0), int(y0)))
-                seeds.add((-int(x0), int(y0)))
-                seeds.add((int(x0), -int(y0)))
-                seeds.add((-int(x0), -int(y0)))
-
-            for x, y in seeds:
-                seen: set[tuple[int, int]] = set()
-
-                while True:
-                    state = (x % modulus, y % modulus)
-                    if state in seen:
-                        break
-
-                    seen.add(state)
-
-                    # We introduced X = 2*A*m + B*n and Y = n.
-                    # So m = (X - B*Y) / (2*A).
-                    numerator = x - B * y
-                    if numerator % denom == 0:
-                        m = numerator // denom
-                        candidate = m * b0 + y * b1
-
-                        if (
-                            abs(abs(candidate)) == self.norm
-                            and candidate in self
-                            and Ideal(self.ring, candidate) == self
-                        ):
-                            candidate = reduce_unit_associate(candidate)
-
-                            if best_candidate is None or key(candidate) < key(best_candidate):
-                                best_candidate = candidate
-
-                    x, y = u * x + delta * v * y, v * x + u * y
-
-        return best_candidate
+        return best
 
     def is_principal(self) -> bool:
         """Return True iff this ideal is principal."""
