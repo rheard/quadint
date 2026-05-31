@@ -108,6 +108,77 @@ class QuadIntTests:
                 assert factored_p == p
 
 
+class TestArithmetic:
+    """Tests for direct quadratic-integer arithmetic."""
+
+    @pytest.mark.parametrize(
+        ("x", "y", "expected"),
+        [
+            (ZN2(1, 3), ZN2(5, -2), ZN2(17, 13)),
+            (Z2(5, 2), Z2(3, -2), Z2(7, -4)),
+            (Z15(5, 2), Z15(3, -2), Z15(-45, -4)),
+            (ZN7(1, 1), ZN7(3, -1), ZN7(5, 1)),
+            (Z5(1, 1), Z5(3, -1), Z5(-1, 1)),
+        ],
+        ids=str,
+    )
+    def test_mul(self, x: QuadInt, y: QuadInt, expected: QuadInt):
+        """Multiplication should match hand-calculated products in representative rings."""
+        assert x * y == expected
+        assert y * x == expected
+
+    @pytest.mark.parametrize(
+        ("x", "expected"),
+        [
+            (ZI(2, 3), 13),
+            (ZN2(1, 3), 19),
+            (Z2(5, 2), 17),
+            (ZE(1, 1), 1),
+            (ZN7(1, 1), 2),
+            (Z5(1, 1), -1),
+            (Z1(1, 1), 0),
+        ],
+        ids=str,
+    )
+    def test_norm_hand_calculated(self, x: QuadInt, expected: int):
+        """Norms should use the ring's D and denominator exactly."""
+        assert abs(x) == expected
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (ZI(2, 3), ZI(4, -5)),
+            (ZN2(1, 3), ZN2(5, -2)),
+            (Z2(5, 2), Z2(3, -2)),
+            (Z15(5, 2), Z15(3, -2)),
+            (ZE(1, 1), ZE(1, -1)),
+            (ZN7(1, 1), ZN7(3, -1)),
+            (Z5(1, 1), Z5(3, -1)),
+        ],
+        ids=str,
+    )
+    def test_norm_is_multiplicative(self, x: QuadInt, y: QuadInt):
+        """Norms should multiply exactly, including real and den=2 rings."""
+        assert abs(x * y) == abs(x) * abs(y)
+
+    @pytest.mark.parametrize(
+        "x",
+        [
+            ZI(2, 3),
+            ZN2(1, 3),
+            Z2(5, 2),
+            Z15(5, 2),
+            ZE(1, 1),
+            ZN7(1, 1),
+            Z5(1, 1),
+        ],
+        ids=str,
+    )
+    def test_conjugate_product_is_norm(self, x: QuadInt):
+        """x*conjugate(x) should be the embedded rational norm."""
+        assert x * x.conjugate() == x.ring.from_ab(abs(x), 0)
+
+
 class TestDiv(QuadIntTests):
     """Tests for __div__"""
 
@@ -150,6 +221,49 @@ class TestDiv(QuadIntTests):
         mul_int = self.a_int * 3
         res_int = mul_int / float(3)
         self.assert_quad_equal((self.a_int.a, self.a_int.b), res_int)
+
+    @pytest.mark.parametrize(
+        ("x", "y", "expected"),
+        [
+            (ZN2(17, 13), ZN2(1, 3), ZN2(5, -2)),
+            (Z2(7, -4), Z2(5, 2), Z2(3, -2)),
+            (ZN7(5, 1), ZN7(1, 1), ZN7(3, -1)),
+            (Z5(-1, 1), Z5(1, 1), Z5(3, -1)),
+        ],
+        ids=str,
+    )
+    def test_exact_quotients(self, x: QuadInt, y: QuadInt, expected: QuadInt):
+        """Exact quotients should match hand-calculated results, not just reverse a product."""
+        q, r = divmod(x, y)
+
+        assert q == expected
+        assert r == x.ring.zero
+        assert x / y == expected
+        assert x.exact_div(y) == expected
+        assert y.divides(x) is True
+
+    @pytest.mark.parametrize(
+        ("x", "y", "expected_q", "expected_r"),
+        [
+            (Z2(7, 5), Z2(3, 1), Z2(2, 1), Z2(-1, 0)),
+            (ZN2(7, 5), ZN2(3, 1), ZN2(3, 1), ZN2(0, -1)),
+        ],
+        ids=str,
+    )
+    def test_divmod_remainders(
+        self,
+        x: QuadInt,
+        y: QuadInt,
+        expected_q: QuadInt,
+        expected_r: QuadInt,
+    ):
+        """Non-exact Euclidean division should return known quotients and remainders."""
+        q, r = divmod(x, y)
+
+        assert q == expected_q
+        assert r == expected_r
+        assert x == q * y + r
+        assert abs(abs(r)) < abs(abs(y))
 
     def test_div_ring5(self):
         """Test QuadInt / QuadInt in QuadraticRing(5)"""

@@ -264,6 +264,19 @@ def _rand_elem(rng: random.Random, Q: QuadraticRing, bound: int) -> QuadInt:
     return Q(a, b)
 
 
+def _small_elements(Q: QuadraticRing, bound: int) -> list[QuadInt]:
+    """Return all elements in a small numerator box for this ring."""
+    elems = []
+    for a in range(-bound, bound + 1):
+        for b in range(-bound, bound + 1):
+            if Q.den == 2 and ((a ^ b) & 1):
+                continue
+
+            elems.append(Q(a, b))
+
+    return elems
+
+
 class TestClark69EuclideanFunction:
     """Unit tests for the Euclidean function used by the D=69 division algorithm."""
 
@@ -1227,6 +1240,23 @@ class TestExactDivAndDivides(QuadIntTests):
                 assert ok == (q is not None)
                 if q is not None:
                     assert x == q * y
+
+    @pytest.mark.parametrize("Q", [ZI, ZE, ZN7, ZN2, Z2, Z5, Z15, ZN17], ids=str)
+    def test_exact_div_matches_small_bruteforce(self, Q: QuadraticRing):
+        """exact_div should agree with a direct small-lattice search for divisible and non-divisible pairs."""
+        xs = _small_elements(Q, 3)
+        ys = [y for y in xs if y and abs(y) != 0]
+        quotients = _small_elements(Q, 24)
+
+        for y in ys:
+            products = {q * y: q for q in quotients}
+
+            for x in xs:
+                expected = products.get(x)
+                got = x.exact_div(y)
+
+                assert got == expected
+                assert y.divides(x) is (expected is not None)
 
     def test_exact_div_rejects_mixed_rings(self):
         """exact_div/divides should still enforce the identity ring check."""
