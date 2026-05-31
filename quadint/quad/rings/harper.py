@@ -15,7 +15,7 @@ from quadint.quad.rings.base import (
     _NeighborhoodSearch,
     _round_div_ties_away_from_zero,
 )
-from quadint.quad.rings.norm_euclid import RealNormEuclidRing
+from quadint.quad.rings.norm_euclid import NORM_EUCLID_D, RealNormEuclidRing
 from quadint.utils import _is_squarefree
 
 if TYPE_CHECKING:
@@ -223,6 +223,12 @@ class HarperRing(RealNormEuclidRing):
         """Read the above docstring and comments to understand the logic in this method."""
         # Harper-style only relevant for real quadratic maximal orders
         if D <= 0 or den != default_den:
+            return False
+
+        # Norm-Euclidean rings have a much cheaper direct division algorithm.
+        # QuadraticRing checks subclasses before their parents, so without this guard
+        # HarperRing would capture these D values before RealNormEuclidRing can.
+        if D in NORM_EUCLID_D:
             return False
 
         if (D, den) in cls._HARDCODED:

@@ -13,7 +13,7 @@ import quadint
 
 from quadint import Ideal, QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
-from quadint.quad.rings import HarperRing
+from quadint.quad.rings import HarperRing, RealNormEuclidRing
 from tests.quad.test_int import QuadIntTests
 
 ZN19 = QuadraticRing(-19)
@@ -982,6 +982,14 @@ class TestHarperAcceptOverride(RingTests):
     def test_accept_override_rejects_wrong_domain(self, D: int, den: int, default_den: int):
         """HarperRing.accept_override should reject non-real or non-maximal inputs."""
         assert HarperRing.accept_override(D, den, default_den) is False
+
+    @pytest.mark.parametrize("D", [2, 7, 13], ids=str)
+    def test_norm_euclidean_cases_use_direct_division(self, D: int):
+        """Norm-Euclidean rings should not be captured by HarperRing's slower fallback."""
+        Q = QuadraticRing(D)
+
+        assert isinstance(Q, RealNormEuclidRing)
+        assert not isinstance(Q, HarperRing)
 
     def test_hardcoded_subset_contains_expected_literature_values(self):
         """The hardcoded list should include the standard Harper/Conrad examples."""
