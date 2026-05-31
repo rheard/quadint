@@ -7,3 +7,7 @@ dist/
 *.log
 *.pyd
 *.pyproj
+
+quadint-stubs/
+*.zip
+uv.lock
