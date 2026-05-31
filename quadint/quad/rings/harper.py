@@ -473,9 +473,17 @@ class HarperRing(RealNormEuclidRing):
         if abs_y_norm == 0:
             raise ZeroDivisionError
 
-        # Use the actual Harper phi on the actual divisor.
-        # (Do NOT use the old phi(w) < phi(y)^2 shortcut once phi is ideal-sensitive.)
-        phi_y = self.phi(y)
+        cached_pair: tuple = self._HARDCODED.get((self.D, self.den), ())
+        witness: tuple[int, int, int, int] | None = cached_pair if len(cached_pair) == 4 else None
+
+        if witness is None:
+            # Use the actual Harper phi on the actual divisor.
+            # (Do NOT use the old phi(w) < phi(y)^2 shortcut once phi is ideal-sensitive.)
+            phi_y = self.phi(y)
+            phi_y2 = 0
+        else:
+            phi_y = self._phi_from_abs_norm(abs_y_norm, witness)
+            phi_y2 = phi_y * phi_y
 
         # Candidate center from x/y ≈ (x * conj(y)) / N(y)
         a1, b1 = x.a, x.b
@@ -498,11 +506,31 @@ class HarperRing(RealNormEuclidRing):
         def B0_for_A(A: int) -> int:  # noqa: ARG001
             return B0
 
+        dd = self.den * self.den
+
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
+            dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
+
+            if witness is not None:
+                da = A * y_norm - num_a
+                db = B * y_norm - num_b
+
+                nw_num = da * da - self.D * db * db
+                abs_nw_num = abs(nw_num)
+                abs_nw, rem = divmod(abs_nw_num, dd)
+                if rem:
+                    return 1, abs_nw_num, dist2
+
+                if abs_nw >= phi_y2:
+                    return 1, abs_nw, dist2
+
+                phi_w = self._phi_from_abs_norm(abs_nw, witness)
+                flag = 0 if phi_w < phi_y2 else 1
+                return flag, phi_w, dist2
+
             q = x._make(A, B)
             r = x - q * y
             pr = self.phi(r)
-            dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
             flag = 0 if pr < phi_y else 1
             return flag, pr, dist2
 
@@ -527,9 +555,9 @@ class HarperRing(RealNormEuclidRing):
         # For fixed A, small |da^2 - D*db^2| tends to occur near db ~= +/- |da|/sqrt(D),
         # which may correspond to B far away from the naive center B0.
         sqrtD = self.D**0.5
+        best_a, best_b = search.best_ab
         best_q: QuadInt | None = None
         best_r: QuadInt | None = None
-        seen: set[tuple[int, int]] = set()
 
         phi = self.phi
         make = x._make
@@ -537,15 +565,18 @@ class HarperRing(RealNormEuclidRing):
 
         def consider(A: int, B: int) -> None:
             """Score one lattice candidate (A,B) exactly once."""
-            nonlocal best_score, best_q, best_r
+            nonlocal best_a, best_b, best_score, best_q, best_r
 
             if den == 2 and ((A ^ B) & 1):
                 return
 
-            key = (A, B)
-            if key in seen:
+            if witness is not None:
+                s = score_for_AB(A, B)
+                if best_score is None or s < best_score:
+                    best_score = s
+                    best_a = A
+                    best_b = B
                 return
-            seen.add(key)
 
             q = make(A, B)
             r = x - q * y
@@ -555,6 +586,8 @@ class HarperRing(RealNormEuclidRing):
 
             if best_score is None or s < best_score:
                 best_score = s
+                best_a = A
+                best_b = B
                 best_q = q
                 best_r = r
 
@@ -567,11 +600,20 @@ class HarperRing(RealNormEuclidRing):
             da = A * y_norm - num_a
             cands: set[int] = set()
 
-            def add_with_parity(Bcand: int):
-                if den == 1:
-                    cands.add(Bcand)
-                    return
+            if den == 1:
+                # The local search already checked the center. In the branch pass
+                # for indefinite norm forms, only the two hyperbola branches matter.
+                t = abs(da) / sqrtD
+                for sgn in (-1.0, 1.0):
+                    db_target = sgn * t
+                    Bf = (num_b + db_target) / y_norm
+                    Bc = round(Bf)
 
+                    cands.update(int(Bc) + dB for dB in (-1, 0, 1))
+
+                return tuple(cands)
+
+            def add_with_parity(Bcand: int):
                 # den==2 parity constraint: A ≡ B (mod 2)
                 if ((A ^ Bcand) & 1) == 0:
                     cands.add(Bcand)
@@ -600,7 +642,7 @@ class HarperRing(RealNormEuclidRing):
             for dB in (-3, -2, -1, 0, 1, 2, 3):
                 add_with_parity(int(mid) + dB)
 
-            return tuple(sorted(cands))
+            return tuple(cands)
 
         prev_branch_rad = -1
 
@@ -623,8 +665,13 @@ class HarperRing(RealNormEuclidRing):
 
             prev_branch_rad = rad
 
-            if has_reducing_best() and best_q is not None and best_r is not None:
-                return best_q, best_r
+            if has_reducing_best():
+                if best_q is not None and best_r is not None:
+                    return best_q, best_r
+
+                q = make(best_a, best_b)
+                r = x - q * y
+                return q, r
 
         raise NotImplementedError(
             f"No Harper-style phi-reducing quotient found for D={self.D}, den={self.den} "
