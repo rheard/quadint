@@ -30,7 +30,3 @@ class complexint(QuadInt):
     def imag(self) -> int:
         """Alias for complexint"""
         return self.b
-
-
-# mypyc appears to have some issues around __init_subclass__; see issue 14188. Register explicitly.
-_ZI.DEFAULT_KLASS = complexint
