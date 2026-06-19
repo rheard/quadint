@@ -134,6 +134,7 @@ ignore=[
     "D205",   # Missing blank line after summary
     "D212",    # Multi-line docstring summary should start at the first line
     "D415",    # Closing punctuation on docstrings
+    "D421", # Property docstring should not start with a verb
     "PT013",   # Incorrect import of pytest
     "PYI041",
     "RUF023",  # __slots__ is not sorted
