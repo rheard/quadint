@@ -1412,6 +1412,14 @@ class TestGcdXgcd(QuadIntTests):
         """Return True iff x and y differ by multiplication by a torsion unit."""
         return any(x == y * u for u in y.units)
 
+    @staticmethod
+    def _plain_euclid(Q: QuadraticRing, a: QuadInt, b: QuadInt) -> QuadInt:
+        """Run Euclid with nothing but Q.divmod (so no fallbacks), and return the last nonzero remainder."""
+        while b:
+            a, b = b, Q.divmod(a, b)[1]
+
+        return a
+
     def test_xgcd_requires_division(self):
         """xgcd/gcd should raise in rings without divmod support."""
         a = Z15(5, 2)
@@ -1447,7 +1455,7 @@ class TestGcdXgcd(QuadIntTests):
         assert g2 == a._canonical_associate()
         assert z.gcd(a) == g2
 
-    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 5, 69], ids=str)
+    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 5, 57, 73, 69], ids=str)
     def test_xgcd_bezout_and_divisibility_random(self, D: int):
         """
         Property test:
@@ -1486,6 +1494,45 @@ class TestGcdXgcd(QuadIntTests):
                 g2 = b.gcd(a)
                 assert g.divides(g2)
                 assert g2.divides(g)
+
+    @pytest.mark.parametrize(
+        ("D", "xa", "xb", "ya", "yb"),
+        [
+            # Plain Euclid gives up on every one of these, because a quotient search finds nothing that reduces phi.
+            #   That happens in norm-Euclidean rings too, when the good quotient is outside the local search area.
+            (57, 32, -58, -22, 32),  # coprime
+            (57, 56, -24, -29, -49),  # gcd has norm 4
+            (73, -59, 1, 41, -57),  # coprime
+            (73, -8, 16, -59, -9),  # gcd has norm 4
+            # In Harper rings, coprime pairs never reach Euclid (the lattice check catches them first)
+            (14, 55, 37, 36, -34),  # coprime
+            (14, 6, -12, 33, 39),  # gcd has norm 45
+            (14, -189, -243, 224, 9),  # gcd has norm 217
+            (83, 30, 49, -16, 50),  # coprime
+            (83, 63, 53, -42, -32),  # gcd has norm 2
+        ],
+        ids=str,
+    )
+    def test_xgcd_when_euclid_gives_up(self, D: int, xa: int, xb: int, ya: int, yb: int):
+        """When plain Euclid gives up, xgcd should still succeed by finishing from a generator of the ideal (a, b)."""
+        Q = QuadraticRing(D)
+        a = Q(xa, xb)
+        b = Q(ya, yb)
+
+        with pytest.raises(NotImplementedError):
+            self._plain_euclid(Q, a, b)
+
+        g, s, t = a.xgcd(b)
+
+        assert s * a + t * b == g
+        assert Q.ideal(g) == Q.ideal(a, b)
+        assert g == g._canonical_associate()
+        assert a.gcd(b) == g
+
+        # The lattice solves behind these paths leave huge Bezout coefficients unless they are shrunk afterwards
+        input_bits = max(abs(c) for z in (a, b) for c in (z.a, z.b)).bit_length()
+        coeff_bits = max(abs(c) for z in (s, t) for c in (z.a, z.b)).bit_length()
+        assert coeff_bits <= 2 * input_bits + 8
 
     @pytest.mark.parametrize("Q", [ZI, ZE, Z5], ids=str)
     def test_gcd_contains_common_factor(self, Q: QuadraticRing):

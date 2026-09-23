@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, ClassVar
 from sympy import isprime, sqrt_mod
 from sympy.solvers.diophantine.diophantine import diop_DN
 
-from quadint.quad.ideal import ClassGroup, Ideal
+from quadint.quad.ideal import ClassGroup, Ideal, _bezout_coefficients
 from quadint.quad.int import QuadInt
 from quadint.utils import _is_squarefree
 
@@ -190,6 +190,33 @@ def _round_div_ties_away_from_zero(n: int, d: int) -> int:
     return -((-n + d // 2) // d)
 
 
+def _nearest_quotient(x: QuadInt, y: QuadInt) -> QuadInt:
+    """
+    Return a ring element near x / y, with each coordinate rounded.
+
+    This is only for shrinking things modulo y. Unlike divmod it makes no promise about the remainder's norm,
+        so it never has to search (or fail).
+
+    Returns:
+        QuadInt: The rounded quotient.
+    """
+    ring = x.ring
+    den = ring.den
+
+    # x / y == x * conj(y) / N(y) == (num_a + num_b*sqrt(D)) / (den**2 * N(y)) with these numerators,
+    #   so in this ring's (A + B*sqrt(D)) / den coordinates, A and B are the following ratios.
+    num_a = x.a * y.a - x.b * y.b * ring.D
+    num_b = y.a * x.b - x.a * y.b
+    scale = den * abs(y)
+
+    A = _round_div_ties_away_from_zero(num_a, scale)
+    B = _round_div_ties_away_from_zero(num_b, scale)
+    if den == 2 and ((A ^ B) & 1):
+        B += 1  # any nearby lattice point is fine here
+
+    return x._make(A, B)
+
+
 def _split_uv(x: QuadInt) -> tuple[int, int]:
     """Return (u,v) for D=1 split-complex where u=(a+b)/den, v=(a-b)/den."""
     den = x.ring.den
@@ -354,6 +381,8 @@ class QuadraticRing:
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
     SUPPORTS_FACTORIZATION: ClassVar[bool] = False
+    # Have xgcd check whether 1 is in the ideal (a, b) before running Euclid. Only worth it where Euclid is slow.
+    _XGCD_COPRIME_SHORTCUT: ClassVar[bool] = False
     _CACHE: ClassVar[dict[tuple[int, int], QuadraticRing]] = {}
 
     D: int
@@ -917,6 +946,32 @@ class QuadraticRing:
 
         return g, s, t
 
+    def _shrink_bezout(
+        self,
+        a: QuadInt,
+        b: QuadInt,
+        g: QuadInt,
+        s: QuadInt,
+        t: QuadInt,
+    ) -> tuple[QuadInt, QuadInt]:
+        """
+        Shrink Bezout coefficients s*a + t*b == g for a gcd g.
+
+        The lattice solves behind the ideal-based paths in xgcd can leave s and t several times the size of the inputs.
+            Any (s - k*b/g, t + k*a/g) satisfies the same identity, so taking k near s / (b/g) brings them back down
+            to about the size Euclid would have produced.
+
+        Returns:
+            tuple[QuadInt, QuadInt]: The smaller (s, t).
+        """
+        a_g = self.exact_div(a, g)
+        b_g = self.exact_div(b, g)
+        if a_g is None or b_g is None:
+            return s, t
+
+        k = _nearest_quotient(s, b_g)
+        return s - k * b_g, t + k * a_g
+
     def xgcd(self, a: QuadInt, b: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
         """
         Extended gcd in Euclidean quadratic rings.
@@ -926,9 +981,15 @@ class QuadraticRing:
             - The gcd is only defined up to multiplication by a unit; this returns a stable
               associate using QuadInt._canonical_associate() and adjusts (s,t) accordingly
               using the (finite) torsion unit list.
+            - If a divmod quotient search comes up empty (it can in real rings), this finishes
+              from a generator of the ideal (a, b) instead, which always exists since Euclidean rings are PIDs.
 
         Returns:
             (g, s, t): such that s*a + t*b == g
+
+        Raises:
+            ArithmeticError: If Euclid had to give up and (a, b) turned out not to be principal,
+                which would mean this ring is not really Euclidean.
         """
         # TODO: For now: avoid the zero-divisor rings (dual), where "gcd" semantics differ.
         if self.D == 0:
@@ -961,18 +1022,48 @@ class QuadraticRing:
             return g, s, self.zero
         # endregion
 
+        if self._XGCD_COPRIME_SHORTCUT:
+            # Most inputs are coprime, and 1 is in the lattice for (a, b) exactly when they are.
+            #   That check is cheap, and needs no generator search, so it can skip a slow Euclid entirely.
+            coprime = _bezout_coefficients(self, a, b, self.one)
+            if coprime is not None:
+                s, t = coprime
+                s, t = self._shrink_bezout(a, b, self.one, s, t)
+                return self._canonicalize_bezout_result(self.one, s, t)
+
         r0, r1 = a, b
         s0, s1 = self.one, self.zero
         t0, t1 = self.zero, self.one
 
-        while r1:
-            q, r = self.divmod(
-                r0,
-                r1,
-            )
-            r0, r1 = r1, r
-            s0, s1 = s1, s0 - q * s1
-            t0, t1 = t1, t0 - q * t1
+        try:
+            while r1:
+                q, r = self.divmod(
+                    r0,
+                    r1,
+                )
+                r0, r1 = r1, r
+                s0, s1 = s1, s0 - q * s1
+                t0, t1 = t1, t0 - q * t1
+        except NotImplementedError as exc:
+            # The quotient search can come up empty in real rings, where the norm is indefinite and a good quotient
+            #   may be far away from x/y. But every Euclidean ring is a PID, so (r0, r1) == (a, b) == (g) for some g,
+            #   and we can finish from that generator instead. Nothing was updated for the failed step,
+            #   so u*r0 + v*r1 == g carries straight over to a and b.
+            #
+            # For real rings, finding g solves a norm equation, which means factoring N(g).
+            #   That is why this is only a fallback, Euclid never has to factor anything.
+            #
+            # Real rings go straight to the search, since principal_generator() would cache every ideal that
+            #   a gcd-heavy caller ever makes. (All unit ideals are equal, so those only ever take one cache entry.)
+            ideal = self.ideal(r0, r1)
+            g = ideal._principal_generator_real() if self.D > 0 and ideal.norm > 1 else ideal.principal_generator()
+            bezout = None if g is None else _bezout_coefficients(self, r0, r1, g)
+            if g is None or bezout is None:
+                raise ArithmeticError(f"({r0}, {r1}) is not a principal ideal, so this ring is not Euclidean") from exc
+
+            u, v = bezout
+            s, t = self._shrink_bezout(a, b, g, u * s0 + v * s1, u * t0 + v * t1)
+            return self._canonicalize_bezout_result(g, s, t)
 
         # r0 is a gcd up to a unit. Normalize it for stable output, and adjust (s,t).
         return self._canonicalize_bezout_result(r0, s0, t0)

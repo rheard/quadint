@@ -58,6 +58,108 @@ def _canonical_hnf(a: int, b: int, c: int) -> tuple[int, int, int]:
     return a, b % a, c
 
 
+def _combine_columns(u: list[int], v: list[int], row: int) -> tuple[list[int], list[int]]:
+    """
+    Apply a unimodular column operation that leaves gcd(u[row], v[row]) in u and 0 in v at `row`.
+
+    The two new columns span the same lattice as the old ones.
+
+    Returns:
+        tuple[list[int], list[int]]: The new (u, v).
+    """
+    a = u[row]
+    b = v[row]
+    if b == 0:
+        return u, v
+
+    if a == 0:
+        return v, u
+
+    s_raw, t_raw, g_raw = gcdex(a, b)
+    s, t, g = int(s_raw), int(t_raw), int(g_raw)  # s*a + t*b == g
+    a_g = a // g
+    b_g = b // g
+
+    # det [[s, t], [b/g, -a/g]] == -(s*a + t*b)/g == -1
+    return (
+        [s * x + t * y for x, y in zip(u, v, strict=True)],
+        [b_g * x - a_g * y for x, y in zip(u, v, strict=True)],
+    )
+
+
+def _lattice_coefficients(vectors: list[tuple[int, int]], target: tuple[int, int]) -> list[int] | None:
+    """
+    Return integers c with sum(c[i] * vectors[i]) == target, or None if target is not in the lattice they span.
+
+    This is the column reduction behind a Hermite normal form, except each column also carries
+        its coefficients in terms of the original vectors, so the solution can be read off at the end.
+        Needs at least 2 vectors.
+
+    Returns:
+        list[int] | None: One coefficient per vector, or None if there is no integer solution.
+    """
+    n = len(vectors)
+    columns: list[list[int]] = []
+    for i, (x, y) in enumerate(vectors):
+        column = [0] * (n + 2)
+        column[0] = x
+        column[1] = y
+        column[2 + i] = 1
+        columns.append(column)
+
+    # Leave the gcd of the first coordinates in `first`, and 0 in the first coordinate of every other column...
+    first = columns[0]
+    rest = columns[1:]
+    for i in range(len(rest)):
+        first, rest[i] = _combine_columns(first, rest[i], 0)
+
+    # ...then do the same with the second coordinate among the rest. Now the lattice is spanned by
+    #   first = (A, B) and second = (0, C), and anything left in `rest` is a zero column (a relation).
+    second = rest[0]
+    for i in range(1, len(rest)):
+        second, rest[i] = _combine_columns(second, rest[i], 1)
+
+    A, B, C = first[0], first[1], second[1]
+    tx, ty = target
+
+    m = 0
+    if A:
+        m, r = divmod(tx, A)
+        if r:
+            return None
+    elif tx:
+        return None
+
+    k = 0
+    remaining = ty - m * B
+    if C:
+        k, r = divmod(remaining, C)
+        if r:
+            return None
+    elif remaining:
+        return None
+
+    return [m * f + k * s for f, s in zip(first[2:], second[2:], strict=True)]
+
+
+def _bezout_coefficients(ring: QuadraticRing, a: QuadInt, b: QuadInt, g: QuadInt) -> tuple[QuadInt, QuadInt] | None:
+    """
+    Return (s, t) with s*a + t*b == g, or None if g is not in the ideal (a, b).
+
+    As a lattice, (a, b) is spanned by a, a*w, b, b*w (for the ring's integral basis 1, w),
+        so this solves g == c0*a + c1*a*w + c2*b + c3*b*w over the integers, and then s = c0 + c1*w, t = c2 + c3*w.
+
+    Returns:
+        tuple[QuadInt, QuadInt] | None: The Bezout coefficients, or None if there are none.
+    """
+    w = _from_coords(ring, 0, 1)
+    coeffs = _lattice_coefficients([_coords(a), _coords(a * w), _coords(b), _coords(b * w)], _coords(g))
+    if coeffs is None:
+        return None
+
+    return _from_coords(ring, coeffs[0], coeffs[1]), _from_coords(ring, coeffs[2], coeffs[3])
+
+
 def _key(z: QuadInt) -> tuple[int, int, int, int, int]:
     """Prefer compact, deterministic generators when several associates are available."""
     abs_z_a = abs(z.a)
