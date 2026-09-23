@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import random
+
 from itertools import islice
 
 import pytest
 
 from quadint import Ideal, QuadraticRing
-from quadint.quad.ideal import IdealClass
-from tests.quad.test_rings import ideal_prod
+from quadint.quad.ideal import IdealClass, _bezout_coefficients  # noqa: PLC2701
+from tests.quad.test_rings import _rand_elem, ideal_prod
 
 ZN7 = QuadraticRing(-7)
 ZN5 = QuadraticRing(-5)
@@ -98,6 +100,55 @@ class TestMembership:
         assert 2 in ideal
         assert w in ideal
         assert ZN7.DEFAULT_KLASS(3, 1, ZN7, skip_basis=True) not in ideal
+
+
+class TestBezoutCoefficients:
+    """Tests for writing an element of the ideal (a, b) as s*a + t*b."""
+
+    @pytest.mark.parametrize("ring", [ZI, ZN5, ZN7, QuadraticRing(14), QuadraticRing(57)], ids=str)
+    def test_recovers_combinations(self, ring: QuadraticRing):
+        """Any g == s0*a + t0*b should come back as some s*a + t*b == g."""
+        rng = random.Random(1_234 + ring.D)
+
+        for bound in (10, 10**30):
+            for _ in range(40):
+                a = _rand_elem(rng, ring, bound)
+                b = _rand_elem(rng, ring, bound)
+                if not a or not b:
+                    continue
+
+                g = _rand_elem(rng, ring, bound) * a + _rand_elem(rng, ring, bound) * b
+                bezout = _bezout_coefficients(ring, a, b, g)
+
+                assert bezout is not None
+                s, t = bezout
+                assert s * a + t * b == g
+
+    def test_outside_the_ideal(self):
+        """Elements that are not in (a, b) have no Bezout coefficients."""
+        # (3, 1 + sqrt(-5)) is a non-principal prime ideal of norm 3, so 1 and 2 are not in it
+        assert _bezout_coefficients(ZN5, ZN5(3), ZN5(1, 1), ZN5.one) is None
+        assert _bezout_coefficients(ZN5, ZN5(3), ZN5(1, 1), ZN5(2)) is None
+
+        # ...but 4 + sqrt(-5) == 3 + (1 + sqrt(-5)) is
+        bezout = _bezout_coefficients(ZN5, ZN5(3), ZN5(1, 1), ZN5(4, 1))
+        assert bezout is not None
+        s, t = bezout
+        assert s * ZN5(3) + t * ZN5(1, 1) == ZN5(4, 1)
+
+    def test_den_two(self):
+        """The integral basis for den=2 is 1, (1 + sqrt(D))/2, which the coefficients have to respect."""
+        w = ZN7.DEFAULT_KLASS(1, 1, ZN7, skip_basis=True)  # (1 + sqrt(-7)) / 2, a prime of norm 2
+        two = ZN7.from_obj(2)
+
+        # 2 == w * conj(w), and w and conj(w) are coprime, so (2, w**2) == (w)
+        bezout = _bezout_coefficients(ZN7, two, w * w, w)
+        assert bezout is not None
+        s, t = bezout
+        assert s * two + t * (w * w) == w
+
+        # but w**2 alone is not enough
+        assert _bezout_coefficients(ZN7, w * w, ZN7.from_obj(4), w) is None
 
 
 class TestIter:

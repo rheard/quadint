@@ -210,6 +210,9 @@ class HarperRing(RealNormEuclidRing):
 
     SUPPORTS_DIVISION = True  # once divmod is implemented
 
+    # Every quotient here is a weighted search (often a slow one), so let xgcd check for coprime inputs first
+    _XGCD_COPRIME_SHORTCUT: ClassVar[bool] = True
+
     # According to the rules, any D value added here (with default den):
     #   * Must be square free (no prime factors with an exponent 2 or greater).
     #   * Must have class number 1 (_class_number_is_one is True).
