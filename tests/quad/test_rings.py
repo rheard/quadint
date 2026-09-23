@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import random
 
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from itertools import islice
 from math import prod
 from pathlib import Path
@@ -14,6 +15,7 @@ import quadint
 from quadint import Ideal, QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
+from quadint.quad.rings.harper import _hyperbola_branch_centers  # noqa: PLC2701
 from tests.quad.test_int import QuadIntTests
 
 ZN19 = QuadraticRing(-19)
@@ -464,6 +466,26 @@ class TestHarperHelpers:
     def test_disc_from_D_den(self, D: int, den: int | None, expected_disc: int):
         """Verify discriminant helper follows the den=1 vs den=2 convention."""
         assert QuadraticRing(D, den).discriminant() == expected_disc
+
+    @pytest.mark.parametrize("bits", [8, 40, 1500], ids=str)
+    def test_hyperbola_branch_centers_match_high_precision(self, bits: int):
+        """The integer-only branch centers should match a high-precision Decimal computation, even past float range."""
+        rng = random.Random(4_242 + bits)
+
+        for D in (14, 23, 83, 94):
+            for _ in range(200):
+                num_b = rng.randint(-(2**bits), 2**bits)
+                da = rng.randint(1, 2**bits) * rng.choice((-1, 1))  # da != 0, so no exact ties
+                y_norm = rng.randint(1, 2**bits) * rng.choice((-1, 1))
+
+                with localcontext() as ctx:
+                    ctx.prec = bits + 100  # decimal digits, far more than the inputs need
+                    t = Decimal(abs(da)) / Decimal(D).sqrt()
+                    expected = sorted(
+                        int(((num_b + s * t) / y_norm).to_integral_value(rounding=ROUND_HALF_EVEN)) for s in (-1, 1)
+                    )
+
+                assert sorted(_hyperbola_branch_centers(num_b, da, y_norm, D)) == expected
 
 
 class TestHarperPariHelpers:
@@ -1064,6 +1086,36 @@ class TestHarperDiv:
 
         assert x == q * y + r
         assert Q.phi(r) < Q.phi(y), f"phi did not decrease for D={D}, x={x}, y={y}, r={r}"
+
+    @pytest.mark.parametrize(
+        ("D", "den", "xa", "xb", "ya", "yb"),
+        [
+            # Each of these small divisions fails the local search and is only solved by the hyperbola-branch fallback
+            (23, 1, 848841, 904501, 846546, -252070),
+            (71, 1, -356728, 704616, 704769, 131101),  # principal-generator phi
+            (77, 2, 954535, 921267, -569561, -79451),  # den=2
+            (94, 1, -600505, -12855, 88563, 24224),  # 3 is a witness prime here
+        ],
+        ids=str,
+    )
+    def test_fallback_handles_huge_inputs(self, D: int, den: int, xa: int, xb: int, ya: int, yb: int):
+        """
+        The hyperbola-branch fallback must stay in integer math, floats overflow past ~1e308.
+
+        Scaling x and y by a huge k that is coprime to the ring's witness primes scales every score by the same factor,
+            so divmod(k*x, k*y) walks the exact same search path as divmod(x, y), just with ~2000-bit numbers.
+        """
+        Q = QuadraticRing(D, den)
+        x = Q(xa, xb)
+        y = Q(ya, yb)
+        q, r = divmod(x, y)
+
+        k = 7**700 if D == 94 else 3**700
+        q_big, r_big = divmod(k * x, k * y)
+
+        assert q_big == q
+        assert r_big == k * r
+        assert Q.phi(r_big) < Q.phi(k * y)
 
     @pytest.mark.parametrize(
         ("D", "den"),
