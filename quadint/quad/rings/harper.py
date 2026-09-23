@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 
 from functools import cache
-from math import gcd
+from math import gcd, isqrt
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from sympy import sieve
@@ -20,6 +20,40 @@ from quadint.utils import _is_squarefree
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
+
+
+def _hyperbola_branch_centers(num_b: int, da: int, y_norm: int, D: int) -> tuple[int, int]:
+    """
+    Return the integers nearest to (num_b - t) / y_norm and (num_b + t) / y_norm, where t = |da| / sqrt(D).
+
+    For a fixed A in HarperRing.divmod, these are the two B values where the hyperbola branches db = +/- t
+        are crossed (with db = B*y_norm - num_b). Floats lose precision past 2**53 and overflow past ~1e308,
+        so this only uses integer arithmetic, with isqrt handling the square root exactly.
+
+    Returns:
+        tuple[int, int]: The two rounded B coordinates, in no particular order.
+            Ties round up, but a tie needs t to be rational, which (for non-square D) only happens when da == 0.
+    """
+    if y_norm < 0:
+        # (num_b -/+ t) / y_norm == (-num_b +/- t) / -y_norm, so this is the same pair of values
+        num_b, y_norm = -num_b, -y_norm
+
+    # The nearest integer to v = (num_b + u) / y_norm is floor(v + 1/2), which is
+    #
+    #     floor((2*num_b + y_norm + 2*u) / (2*y_norm))
+    #
+    # For integers m and k > 0, floor((m + w) / k) == (m + floor(w)) // k for ANY real w,
+    #   so with u = +/- t all we need are floor(2t) and floor(-2t) == -ceil(2t), which isqrt gives exactly.
+    m = 2 * num_b + y_norm
+    k = 2 * y_norm
+
+    q, rem = divmod(4 * da * da, D)
+    floor_2t = isqrt(q)  # floor(sqrt(floor(z))) == floor(sqrt(z))
+
+    # 2t is only an integer when 4*da**2 / D is a perfect square
+    ceil_2t = floor_2t if rem == 0 and floor_2t * floor_2t == q else floor_2t + 1
+
+    return (m - ceil_2t) // k, (m + floor_2t) // k
 
 
 class Clark69Ring(RealNormEuclidRing):
@@ -554,7 +588,9 @@ class HarperRing(RealNormEuclidRing):
         # Branch-aware fallback for real quadratic indefinite norm.
         # For fixed A, small |da^2 - D*db^2| tends to occur near db ~= +/- |da|/sqrt(D),
         # which may correspond to B far away from the naive center B0.
-        sqrtD = self.D**0.5
+        #   These branch centers are computed with exact integer math (see _hyperbola_branch_centers),
+        #   floats would overflow on large inputs.
+        D = self.D
         best_a, best_b = search.best_ab
         best_q: QuadInt | None = None
         best_r: QuadInt | None = None
@@ -603,13 +639,8 @@ class HarperRing(RealNormEuclidRing):
             if den == 1:
                 # The local search already checked the center. In the branch pass
                 # for indefinite norm forms, only the two hyperbola branches matter.
-                t = abs(da) / sqrtD
-                for sgn in (-1.0, 1.0):
-                    db_target = sgn * t
-                    Bf = (num_b + db_target) / y_norm
-                    Bc = round(Bf)
-
-                    cands.update(int(Bc) + dB for dB in (-1, 0, 1))
+                for Bc in _hyperbola_branch_centers(num_b, da, y_norm, D):
+                    cands.update(Bc + dB for dB in (-1, 0, 1))
 
                 return tuple(cands)
 
@@ -621,26 +652,15 @@ class HarperRing(RealNormEuclidRing):
                     cands.add(Bcand - 1)
                     cands.add(Bcand + 1)
 
-            # Center-ish values
-            for dB in (-2, -1, 0, 1, 2):
+            # Center-ish values (B0 is also the midpoint, round(num_b / y_norm))
+            for dB in range(-3, 4):
                 add_with_parity(B0 + dB)
 
             # Hyperbola branch targets: db ~= +/- |da| / sqrt(D)
             # where db = B*y_norm - num_b
-            t = abs(da) / sqrtD
-
-            for sgn in (-1.0, 1.0):
-                db_target = sgn * t
-                Bf = (num_b + db_target) / y_norm
-                Bc = round(Bf)
-
+            for Bc in _hyperbola_branch_centers(num_b, da, y_norm, D):
                 for dB in range(-4, 5):
-                    add_with_parity(int(Bc) + dB)
-
-            # Midpoint spread
-            mid = round(num_b / y_norm)
-            for dB in (-3, -2, -1, 0, 1, 2, 3):
-                add_with_parity(int(mid) + dB)
+                    add_with_parity(Bc + dB)
 
             return tuple(cands)
 
