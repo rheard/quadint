@@ -1642,6 +1642,33 @@ class TestInvModAndNegativePow(QuadIntTests):
         inv = a.inv_mod(m)
         assert (a * inv) % m == Q.one % m
 
+    def test_inv_mod_when_divmod_gives_up(self):
+        """
+        inv_mod should still work when reducing the inverse is a division that no quotient can do.
+
+        In Z[sqrt(14)], every remainder of 1 + sqrt(14) mod 2 is s + t*sqrt(14) with s and t odd,
+            so its norm is 3 mod 8, and 3 itself is impossible (it is not a square mod 7). So every remainder r has
+            |N(r)| >= 5 > |N(2)|, and since 2 is not one of this ring's witness primes, phi(r) >= 5 > 4 == phi(2).
+        """
+        Q = QuadraticRing(14)
+        a = Q(1, 1)
+        m = Q(2, 0)
+
+        with pytest.raises(NotImplementedError):
+            divmod(a, m)
+
+        inv = a.inv_mod(m)
+        assert m.divides(a * inv - 1)
+        assert pow(a, -1, m) == inv
+
+    def test_pow_when_divmod_gives_up(self):
+        """Modular pow should still work when reductions along the way are divisions that no quotient can do."""
+        Q = QuadraticRing(14)
+        a = Q(1, 1)  # every element of this class mod 2 is such a division, see test_inv_mod_when_divmod_gives_up
+        m = Q(2, 0)
+
+        assert m.divides(pow(a, 3, m) - a**3)
+
     def test_inv_mod_requires_division(self):
         """Rings without divmod/xgcd should reject inv_mod and negative modular pow."""
         assert Z15.supports_division() is False

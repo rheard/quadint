@@ -282,6 +282,7 @@ class QuadInt:
                 raise ZeroDivisionError("pow() 3rd argument cannot be 0")
 
         e = int(exp)
+        ring = self.ring  # modular reductions go through ring._residue, which cannot fail where divmod gives up
 
         # Allow negative powers only in the modular case (like Python's pow()).
         if e < 0:
@@ -289,10 +290,10 @@ class QuadInt:
                 raise ValueError("Negative powers not supported in quadratic integer rings without a modulus")
 
             # x^(-e) mod m == (x^{-1} mod m)^e mod m
-            base = self.inv_mod(mod) % mod
+            base = ring._residue(self.inv_mod(mod), mod)
             e = -e
         else:
-            base = self % mod if mod is not None else self
+            base = ring._residue(self, mod) if mod is not None else self
 
         # exponentiation by squaring
         if mod is None:
@@ -307,14 +308,14 @@ class QuadInt:
 
             return result
 
-        result = self.one % mod
+        result = ring._residue(self.one, mod)
         while e:
             if e & 1:
-                result = (result * base) % mod
+                result = ring._residue(result * base, mod)
 
             e >>= 1
             if e:
-                base = (base * base) % mod
+                base = ring._residue(base * base, mod)
 
         return result
 
