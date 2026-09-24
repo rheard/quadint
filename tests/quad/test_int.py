@@ -342,6 +342,15 @@ class TestDiv(QuadIntTests):
 
         self.assert_quad_equal((expected.a, expected.b), got)
 
+    @pytest.mark.parametrize("e", [2**64, 2**1100], ids=["2**64", "2**1100"])
+    def test_pow_mod_huge_exponent(self, e: int):
+        """pow(x, e, m) should use every bit of e, even past what a float holds (doubles round past 2**53)."""
+        x = ZI(5, 2)
+        m = ZI(7, 0)
+
+        assert pow(x, e + 1, m) == (pow(x, e, m) * x) % m
+        assert pow(x, e + 1, m) != pow(x, e, m)
+
     def test_pow_mod_requires_same_ring(self):
         """Modulus must be in the same QuadraticRing (identity check)."""
         x = ZI(5, 2)
