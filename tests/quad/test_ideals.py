@@ -225,6 +225,21 @@ class TestPrincipal:
         assert ideal.principal_generator() is None
         assert not ideal.is_principal()
 
+    def test_imaginary_den_two(self):
+        """A den=2 generator's numerator a can reach isqrt(4*norm), which is past 2*isqrt(norm)."""
+        ring = QuadraticRing(-19)
+        alpha = ring.DEFAULT_KLASS(-19, 1, ring, skip_basis=True)  # norm 95, and 19 > 2*isqrt(95) == 18
+
+        assert ring.ideal(alpha).principal_generator() == alpha
+
+    def test_imaginary_huge(self):
+        """Imaginary generators should be found (or ruled out) without a search that grows with the norm."""
+        alpha = ZN5(3**90 + 1, 2**140 - 1)
+        prime_two = ZN5.prime_ideals_over(2)[0]
+
+        assert ZN5.ideal(alpha).principal_generator() == alpha._canonical_associate()
+        assert (prime_two * ZN5.ideal(alpha)).principal_generator() is None  # still in the nontrivial class
+
     def test_real(self):
         """A principal ideal in a real quadratic ring should solve the norm equation."""
         ring = QuadraticRing(10)

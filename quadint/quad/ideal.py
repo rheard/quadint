@@ -238,37 +238,41 @@ class Ideal:
 
     @cache
     def principal_generator(self) -> QuadInt | None:
-        """Return a generator for this ideal if one is found, otherwise None."""
+        """Return a generator of this ideal, or None if it is not principal."""
         if self.norm == 0:
             return self.ring.zero
 
         if self.norm == 1:
             return self.ring.one
 
-        if self.ring.D > 0:
+        ring = self.ring
+        D = ring.D
+        if D > 0:
             return self._principal_generator_real()
 
-        b0, b1 = self.basis
-        if self.ring.supports_division() and self.ring.D < 0:
-            candidate = self.ring.gcd(b0, b1)
-            if Ideal(self.ring, candidate) == self:
-                return candidate
+        # For D < 0 the norm is positive definite, so this ideal is a lattice with a shortest nonzero vector.
+        #   Any nonzero x in the ideal has (x) inside it, so N(x) is a multiple of self.norm, and x generates
+        #   the whole ideal exactly when N(x) == self.norm. So the ideal is principal iff its shortest vector has
+        #   that norm, and Lagrange-Gauss reduction (the imaginary counterpart of the continued fraction) finds it.
+        #   This works on the numerators (a, b) of (a + b*sqrt(D))/den, scaling every norm and dot product by den**2.
+        u, v = self.basis
+        ua, ub, va, vb = u.a, u.b, v.a, v.b
+        nu, nv = ua * ua - D * ub * ub, va * va - D * vb * vb
+        while True:
+            if nv < nu:
+                ua, ub, nu, va, vb, nv = va, vb, nv, ua, ub, nu  # keep u the shorter one
 
-        target = self.norm
-        den = self.ring.den
-        max_a = den * isqrt(target)
-        max_b = den * isqrt(target // abs(self.ring.D) + 2)
+            k = (2 * (ua * va - D * ub * vb) + nu) // (2 * nu)  # the nearest integer to dot(u, v) / dot(u, u)
+            if not k:
+                break  # v is reduced against u, which makes u a shortest vector
 
-        for a in range(-max_a, max_a + 1):
-            for b in range(-max_b, max_b + 1):
-                if den == 2 and ((a ^ b) & 1):
-                    continue
+            va, vb = va - k * ua, vb - k * ub
+            nv = va * va - D * vb * vb
 
-                x = self.ring.DEFAULT_KLASS(a, b, self.ring, skip_basis=True)
-                if abs(abs(x)) == target and x in self and Ideal(self.ring, x) == self:
-                    return x
+        if nu != self.norm * ring.den * ring.den:
+            return None
 
-        return None
+        return ring.DEFAULT_KLASS(ua, ub, ring, skip_basis=True)._canonical_associate()
 
     def _principal_generator_real(self) -> QuadInt | None:
         """
