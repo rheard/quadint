@@ -12,7 +12,7 @@ import pytest
 
 import quadint
 
-from quadint import Ideal, QuadInt, complexint
+from quadint import Ideal, QuadInt, complexint, eisensteinint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
 from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # ruff: ignore[import-private-name]
@@ -1449,6 +1449,37 @@ class TestGcdXgcd(QuadIntTests):
 
         return a
 
+    @pytest.mark.parametrize(
+        "Q",
+        [ZI, ZE, ZN2, ZN7, ZN11, Z1, QuadraticRing(1, 1), Z2, Z5, QuadraticRing(14), Z69, QuadraticRing(83)],
+        ids=str,
+    )
+    def test_gcd_of_integers_is_positive(self, Q: QuadraticRing):
+        """Integers have the same gcd in every ring, and like math.gcd it comes out positive (coprime gives 1)."""
+        assert Q.from_obj(6).gcd(Q.from_obj(4)) == 2
+        assert Q.from_obj(-9).gcd(Q.from_obj(-6)) == 3
+        assert Q.from_obj(3).gcd(Q.from_obj(-5)) == 1
+        assert Q.from_obj(-7).gcd(Q.zero) == 7
+
+    def test_gcd_gaussian_first_quadrant(self):
+        """Gaussian gcds come out in the first quadrant, like 2+i for gcd(5, (2+i)**2)."""
+        assert complexint(5).gcd(complexint(3, 4)) == complexint(2, 1)
+        assert complexint(3, 4).gcd(complexint(1, 2)) == 1
+        assert complexint(-2, 4).gcd(complexint(-10, 0)) == complexint(4, 2)  # -2+4i == 2i(2+i), -10 == -2(2+i)(2-i)
+
+    def test_gcd_eisenstein_first_sextant(self):
+        """Eisenstein gcds come out with 0 <= arg < 60 degrees, which is 0 <= y < x for x + y*w."""
+        assert eisensteinint(7).gcd(eisensteinint(2, 3)) == eisensteinint(3, 1)
+        assert eisensteinint(6).gcd(eisensteinint(9)) == 3
+
+    def test_split_xgcd_with_zero_divisor_gcd(self):
+        """A split-complex gcd can be a zero divisor, which exact_div cannot divide by, and xgcd used to raise on it."""
+        a, b = Z1(2, -2), Z1(4, -4)  # u = (a + b)/2 == 0 for both, so their gcd has u == 0 too
+
+        g, s, t = Z1.xgcd(a, b)
+        assert s * a + t * b == g
+        assert g == Z1(2, -2)
+
     def test_xgcd_requires_division(self):
         """xgcd/gcd should raise in rings without divmod support."""
         a = Z15(5, 2)
@@ -1744,14 +1775,15 @@ class TestInvModAndNegativePow(QuadIntTests):
         with pytest.raises(ValueError, match=error_msg):
             _ = pow(a, -1, m)
 
-    def test_inv_mod_handles_unit_gcd_not_equal_one(self):
-        """inv_mod should normalize Bezout results whose gcd is a non-one unit."""
+    def test_coprime_xgcd_is_exactly_one(self):
+        """Coprime inputs should give the gcd 1 itself (not another unit such as -1), with Bezout and inv_mod intact."""
         Q = QuadraticRing(2)
         a = Q(-5, -5)
         m = Q(7, 0)
 
-        g, _, _ = a.xgcd(m)
-        assert g == -Q.one
+        g, s, t = a.xgcd(m)
+        assert g == Q.one
+        assert s * a + t * m == Q.one
 
         inv = a.inv_mod(m)
         assert (a * inv) % m == Q.one % m

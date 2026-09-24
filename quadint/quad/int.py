@@ -17,11 +17,6 @@ _HASH_IMAG = sys.hash_info.imag
 _HASH_WORD = 1 << sys.hash_info.width
 
 
-def _key(w_: QuadInt) -> tuple[int, int, int, int, int]:
-    """This is required (for now) as it appears that mypyc is having problems with sub-functions/lambdas"""
-    return abs(abs(w_)), abs(w_.b), abs(w_.a), w_.a, w_.b
-
-
 def _compact_key(w_: QuadInt) -> tuple[int, int, int, int, int, int]:
     """
     Order the associates of a real quadratic integer, most compact first.
@@ -29,13 +24,14 @@ def _compact_key(w_: QuadInt) -> tuple[int, int, int, int, int, int]:
     For w = (a + b*sqrt(D)) / den, the sum of its two embeddings' sizes is
         |a + b*sqrt(D)|/den + |a - b*sqrt(D)|/den == 2*max(|a|, |b|*sqrt(D))/den, compared here through its square.
         Along the associates w*unit**k that sum is convex in k, so walking downhill from anywhere finds the smallest.
+        Ties go to a positive a, and then a positive b.
 
     Returns:
         tuple: The sort key.
     """
     abs_a = abs(w_.a)
     abs_b = abs(w_.b)
-    return max(w_.a * w_.a, w_.ring.D * w_.b * w_.b), max(abs_a, abs_b), abs_a, abs_b, w_.a, w_.b
+    return max(w_.a * w_.a, w_.ring.D * w_.b * w_.b), max(abs_a, abs_b), abs_a, abs_b, -w_.a, -w_.b
 
 
 class QuadInt:
@@ -130,8 +126,15 @@ class QuadInt:
         """
         Return the canonical representative among this element's associates, for stable gcd and generator output.
 
-        Real rings have infinitely many units (every power of the fundamental unit), and there this walks
-            through them to the most compact associate (see _compact_key). Otherwise only the torsion units apply.
+        It always has a positive leading coefficient: a > 0, or a == 0 and b > 0. So plain integers come out positive,
+            and every unit comes out as 1. Beyond that:
+
+        * Z[i] and Z[w] have more units, and there it is the associate in the first quadrant (a > 0 and b >= 0),
+            or for Z[w] the first sextant: 0 <= arg < 60 degrees, which is 0 <= b < a (and 0 <= y < x for x + y*w).
+        * Split-complex integers multiply componentwise in u = (a + b)/den and v = (a - b)/den, with units (+/-1, +/-1),
+            so there it is the associate with u, v >= 0, which is |b| <= a.
+        * Real rings have infinitely many units (every power of the fundamental unit), and there this first walks
+            through them to the most compact associate (see _compact_key).
 
         Returns:
             QuadInt: The canonical associate.
@@ -159,15 +162,25 @@ class QuadInt:
 
             return min((best, -best, tied, -tied), key=_compact_key)
 
-        best = self
-        best_k = _key(self)
-        for u in self.units[1:]:
+        # Otherwise exactly one torsion-unit multiple of a nonzero element is in the region described above
+        gaussian = D == -1 and self.ring.den == 1
+        eisenstein = D == -3 and self.ring.den == 2
+        for u in self.units:
             w = self * u
-            kw = _key(w)
-            if kw < best_k:
-                best, best_k = w, kw
+            a, b = w.a, w.b
+            if gaussian:
+                in_region = a > 0 and b >= 0
+            elif eisenstein:
+                in_region = 0 <= b < a
+            elif D == 1:
+                in_region = a > 0 and abs(b) <= a
+            else:
+                in_region = a > 0 or (a == 0 and b > 0)
 
-        return best
+            if in_region:
+                return w
+
+        return self  # zero, whose only associate is itself
 
     def _from_obj(self, n: complex | int | float | QuadInt):
         """Make a QuadInt on the current ring from a given object"""

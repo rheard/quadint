@@ -1062,7 +1062,8 @@ class QuadraticRing:
 
         The result is only defined up to multiplication by a unit; this method returns the
         same stable representative as `xgcd()` (via `_canonical_associate()`), so callers
-        get deterministic output.
+        get deterministic output. That representative has a positive leading coefficient, so gcd(6, 4) == 2
+        and coprime inputs give 1 (and in Z[i] it is in the first quadrant).
 
         Notes:
             - Implemented via `xgcd()`, so it is available exactly when `xgcd()` is available.

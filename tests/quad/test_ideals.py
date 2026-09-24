@@ -228,7 +228,7 @@ class TestPrincipal:
     def test_imaginary_den_two(self):
         """A den=2 generator's numerator a can reach isqrt(4*norm), which is past 2*isqrt(norm)."""
         ring = QuadraticRing(-19)
-        alpha = ring.DEFAULT_KLASS(-19, 1, ring, skip_basis=True)  # norm 95, and 19 > 2*isqrt(95) == 18
+        alpha = ring.DEFAULT_KLASS(19, -1, ring, skip_basis=True)  # norm 95, and 19 > 2*isqrt(95) == 18
 
         assert ring.ideal(alpha).principal_generator() == alpha
 

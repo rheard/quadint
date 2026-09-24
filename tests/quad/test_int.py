@@ -3,13 +3,18 @@ from __future__ import annotations
 import os
 import random
 
+from itertools import product
 from math import gcd, isclose, isqrt, prod
+from typing import TYPE_CHECKING
 
 import pytest
 
-from quadint import QuadInt, complexint
+from quadint import QuadInt, complexint, eisensteinint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import NORM_EUCLID_D
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def brute_content(x: QuadInt) -> int:
@@ -513,6 +518,66 @@ class TestUnits:
         for k in (1, 2, 5):
             assert (x * eps**k)._canonical_associate() == base
             assert (x * (~eps) ** k)._canonical_associate() == base
+
+    @pytest.mark.parametrize(
+        "ring",
+        [ZI, ZE, ZN2, ZN5, ZN7, QuadraticRing(-3, 1), QuadraticRing(0), Z1, QuadraticRing(1, 1), Z2, Z5, Z15],
+        ids=str,
+    )
+    def test_canonical_associate_has_positive_leading_coefficient(self, ring: QuadraticRing):
+        """The canonical associate has a > 0 (or a == 0 and b > 0), so integers come out positive and units as 1."""
+        rng = random.Random(9_000 + 10 * ring.D + ring.den)
+        assert ring.one._canonical_associate() == ring.one
+        assert (-ring.one)._canonical_associate() == ring.one
+        assert ring.from_obj(-6)._canonical_associate() == 6
+
+        for _ in range(300):
+            a, b = rng.randint(-60, 60), rng.randint(-60, 60)
+            if ring.den == 2 and (a ^ b) & 1:
+                b += 1
+            x = ring(a, b)
+            if not x:
+                continue
+
+            c = x._canonical_associate()
+            assert c.a > 0 or (c.a == 0 and c.b > 0)
+            assert c._canonical_associate() == c
+            for u in x.units:
+                assert (x * u)._canonical_associate() == c
+
+    @pytest.mark.parametrize(
+        ("ring", "in_region"),
+        [
+            (ZI, lambda a, b: a > 0 and b >= 0),  # the first quadrant
+            (ZE, lambda a, b: 0 <= b < a),  # 0 <= arg < 60 degrees, since z = a/2 + (b*sqrt(3)/2)*i
+            (Z1, lambda a, b: a > 0 and abs(b) <= a),  # split coordinates u = (a + b)/2 and v = (a - b)/2 both >= 0
+        ],
+        ids=["gaussian", "eisenstein", "split"],
+    )
+    def test_canonical_associate_region_with_extra_units(self, ring: QuadraticRing, in_region: Callable):
+        """With more units than +/-1, exactly one associate of each nonzero element is in a region, and that's it."""
+        for a, b in product(range(-12, 13), repeat=2):
+            if ring.den == 2 and (a ^ b) & 1:
+                continue
+            x = ring(a, b)
+            if not x:
+                continue
+
+            associates = {(w.a, w.b) for w in (x * u for u in x.units)}  # a set, since zero divisors can repeat
+            assert sum(1 for a2, b2 in associates if in_region(a2, b2)) == 1
+
+            c = x._canonical_associate()
+            assert in_region(c.a, c.b)
+
+    def test_eisenstein_canonical_associate_in_omega_basis(self):
+        """In the w-basis x + y*w, the first sextant 0 <= arg < 60 degrees is 0 <= y < x."""
+        for x, y in product(range(-9, 10), repeat=2):
+            z = eisensteinint(x, y)
+            if not z:
+                continue
+
+            c = z._canonical_associate()
+            assert 0 <= c.omega < c.real
 
     def test_units_are_units(self):
         """Every element in .units should be a unit."""
