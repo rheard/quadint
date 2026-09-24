@@ -269,6 +269,13 @@ def decompose_number(
     # Step 1: Factor n. This is the most time consuming step, especially on larger numbers. Avoid if possible
     n_int, factors = _factor_input(n)
 
+    # x^2 + d*y^2 is never negative, and it is only 0 at (0, 0), which is a trivial solution
+    if n_int <= 0:
+        if n_int < 0 or no_trivial_solutions or (check_count and check_count > 1):
+            return set()
+
+        return {(0, 0)}
+
     # Step 1.1: Sanitize d
     sf_d, y_scale = _squarefree_part_and_scale(d)
     if y_scale != 1:

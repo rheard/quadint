@@ -75,7 +75,7 @@ def _brute_force_eisenstein(
     no_trivial_solutions: bool,
 ) -> frozenset[tuple[int, int]]:
     """Brute-force canonical nonnegative pairs with a^2 - ab + b^2 = n."""
-    if n < 1:
+    if n < 0:
         return frozenset()
 
     found: set[tuple[int, int]] = set()
@@ -152,7 +152,7 @@ class TestEisensteinNumberDecomposition:
         """Verify small Eisenstein norm-form decompositions against brute force."""
         max_n = 500 if os.getenv("CI") else 2_000
 
-        for n in range(1, max_n + 1):
+        for n in range(max_n + 1):
             got = decompose_eisenstein_number(
                 n,
                 no_trivial_solutions=no_trivial_solutions,
@@ -192,6 +192,13 @@ class TestEisensteinNumberDecomposition:
             n,
             no_trivial_solutions=False,
         )
+
+    def test_zero_and_negative(self):
+        """The norm form is never negative, and it is only 0 at (0, 0), which is a trivial solution."""
+        assert decompose_eisenstein_number(0) == set()
+        assert decompose_eisenstein_number(0, no_trivial_solutions=False) == {(0, 0)}
+        assert decompose_eisenstein_number(0, check_count=2, no_trivial_solutions=False) == set()
+        assert decompose_eisenstein_number(-7, no_trivial_solutions=False) == set()
 
     def test_check_count(self):
         """Verify check_count can skip numbers whose predicted solution count is too small."""

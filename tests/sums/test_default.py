@@ -239,7 +239,7 @@ class TestNumberDecomposition:
         """Verify small numbers"""
         max_n = 10_000 if os.getenv("CI") else 50_000
 
-        for n in range(1, max_n + 1):
+        for n in range(max_n + 1):
             got = decompose_number(n)
             expect = brute_force_quadratic_form(n)
 
@@ -249,11 +249,19 @@ class TestNumberDecomposition:
         """Verify all solutions for small numbers"""
         max_n = 10_000 if os.getenv("CI") else 50_000
 
-        for n in range(1, max_n + 1):
+        for n in range(max_n + 1):
             got = decompose_number(n, no_trivial_solutions=False)
             expect = brute_force_quadratic_form(n, no_trivial_solutions=False)
 
             assert got == expect, f"Mismatch for n={n}: missing={expect - got}, extra={got - expect}"
+
+    @mark.parametrize("d", [1, 3, 12], ids=str)
+    def test_zero_and_negative(self, d: int):
+        """x**2 + d*y**2 is never negative, and it is only 0 at (0, 0), which is a trivial solution."""
+        assert decompose_number(0, d) == set()
+        assert decompose_number(0, d, no_trivial_solutions=False) == {(0, 0)}
+        assert decompose_number(0, d, check_count=2, no_trivial_solutions=False) == set()
+        assert decompose_number(-5, d, no_trivial_solutions=False) == set()
 
     def test_outside_range(self):
         """Verify large numbers"""

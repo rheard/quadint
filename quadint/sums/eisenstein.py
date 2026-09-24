@@ -111,8 +111,13 @@ def decompose_number(
         A set of canonical nonnegative pairs `(a, b)`.
     """
     n_int, factors = _factor_input(n)
-    if n_int < 1:
-        return set()
+
+    # a^2 - a*b + b^2 is never negative, and it is only 0 at (0, 0), which is a trivial solution
+    if n_int <= 0:
+        if n_int < 0 or no_trivial_solutions or (check_count and check_count > 1):
+            return set()
+
+        return {(0, 0)}
 
     base = eisensteinint(1, 0)
     split_parts: list[list[eisensteinint]] = []
