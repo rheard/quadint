@@ -7,7 +7,7 @@ from itertools import islice
 import pytest
 
 from quadint import Ideal, QuadraticRing
-from quadint.quad.ideal import IdealClass, _bezout_coefficients  # noqa: PLC2701
+from quadint.quad.ideal import IdealClass, _bezout_coefficients  # ruff: ignore[import-private-name]
 from tests.quad.test_rings import _rand_elem, ideal_prod
 
 ZN7 = QuadraticRing(-7)
@@ -513,7 +513,7 @@ class TestIdealMath:
                 for quadratic integers (the point of the library after all).
             So instead of getting all even numbers, we would get all even numbers a+bi (where a and b are both even).
         """
-        I = ZI.ideal(2)  # noqa: E741
+        I = ZI.ideal(2)  # ruff: ignore[ambiguous-variable-name]
 
         found_numbers = list(islice(I, 100))
 
@@ -522,7 +522,7 @@ class TestIdealMath:
 
     def test_multiples_3(self):
         """See above docstring"""
-        I = ZI.ideal(3)  # noqa: E741
+        I = ZI.ideal(3)  # ruff: ignore[ambiguous-variable-name]
 
         found_numbers = list(islice(I, 100))
 

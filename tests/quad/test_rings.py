@@ -15,7 +15,7 @@ import quadint
 from quadint import Ideal, QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
-from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # noqa: PLC2701
+from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # ruff: ignore[import-private-name]
 from tests.quad.test_int import QuadIntTests
 
 ZN19 = QuadraticRing(-19)
@@ -926,7 +926,7 @@ class TestClassNumber:
         ],
         ids=str,
     )
-    def test_class_number_is_one(self, D: int, den: int, expected: bool):  # noqa: FBT001
+    def test_class_number_is_one(self, D: int, den: int, expected: bool):  # ruff: ignore[boolean-type-hint-positional-argument]
         """Verify the class-number helper on a few known real quadratic discriminants."""
         assert (QuadraticRing(D, den).class_number == 1) is expected
 

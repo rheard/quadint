@@ -1161,6 +1161,6 @@ class QuadraticRing:
         return factors
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return True

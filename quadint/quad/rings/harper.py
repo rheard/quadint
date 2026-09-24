@@ -103,7 +103,7 @@ class Clark69Ring(RealNormEuclidRing):
 
         dd = self.den * self.den  # here dd=4
 
-        def B0_for_A(A: int) -> int:  # noqa: ARG001
+        def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return B0
 
         # Prefer any phi-reducing remainder; among those, minimize phi(w), then distance to (A0,B0).
@@ -468,7 +468,7 @@ class HarperRing(RealNormEuclidRing):
             ArithmeticError: TODO: Remove?
             NotImplementedError: If we were unable to find a quotient and remainder.
                 Shouldn't happen. If it does, please contact a developer. Preferably one smarter than me.
-        """  # noqa: DOC502 (raised by the shared hyperbola-branch search)
+        """  # ruff: ignore[docstring-extraneous-exception] (raised by the shared hyperbola-branch search)
         y_norm = abs(y)  # signed norm (may be negative for D>0)
         abs_y_norm = abs(y_norm)
         if abs_y_norm == 0:
@@ -504,7 +504,7 @@ class HarperRing(RealNormEuclidRing):
         A0 = _round_div_ties_away_from_zero(num_a, y_norm)
         B0 = _round_div_ties_away_from_zero(num_b, y_norm)
 
-        def B0_for_A(A: int) -> int:  # noqa: ARG001
+        def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return B0
 
         dd = self.den * self.den

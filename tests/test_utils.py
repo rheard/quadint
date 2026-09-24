@@ -1,6 +1,6 @@
 import pytest
 
-from quadint.utils import _is_squarefree  # noqa: PLC2701
+from quadint.utils import _is_squarefree  # ruff: ignore[import-private-name]
 
 
 @pytest.mark.parametrize(

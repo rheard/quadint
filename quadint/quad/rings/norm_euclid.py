@@ -108,7 +108,7 @@ class RealNormEuclidRing(QuadraticRing):
         dd = self.den**2
         threshold = abs_y_norm * abs_y_norm * dd
 
-        def B0_for_A(A: int) -> int:  # noqa: ARG001
+        def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return B0
 
         # Prefer any norm-reducing remainder; among those, minimize |N(r)| then distance to (A0,B0).

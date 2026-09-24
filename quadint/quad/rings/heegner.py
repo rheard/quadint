@@ -32,7 +32,7 @@ class HeegnerDen2Ring(CornacchiaRing):
         return x._make(0, self.den)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         # No, this is purely a sub-abstract base class that needs to be subclassed
         return False
@@ -44,7 +44,7 @@ class HeegnerSevenRing(HeegnerDen2Ring):
     RAMIFIED_PRIME = 7
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == -7 and den == 2
 
@@ -55,7 +55,7 @@ class HeegnerElevenRing(HeegnerDen2Ring):
     RAMIFIED_PRIME = 11
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == -11 and den == 2
 

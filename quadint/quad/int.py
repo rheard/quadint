@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import gcd, isqrt
-from typing import TYPE_CHECKING, ClassVar, Iterator  # noqa: UP035
+from typing import TYPE_CHECKING, ClassVar, Iterator  # ruff: ignore[deprecated-import]
 
 from sympy import factorint, isprime
 
@@ -223,7 +223,7 @@ class QuadInt:
 
     @property
     def basis_a(self) -> int:
-        """a in the basis vector"""  # noqa: D403
+        """a in the basis vector"""  # ruff: ignore[first-word-uncapitalized]
         (n00, n01), _ = self.INTERNAL_TO_BASIS
         den = self.INTERNAL_TO_BASIS_DEN
         x_num = n00 * self.a + n01 * self.b
@@ -232,7 +232,7 @@ class QuadInt:
 
     @property
     def basis_b(self) -> int:
-        """b in the basis vector"""  # noqa: D403
+        """b in the basis vector"""  # ruff: ignore[first-word-uncapitalized]
         _, (n10, n11) = self.INTERNAL_TO_BASIS
         den = self.INTERNAL_TO_BASIS_DEN
         y_num = n10 * self.a + n11 * self.b

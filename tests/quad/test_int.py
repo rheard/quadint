@@ -721,9 +721,9 @@ class TestComplex:
 
     def test_gaussian(self):
         """Gaussian integers should convert to complex."""
-        assert complex(complexint(3, 4)) == (3 + 4j)  # noqa: RUF069
-        assert complex(complexint(-1, 0)) == (-1 + 0j)  # noqa: RUF069
-        assert complex(complexint(0, -2)) == -2j  # noqa: RUF069
+        assert complex(complexint(3, 4)) == (3 + 4j)  # ruff: ignore[float-equality-comparison]
+        assert complex(complexint(-1, 0)) == (-1 + 0j)  # ruff: ignore[float-equality-comparison]
+        assert complex(complexint(0, -2)) == -2j  # ruff: ignore[float-equality-comparison]
 
     def test_non_gaussian_raises(self):
         """Non-Gaussian quadratic integers should raise TypeError."""
@@ -737,7 +737,7 @@ class TestComplex:
         """Complex -> complexint -> complex should roundtrip."""
         c = 3 + 7j
         x = complexint.DEFAULT_RING.from_obj(c)
-        assert complex(x) == c  # noqa: RUF069
+        assert complex(x) == c  # ruff: ignore[float-equality-comparison]
 
 
 class TestContent:

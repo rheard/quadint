@@ -21,7 +21,7 @@ class CornacchiaRing(RealNormEuclidRing):
     RAMIFIED_PRIME: ClassVar[int]
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         # No, this is purely a sub-abstract base class that needs to be subclassed
         return False
@@ -150,7 +150,7 @@ class GaussianRing(CornacchiaRing):
         return x._make(1, 1)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == -1 and den == 1
 
@@ -170,7 +170,7 @@ class SqrtMinusTwoRing(CornacchiaRing):
         return x._make(0, 1)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == -2 and den == 1
 
@@ -190,6 +190,6 @@ class EisensteinRing(CornacchiaRing):
         return x._make(3, 1)
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == -3 and den == 2

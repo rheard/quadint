@@ -30,7 +30,7 @@ class DualRing(QuadraticRing):
     SUPPORTS_DIVISION: ClassVar[bool] = True
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == 0
 
@@ -82,7 +82,7 @@ class SplitRing(QuadraticRing):
     SUPPORTS_DIVISION: ClassVar[bool] = True
 
     @classmethod
-    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # noqa: ARG003
+    def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
         """Should this class be used for the given values?"""
         return D == 1
 
@@ -103,7 +103,7 @@ class SplitRing(QuadraticRing):
         if v2 < 0:
             qv0 = -qv0
 
-        def B0_for_A(A: int) -> int:  # noqa: ARG001
+        def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return qv0
 
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
