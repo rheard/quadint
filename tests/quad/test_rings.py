@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import random
+import warnings
 
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from itertools import islice
@@ -1057,6 +1058,7 @@ class TestHarperAcceptOverride(RingTests):
         ("D", "den", "default_den"),
         [
             (0, 1, 1),
+            (1, 2, 2),  # the split ring (SplitRing's), which used to warn that 1 is not squarefree
             (-14, 1, 1),
             (-61, 2, 2),
             (14, 2, 1),  # wrong denominator for maximal order
@@ -1064,8 +1066,10 @@ class TestHarperAcceptOverride(RingTests):
         ids=str,
     )
     def test_accept_override_rejects_wrong_domain(self, D: int, den: int, default_den: int):
-        """HarperRing.accept_override should reject non-real or non-maximal inputs."""
-        assert HarperRing.accept_override(D, den, default_den) is False
+        """HarperRing.accept_override should reject non-field, non-real or non-maximal inputs, and quietly."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert HarperRing.accept_override(D, den, default_den) is False
 
     @pytest.mark.parametrize("D", [2, 7, 13], ids=str)
     def test_norm_euclidean_cases_use_direct_division(self, D: int):

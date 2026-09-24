@@ -223,8 +223,8 @@ class HarperRing(RealNormEuclidRing):
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:
         """Read the above docstring and comments to understand the logic in this method."""
-        # Harper-style only relevant for real quadratic maximal orders
-        if D <= 0 or den != default_den:
+        # Harper-style only relevant for real quadratic maximal orders (and D=1 is the split ring, not a field)
+        if D <= 1 or den != default_den:
             return False
 
         # Norm-Euclidean rings have a much cheaper direct division algorithm.
