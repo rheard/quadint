@@ -40,18 +40,15 @@ The first thing to know is that there is a deterministic algorithm to quickly fi
    1. If the exponent for this $p$ (the $k$ value) was 1 then $p$ can be removed entirely from the group.
    2. If $k$ was greater than 1, it should be decremented, and the remaining instances of $p$ in the factorization still need to undergo the following combinatorics.
 
-5. Now we need to use combinations of (`True`, `False`) of length $\sum k$ to drive the combinatorics going forward.
-       Python has a product method for this, or you can simply count up using binary numbers to `1<<sum(k)` and look at the bits of this counter.
+5. Now for the combinatorics. Each factor $p$ left is used $k$ times, and each time it can be either its "imaginary decomposition" $x+yi$ or the conjugate $x-yi$.
+       Multiplication does not care about order, so all that matters is how many of the $k$ copies are $x+yi$.
+       That leaves $k + 1$ options for each $p$: $(x+yi)^m (x-yi)^{k-m}$ for $m = 0, 1, \ldots, k$.
+       (Trying every sequence of $k$ true/false choices gives exactly the same products, just $2^k$ of them instead of $k + 1$, which gets slow fast for higher powers.)
 
-   For every possible combination of true/false called "choices":
+   For every combination of those options (Python has a product method for this):
 
    1. Start this solution with the base number.
-   2. For each factor $p$ left, one time for each exponent $k$:
-
-      1. Get the next "choice" (true/false).
-      2. Get the "imaginary decomposition" of the factor, either $x+yi$ if the choice was true or the conjugate $x-yi$ if the choice was false.
-      3. Multiply the total number by this either positive or negative imaginary decomposition.
-
+   2. For each factor $p$ left, multiply the total number by the option chosen for it.
    3. The real and imaginary part of the total number now constitute a solution for $x^2 + y^2 = n$! Amazing!!
 
       1. The numbers are then sorted so that $x < y$, and this is a solution that may or may not have been found already.

@@ -426,16 +426,25 @@ def decompose_number(
         representable[first_p] -= 1  # consume one occurrence as the fixed base
         base_quad *= p_ring_pairs[first_p][0]
 
+    # Each of a prime's k remaining factors is pi or conj(pi), and since multiplication commutes, their product only
+    #   depends on how many of them are pi. So the 2**k ways to choose give exactly the same products as the k + 1
+    #   powers pi**i * conj(pi)**(k - i), each just repeated many times over.
+    #   When conj(pi) is a unit times pi (a ramified prime), those are all unit multiples of pi**k, and _orbit already
+    #   tries every unit multiple of the total, so pi**k alone gives the same solutions.
+    choices_by_prime: list[list[QuadInt]] = []
+    for p, k in representable.items():
+        pi, pi_bar = p_ring_pairs[p]
+        if any(pi_bar == pi * u for u in pi.units):
+            choices_by_prime.append([pi**k])
+        else:
+            choices_by_prime.append([pi**i * pi_bar ** (k - i) for i in range(k + 1)])
+
     found: set[tuple[int, int]] = set()
 
-    total_slots = sum(representable.values())
-    for choices in product([0, 1], repeat=total_slots):  # runs once if repeat=0
+    for choices in product(*choices_by_prime):
         total = base_quad
-        choice_i = 0
-        for p, k in representable.items():
-            for _ in range(k):
-                total *= p_ring_pairs[p][choices[choice_i]]
-                choice_i += 1
+        for choice in choices:
+            total *= choice
 
         found |= _orbit(total, no_trivial_solutions=no_trivial_solutions)
 

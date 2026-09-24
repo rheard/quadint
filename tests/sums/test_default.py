@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from pytest import mark, raises
-from sympy import primerange
+from sympy import factorint, primerange
 
 import quadint.sums
 
@@ -289,6 +289,47 @@ class TestNumberDecomposition:
             got = decompose_number(n, no_trivial_solutions=False)
             expect = brute_force_quadratic_form(n, no_trivial_solutions=False)
             assert got == expect, f"Mismatch for n={n}: missing={expect - got}, extra={got - expect}"
+
+    @mark.parametrize(
+        "n",
+        [
+            5**61,
+            2**60 * 5,  # 2 ramifies, so it only has one option
+            2**40 * 3**10 * 5**12 * 13**9 * 17**6,
+        ],
+        ids=["5**61", "2**60 * 5", "mixed"],
+    )
+    def test_high_exponents_are_complete(self, n: int):
+        """
+        High prime powers should be quick (these used to take 2**60 or more combinations), and still complete.
+
+        They are far too big for brute force, so completeness is checked by count instead: x**2 + y**2 == n has
+            r2(n) == 4 * prod(e + 1 for each p**e exactly dividing n with p % 4 == 1) integer solutions
+            (when every p % 4 == 3 has an even exponent), and each canonical pair with 0 < x < y accounts for 8 of them.
+        """
+        got = decompose_number(n)
+
+        r2 = 4 * math.prod(e + 1 for p, e in factorint(n).items() if p % 4 == 1)
+        square = math.isqrt(n) ** 2 == n
+        twice_square = n % 2 == 0 and math.isqrt(n // 2) ** 2 == n // 2
+        assert len(got) == (r2 - 4 * square - 4 * twice_square) // 8
+        assert all(x * x + y * y == n and 0 < x < y for x, y in got)
+
+    @mark.parametrize(
+        ("n", "d"),
+        [
+            (7**8 * 3**3 * 13**2, 3),  # 7 and 13 split, 3 ramifies
+            (2**24 * 11**2 * 23, 7),  # 2 splits for d=7 (in den=2 coordinates)
+        ],
+        ids=str,
+    )
+    def test_high_exponents_general_d_match_bruteforce(self, n: int, d: int):
+        """High prime powers for other d should still find every solution."""
+        for no_trivial_solutions in (True, False):
+            got = decompose_number(n, d, no_trivial_solutions=no_trivial_solutions, warn=False)
+            expect = brute_force_quadratic_form(n, d, no_trivial_solutions=no_trivial_solutions)
+
+            assert got == expect, f"Mismatch for n={n}, d={d}: missing={expect - got}, extra={got - expect}"
 
     @mark.parametrize(
         ("n", "d", "expected"),
