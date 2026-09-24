@@ -446,7 +446,7 @@ class QuadInt:
         self.assert_same_ring(x)
         return self.ring.divides(x, self)
 
-    def xgcd(self, x: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
+    def xgcd(self, x: complex | int | float | QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
         """Extended gcd in Euclidean quadratic rings."""
         if isinstance(x, _OTHER_OP_TYPES):
             x = self._from_obj(x)
@@ -457,7 +457,7 @@ class QuadInt:
         self.assert_same_ring(x)
         return self.ring.xgcd(self, x)
 
-    def gcd(self, x: QuadInt) -> QuadInt:
+    def gcd(self, x: complex | int | float | QuadInt) -> QuadInt:
         """Greatest common divisor in Euclidean quadratic rings."""
         if isinstance(x, _OTHER_OP_TYPES):
             x = self._from_obj(x)

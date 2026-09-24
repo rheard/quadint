@@ -1429,6 +1429,28 @@ class TestGcdXgcd(QuadIntTests):
         with pytest.raises(NotImplementedError):
             _ = a.gcd(b)
 
+    @pytest.mark.parametrize(
+        ("a", "other"),
+        [
+            (complexint(6, 0), 4),
+            (complexint(6, 0), 4.0),
+            (complexint(6, 0), complex(4, 0)),
+            (Z2(6, 0), 4),
+            (ZE(12, 0), 4),
+        ],
+        ids=repr,
+    )
+    def test_gcd_and_xgcd_accept_plain_numbers(self, a: QuadInt, other: complex | int | float):
+        """Plain numbers should be coerced by gcd and xgcd, like inv_mod does (compiled builds used to reject them)."""
+        b = a.ring.from_obj(other)
+        expected = a.gcd(b)
+
+        assert a.gcd(other) == expected
+
+        g, s, t = a.xgcd(other)
+        assert g == expected
+        assert s * a + t * b == g
+
     def test_xgcd_rejects_zero_divisor_rings(self):
         """Verify xgcd is intentionally not implemented for D=0 (dual numbers)."""
         Q = QuadraticRing(0)
