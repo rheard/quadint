@@ -3,7 +3,7 @@ from __future__ import annotations
 from math import gcd as igcd
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import gcdex
+from sympy.polys.domains import ZZ
 
 from quadint.quad.rings.base import (
     QuadraticRing,
@@ -231,8 +231,8 @@ class SplitRing(QuadraticRing):
         u1, v1 = _split_uv(a)
         u2, v2 = _split_uv(b)
 
-        su, tu, gu = gcdex(u1, u2)
-        sv, tv, gv = gcdex(v1, v2)
+        su, tu, gu = ZZ.gcdex(u1, u2)
+        sv, tv, gv = ZZ.gcdex(v1, v2)
 
         # For den=2, no parity constraint on (u, v) — the ring IS Z*Z.
         return self._canonicalize_bezout_result(

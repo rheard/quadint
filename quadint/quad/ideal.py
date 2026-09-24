@@ -5,8 +5,9 @@ from itertools import product
 from math import gcd, isqrt, pi, prod, sqrt
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import Matrix, factorint, gcdex, primerange
+from sympy import Matrix, factorint, primerange
 from sympy.matrices.normalforms import hermite_normal_form
+from sympy.polys.domains import ZZ
 
 from quadint.quad.int import QuadInt
 from quadint.utils import _is_squarefree
@@ -74,7 +75,9 @@ def _combine_columns(u: list[int], v: list[int], row: int) -> tuple[list[int], l
     if a == 0:
         return v, u
 
-    s_raw, t_raw, g_raw = gcdex(a, b)
+    # ZZ.gcdex is sympy's integer xgcd. (The top-level gcdex gives the same answer, but builds polynomials first,
+    #   which makes it ~30x slower, and this runs a few times for every lattice solve.)
+    s_raw, t_raw, g_raw = ZZ.gcdex(a, b)
     s, t, g = int(s_raw), int(t_raw), int(g_raw)  # s*a + t*b == g
     a_g = a // g
     b_g = b // g
@@ -437,7 +440,7 @@ class Ideal:
                 s0 //= g
                 s1 //= g
 
-                u, v, d = gcdex(s0, s1)
+                u, v, d = ZZ.gcdex(s0, s1)
                 if int(d) != 1:
                     raise ArithmeticError("Failed to solve ideal quotient congruence")
 
