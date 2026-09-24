@@ -11,11 +11,14 @@ from pathlib import Path
 
 import pytest
 
+from sympy import isprime
+
 import quadint
 
 from quadint import Ideal, QuadInt, complexint, eisensteinint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
+from quadint.quad.rings.harper import _POST_HARDCODED  # ruff: ignore[import-private-name]
 from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # ruff: ignore[import-private-name]
 from tests.quad.test_int import QuadIntTests
 
@@ -584,6 +587,18 @@ class TestHarperPariHelpers:
 
         p1, p2 = out
         assert p1 != p2
+
+    @pytest.mark.parametrize(("D", "den"), sorted(_POST_HARDCODED), ids=str)
+    def test_post_hardcoded_generators_have_the_witness_norms(self, D: int, den: int):
+        """Each recorded pair of generators should have two different prime norms, the ring's witness primes."""
+        Q = QuadraticRing(D, den)
+        norms = {abs(abs(Q(a, b))) for a, b in _POST_HARDCODED[D, den]}
+        assert len(norms) == 2
+        assert all(isprime(n) for n in norms)
+
+        witness = HarperRing._HARDCODED[D, den]
+        if len(witness) == 4 and D != 14:  # D=14 keeps Harper's own generators, which use other primes
+            assert norms == {witness[0], witness[2]}
 
 
 class TestPrimeIdealDataOver:
