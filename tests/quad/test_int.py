@@ -504,6 +504,16 @@ class TestUnits:
             y = x * u
             assert y._canonical_associate() == base
 
+    @pytest.mark.parametrize("x", [Z2(7, 3), Z5(9, 1), QuadraticRing(57)(9, 3), QuadraticRing(14)(5, 1)], ids=str)
+    def test_canonical_associate_is_invariant_under_the_fundamental_unit(self, x: QuadInt):
+        """In real rings every power of the fundamental unit gives another associate, with the same canonical one."""
+        eps = x.ring.fundamental_unit()
+        base = x._canonical_associate()
+
+        for k in (1, 2, 5):
+            assert (x * eps**k)._canonical_associate() == base
+            assert (x * (~eps) ** k)._canonical_associate() == base
+
     def test_units_are_units(self):
         """Every element in .units should be a unit."""
         for ring in [ZI, ZE, Z1, Z2, ZN7]:

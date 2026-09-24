@@ -918,7 +918,7 @@ class QuadraticRing:
 
         Given a triple (g, s, t) produced for some fixed inputs a and b
         with s*a + t*b == g, replace g by its canonical associate and
-        multiply s and t by the same torsion unit so that the Bézout
+        multiply s and t by the same unit so that the Bézout
         identity remains exactly true.
 
         This is a post-processing helper for xgcd-style routines. It makes gcd
@@ -936,19 +936,21 @@ class QuadraticRing:
             still holds with the adjusted coefficients.
 
         Notes:
-            - Only torsion units are used to transport the identity.
+            - In real rings that unit can be any power of the fundamental unit, not just a torsion unit.
             - If g is already canonical, the input triple is returned unchanged.
+
+        Raises:
+            RuntimeError: If g's canonical associate somehow does not divide by g exactly.
         """
         g_can = g._canonical_associate()
-        if g_can != g:
-            for u in g.units:
-                if g * u == g_can:
-                    g = g_can
-                    s *= u
-                    t *= u
-                    break
+        if g_can == g:
+            return g, s, t
 
-        return g, s, t
+        u = self.exact_div(g_can, g)  # associates divide each other, and the quotient is the unit between them
+        if u is None:
+            raise RuntimeError("This should never happen but mypyc needs it.")
+
+        return g_can, s * u, t * u
 
     def _shrink_bezout(
         self,
@@ -983,8 +985,7 @@ class QuadraticRing:
         Notes:
             - This is only implemented for rings with divmod support (Euclidean-style division).
             - The gcd is only defined up to multiplication by a unit; this returns a stable
-              associate using QuadInt._canonical_associate() and adjusts (s,t) accordingly
-              using the (finite) torsion unit list.
+              associate using QuadInt._canonical_associate() and adjusts (s,t) by the same unit.
             - If a divmod quotient search comes up empty (it can in real rings), this finishes
               from a generator of the ideal (a, b) instead, which always exists since Euclidean rings are PIDs.
 
@@ -1004,26 +1005,10 @@ class QuadraticRing:
 
         # region Handle trivial cases
         if not a:
-            g = b._canonical_associate()
-            # Find unit u with u*b == g so that 0*a + u*b == g
-            t = self.one
-            if g != b:
-                for u in b.units:
-                    if u * b == g:
-                        t = u
-                        break
-            return g, self.zero, t
+            return self._canonicalize_bezout_result(b, self.zero, self.one)
 
         if not b:
-            g = a._canonical_associate()
-            # Find unit u with u*a == g so that u*a + 0*b == g
-            s = self.one
-            if g != a:
-                for u in a.units:
-                    if u * a == g:
-                        s = u
-                        break
-            return g, s, self.zero
+            return self._canonicalize_bezout_result(a, self.one, self.zero)
         # endregion
 
         if self._XGCD_COPRIME_SHORTCUT:
@@ -1067,7 +1052,13 @@ class QuadraticRing:
             return self._canonicalize_bezout_result(g, s, t)
 
         # r0 is a gcd up to a unit. Normalize it for stable output, and adjust (s,t).
-        return self._canonicalize_bezout_result(r0, s0, t0)
+        g, s, t = self._canonicalize_bezout_result(r0, s0, t0)
+        if self.D > 1 and g != r0 and g != -r0:
+            # In real rings that unit is usually a power of the fundamental unit, which can leave s and t far bigger
+            #   than Euclid did, so bring them back down
+            s, t = self._shrink_bezout(a, b, g, s, t)
+
+        return g, s, t
 
     def gcd(self, a: QuadInt, b: QuadInt) -> QuadInt:
         """
