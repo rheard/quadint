@@ -911,7 +911,7 @@ class QuadraticRing:
         return x._make(qa, qb)
 
     def divides(self, x: QuadInt, y: QuadInt) -> bool:
-        """Return True iff x | y in this ring."""
+        """Return True iff y | x in this ring, i.e. x is a multiple of y (the argument order of exact_div(x, y))."""
         return self.exact_div(x, y) is not None
 
     def _canonicalize_bezout_result(self, g: QuadInt, s: QuadInt, t: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
