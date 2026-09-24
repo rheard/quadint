@@ -1805,6 +1805,10 @@ class TestFactorDetail(QuadIntTests):
             ZN11(10, 2),
             ZN11(4, 56),
             ZN11(6, 0),
+            # Primes of norm 179, 317, 643, and 983, which decompose_prime used to miss (so these raised ValueError)
+            ZN11(21, 5),
+            ZN11(21, 5) * ZN11(27, -7),
+            ZN11(41, 9) * ZN11(51, 11) ** 2,
         ],
         ids=str,
     )

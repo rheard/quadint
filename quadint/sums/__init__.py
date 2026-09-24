@@ -175,42 +175,28 @@ def _decompose_prime_den2(p: int, d: int = 1) -> tuple[int, int]:
 
     # Pass 2: genuinely den=2 case, e.g. 11 in D=-19:
     #     5^2 + 19*1^2 = 4*11
-    target = 4 * p
-    roots = sqrt_mod(-d, p, all_roots=True)
-    if roots is None:
+    # This is Cornacchia's algorithm modified for A^2 + d*B^2 = 4p (Cohen, "A Course in Computational Algebraic
+    #   Number Theory", Algorithm 1.5.3): take the square root of -d mod p with the same parity as d, and run Euclid
+    #   on (2p, root) until the remainder is at most 2*sqrt(p). If there is a solution, that remainder is its A.
+    #   (Euclid on (p, root) finds most of them, but not all: 4*179 == 21^2 + 11*5^2 is missed that way.)
+    root = sqrt_mod(-d, p, all_roots=False)
+    if root is None:
         raise ValueError(f"Could not decompose {p!r} with d={d!r}, den={den!r}")
 
-    def _cornacchia_prime_remainder_candidates(p: int, root: int):
-        """Yield Euclidean remainders from (p, root), preserving the chosen root."""
-        a = p
-        b = int(root) % p
+    a, A = 2 * p, int(root)
+    if (A ^ d) & 1:
+        A = p - A
 
-        while True:
-            yield b
-            if not b:
-                return
-            a, b = b, a % b
+    limit = math.isqrt(4 * p)  # floor(2*sqrt(p))
+    while limit < A:
+        a, A = A, a % A
 
-    for root in roots:
-        for A in _cornacchia_prime_remainder_candidates(p, int(root)):
-            if target < A * A:
-                continue
+    B2, B2_r = divmod(4 * p - A * A, d)
+    B = math.isqrt(B2)
+    if B2_r or B * B != B2 or ((A ^ B) & 1):
+        raise ValueError(f"Could not decompose {p!r} with d={d!r}, den={den!r}")
 
-            rhs = target - A * A
-            B2, B2_r = divmod(rhs, d)
-            if B2_r:
-                continue
-
-            B = math.isqrt(B2)
-            if B * B != B2:
-                continue
-
-            if den == 2 and ((A ^ B) & 1):
-                continue
-
-            return abs(A), abs(B)
-
-    raise ValueError(f"Could not decompose {p!r} with d={d!r}, den={den!r}")
+    return A, B
 
 
 def decompose_prime(p: int, d: int = 1, den: int = 1) -> tuple[int, int]:

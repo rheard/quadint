@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from pytest import mark, raises
-from sympy import factorint, primerange
+from sympy import factorint, legendre_symbol, primerange
 
 import quadint.sums
 
@@ -206,6 +206,23 @@ class TestPrimeDecomposition:
         """D=-11, p=5 needs A=3; using only the smaller root representative misses it."""
         assert decompose_prime(5, 11, 2) == (3, 1)
 
+    @mark.parametrize(("p", "expected"), [(179, (21, 5)), (317, (27, 7)), (643, (41, 9)), (983, (51, 11))], ids=str)
+    def test_decompose_prime_den2_needs_euclid_on_2p(self, p: int, expected: tuple[int, int]):
+        """Euclid on (p, root) misses these (about 6% of split primes for d=11); running it on (2p, root) does not."""
+        assert decompose_prime(p, 11, 2) == expected
+
+    @mark.parametrize("d", [3, 7, 11, 19, 43, 67, 163], ids=str)
+    def test_decompose_prime_den2_every_split_prime(self, d: int):
+        """These rings have class number one, so every prime that splits or ramifies there is a norm."""
+        disc = -d  # d == 3 mod 4, so the ring of integers has discriminant -d
+        for p in primerange(2, 20_000):
+            splits = disc % 8 == 1 if p == 2 else disc % p == 0 or legendre_symbol(disc % p, p) == 1
+            if not splits:
+                continue
+
+            A, B = decompose_prime(p, d, 2)
+            assert A * A + d * B * B == 4 * p, f"Wrong decomposition of {p} with d={d}"
+
     def test_invalid_parameters(self):
         """Validate parameter guards for generalized decomposition."""
         with raises(ValueError, match="d must be >= 1"):
@@ -366,6 +383,17 @@ class TestNumberDecomposition:
             )
 
             assert got == expect, f"Mismatch for n={n}, d={d}: missing={expect - got}, extra={got - expect}"
+
+    def test_d11_matches_bruteforce(self):
+        """d=11 used to miss every solution involving a split prime like 179 (537 == 19**2 + 11*4**2 == 3 * 179)."""
+        assert decompose_number(537, 11, warn=False) == {(19, 4)}
+
+        for n in range(1, 3_001):
+            for no_trivial_solutions in (True, False):
+                got = decompose_number(n, 11, no_trivial_solutions=no_trivial_solutions, warn=False)
+                expect = brute_force_quadratic_form(n, 11, no_trivial_solutions=no_trivial_solutions)
+
+                assert got == expect, f"Mismatch for n={n}: missing={expect - got}, extra={got - expect}"
 
     def test_eisenstein_unit_orbit_for_pure_inert_square(self):
         """Pure inert-even factors still need unit orbits in D=-3."""
