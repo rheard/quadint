@@ -1050,9 +1050,6 @@ class QuadraticRing:
             #   and we can finish from that generator instead. Nothing was updated for the failed step,
             #   so u*r0 + v*r1 == g carries straight over to a and b.
             #
-            # For real rings, finding g solves a norm equation, which means factoring N(g).
-            #   That is why this is only a fallback, Euclid never has to factor anything.
-            #
             # Real rings go straight to the search, since principal_generator() would cache every ideal that
             #   a gcd-heavy caller ever makes. (All unit ideals are equal, so those only ever take one cache entry.)
             ideal = self.ideal(r0, r1)
