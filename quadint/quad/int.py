@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import gcd
+from math import gcd, isqrt
 from typing import TYPE_CHECKING, ClassVar, Iterator  # noqa: UP035
 
 from sympy import factorint, isprime
@@ -14,6 +14,22 @@ _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above wit
 def _key(w_: QuadInt) -> tuple[int, int, int, int, int]:
     """This is required (for now) as it appears that mypyc is having problems with sub-functions/lambdas"""
     return abs(abs(w_)), abs(w_.b), abs(w_.a), w_.a, w_.b
+
+
+def _compact_key(w_: QuadInt) -> tuple[int, int, int, int, int, int]:
+    """
+    Order the associates of a real quadratic integer, most compact first.
+
+    For w = (a + b*sqrt(D)) / den, the sum of its two embeddings' sizes is
+        |a + b*sqrt(D)|/den + |a - b*sqrt(D)|/den == 2*max(|a|, |b|*sqrt(D))/den, compared here through its square.
+        Along the associates w*unit**k that sum is convex in k, so walking downhill from anywhere finds the smallest.
+
+    Returns:
+        tuple: The sort key.
+    """
+    abs_a = abs(w_.a)
+    abs_b = abs(w_.b)
+    return max(w_.a * w_.a, w_.ring.D * w_.b * w_.b), max(abs_a, abs_b), abs_a, abs_b, w_.a, w_.b
 
 
 class QuadInt:
@@ -85,8 +101,8 @@ class QuadInt:
         Notes:
             This intentionally returns a finite subgroup only. In real quadratic rings
             (D >= 0), the full unit group is infinite; here we expose just the torsion
-            part (typically `{±1}` except for D=1) because it is what canonical-associate and
-            factorization normalization need.
+            part (typically `{±1}` except for D=1) because it is what factorization normalization needs.
+            (_canonical_associate also walks through powers of the fundamental unit.)
         """
         one = self.one
 
@@ -105,7 +121,37 @@ class QuadInt:
         return one, -one
 
     def _canonical_associate(self) -> QuadInt:
-        """Return canonical representative among associates for stable factor output."""
+        """
+        Return the canonical representative among this element's associates, for stable gcd and generator output.
+
+        Real rings have infinitely many units (every power of the fundamental unit), and there this walks
+            through them to the most compact associate (see _compact_key). Otherwise only the torsion units apply.
+
+        Returns:
+            QuadInt: The canonical associate.
+        """
+        D = self.ring.D
+        if D > 1 and self and isqrt(D) ** 2 != D:
+            # The size max(a**2, D*b**2) is strictly convex along self*unit**k (see _compact_key), so walk downhill.
+            #   At most one neighbor can tie with the smallest size, and _compact_key settles that tie and the sign.
+            unit = self.ring.fundamental_unit()
+            best = tied = self
+            size = max(self.a * self.a, D * self.b * self.b)
+            for step in (unit, ~unit):
+                while True:
+                    nxt = best * step
+                    nxt_size = max(nxt.a * nxt.a, D * nxt.b * nxt.b)
+                    if nxt_size < size:
+                        best = tied = nxt
+                        size = nxt_size
+                        continue
+
+                    if nxt_size == size:
+                        tied = nxt
+
+                    break
+
+            return min((best, -best, tied, -tied), key=_compact_key)
 
         best = self
         best_k = _key(self)

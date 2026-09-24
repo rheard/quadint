@@ -159,22 +159,6 @@ def _bezout_coefficients(ring: QuadraticRing, a: QuadInt, b: QuadInt, g: QuadInt
     return _from_coords(ring, coeffs[0], coeffs[1]), _from_coords(ring, coeffs[2], coeffs[3])
 
 
-def _key(z: QuadInt) -> tuple[int, int, int, int, int, int]:
-    """
-    Prefer compact, deterministic generators when several associates are available.
-
-    For a real quadratic z = (a + b*sqrt(D)) / den, the sum of its two embeddings' sizes is
-        |a + b*sqrt(D)|/den + |a - b*sqrt(D)|/den == 2*max(|a|, |b|*sqrt(D))/den, compared here through its square.
-        Along the associates z*unit**k that sum is convex in k, so walking downhill from anywhere finds the smallest.
-
-    Returns:
-        tuple: The sort key.
-    """
-    abs_z_a = abs(z.a)
-    abs_z_b = abs(z.b)
-    return (max(z.a * z.a, z.ring.D * z.b * z.b), max(abs_z_a, abs_z_b), abs_z_a, abs_z_b, z.a, z.b)
-
-
 class Ideal:
     """
     Integral ideal in a quadratic order.
@@ -302,7 +286,9 @@ class Ideal:
         ring = self.ring
         D = ring.D
         den = ring.den
-        unit = ring.fundamental_unit()  # (this also rejects square D, where theta is rational and none of this works)
+        sqrt_d = isqrt(D)
+        if sqrt_d * sqrt_d == D:
+            raise NotImplementedError("principal generators need a nonsquare D, otherwise theta is rational")
 
         a, b, c = self.hnf
         m, z = a // c, b // c
@@ -316,7 +302,6 @@ class Ideal:
         #   [Q0, sqrt(D) - P0], which is why P0 is negated here, so that lattice is J itself (doubled when den=2).
         P, Q = (-z, m) if den == 1 else (-2 * z - 1, 2 * m)
         g_prev, g, b_prev, b_cur = -P, Q, 1, 0  # G_{-2}, G_{-1}, B_{-2}, B_{-1}
-        sqrt_d = isqrt(D)
         seen: set[tuple[int, int]] = set()
 
         while abs(Q) != den:
@@ -330,19 +315,8 @@ class Ideal:
             g_prev, g = g, q * g + g_prev
             b_prev, b_cur = b_cur, q * b_cur + b_prev
 
-        # Any associate is a generator, so walk through units to the most compact one (see _key)
-        alpha = ring.DEFAULT_KLASS(c * g, c * b_cur, ring, skip_basis=True)
-        alpha = min((alpha, -alpha), key=_key)
-        for step in (unit, ~unit):
-            while True:
-                nxt = alpha * step
-                nxt = min((nxt, -nxt), key=_key)
-                if _key(nxt) >= _key(alpha):
-                    break
-
-                alpha = nxt
-
-        return alpha
+        # Any associate is a generator, and the canonical one is the most compact
+        return ring.DEFAULT_KLASS(c * g, c * b_cur, ring, skip_basis=True)._canonical_associate()
 
     def is_principal(self) -> bool:
         """Return True iff this ideal is principal."""

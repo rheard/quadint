@@ -1455,6 +1455,19 @@ class TestGcdXgcd(QuadIntTests):
         assert g2 == a._canonical_associate()
         assert z.gcd(a) == g2
 
+    def test_xgcd_trivial_cases_use_the_most_compact_associate(self):
+        """With a zero argument in a real ring, xgcd should still return the most compact associate, and keep Bezout."""
+        a = Z2(7, 3) * Z2.fundamental_unit() ** 5
+        compact = Z2.ideal(a).principal_generator()
+
+        g1, s1, _ = a.xgcd(Z2.zero)
+        assert g1 == compact
+        assert s1 * a == g1
+
+        g2, _, t2 = Z2.zero.xgcd(a)
+        assert g2 == compact
+        assert t2 * a == g2
+
     @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 5, 57, 73, 69], ids=str)
     def test_xgcd_bezout_and_divisibility_random(self, D: int):
         """
@@ -1494,6 +1507,28 @@ class TestGcdXgcd(QuadIntTests):
                 g2 = b.gcd(a)
                 assert g.divides(g2)
                 assert g2.divides(g)
+
+    @pytest.mark.parametrize("D", [2, 5, 13, 57, 73], ids=str)
+    def test_real_gcd_is_the_most_compact_associate(self, D: int):
+        """
+        Real rings have infinitely many units, but gcd should still settle on one associate, the most compact one.
+
+        So it should match the ideal's generator, and not depend on the order of its inputs.
+        """
+        Q = QuadraticRing(D)
+        rng = random.Random(4_000 + D)
+
+        for _ in range(25):
+            c = _rand_elem(rng, Q, 60)
+            a = c * _rand_elem(rng, Q, 5000)
+            b = c * _rand_elem(rng, Q, 5000)
+            if not (a and b):
+                continue
+
+            g = a.gcd(b)
+            assert g == b.gcd(a)
+            if Q.ideal(g).norm > 1:
+                assert g == Q.ideal(a, b).principal_generator()
 
     @pytest.mark.parametrize(
         ("D", "xa", "xb", "ya", "yb"),
