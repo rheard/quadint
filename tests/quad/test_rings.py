@@ -15,7 +15,7 @@ import quadint
 from quadint import Ideal, QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
-from quadint.quad.rings.harper import _hyperbola_branch_centers  # noqa: PLC2701
+from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # noqa: PLC2701
 from tests.quad.test_int import QuadIntTests
 
 ZN19 = QuadraticRing(-19)
@@ -1499,12 +1499,7 @@ class TestGcdXgcd(QuadIntTests):
         ("D", "xa", "xb", "ya", "yb"),
         [
             # Plain Euclid gives up on every one of these, because a quotient search finds nothing that reduces phi.
-            #   That happens in norm-Euclidean rings too, when the good quotient is outside the local search area.
-            (57, 32, -58, -22, 32),  # coprime
-            (57, 56, -24, -29, -49),  # gcd has norm 4
-            (73, -59, 1, 41, -57),  # coprime
-            (73, -8, 16, -59, -9),  # gcd has norm 4
-            # In Harper rings, coprime pairs never reach Euclid (the lattice check catches them first)
+            #   In Harper rings, coprime pairs never reach Euclid (the lattice check catches them first)
             (14, 55, 37, 36, -34),  # coprime
             (14, 6, -12, 33, 39),  # gcd has norm 45
             (14, -189, -243, 224, 9),  # gcd has norm 217

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 
 from functools import cache
-from math import gcd, isqrt
+from math import gcd
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from sympy import sieve
@@ -20,40 +20,6 @@ from quadint.utils import _is_squarefree
 
 if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
-
-
-def _hyperbola_branch_centers(num_b: int, da: int, y_norm: int, D: int) -> tuple[int, int]:
-    """
-    Return the integers nearest to (num_b - t) / y_norm and (num_b + t) / y_norm, where t = |da| / sqrt(D).
-
-    For a fixed A in HarperRing.divmod, these are the two B values where the hyperbola branches db = +/- t
-        are crossed (with db = B*y_norm - num_b). Floats lose precision past 2**53 and overflow past ~1e308,
-        so this only uses integer arithmetic, with isqrt handling the square root exactly.
-
-    Returns:
-        tuple[int, int]: The two rounded B coordinates, in no particular order.
-            Ties round up, but a tie needs t to be rational, which (for non-square D) only happens when da == 0.
-    """
-    if y_norm < 0:
-        # (num_b -/+ t) / y_norm == (-num_b +/- t) / -y_norm, so this is the same pair of values
-        num_b, y_norm = -num_b, -y_norm
-
-    # The nearest integer to v = (num_b + u) / y_norm is floor(v + 1/2), which is
-    #
-    #     floor((2*num_b + y_norm + 2*u) / (2*y_norm))
-    #
-    # For integers m and k > 0, floor((m + w) / k) == (m + floor(w)) // k for ANY real w,
-    #   so with u = +/- t all we need are floor(2t) and floor(-2t) == -ceil(2t), which isqrt gives exactly.
-    m = 2 * num_b + y_norm
-    k = 2 * y_norm
-
-    q, rem = divmod(4 * da * da, D)
-    floor_2t = isqrt(q)  # floor(sqrt(floor(z))) == floor(sqrt(z))
-
-    # 2t is only an integer when 4*da**2 / D is a perfect square
-    ceil_2t = floor_2t if rem == 0 and floor_2t * floor_2t == q else floor_2t + 1
-
-    return (m - ceil_2t) // k, (m + floor_2t) // k
 
 
 class Clark69Ring(RealNormEuclidRing):
@@ -181,9 +147,7 @@ class Clark69Ring(RealNormEuclidRing):
                 r = x - q * y
                 return q, r
 
-        raise NotImplementedError(
-            f"No phi-reducing quotient found for D={self.D}, den={self.den} within search radii",
-        )
+        return self._divmod_on_branches(x, y, search, num_a, num_b, y_norm)
 
 
 class HarperRing(RealNormEuclidRing):
@@ -492,7 +456,7 @@ class HarperRing(RealNormEuclidRing):
         """
         Practical Harper-style division search.
 
-        This reuses the local lattice search used in RealNormEuclidRing / Clark69Ring,
+        This reuses the local lattice search and hyperbola-branch fallback of RealNormEuclidRing,
         but scores candidates with a weighted norm heuristic based on an admissible-pair
         witness (when available). Empirical validation via tests is essential.
 
@@ -504,7 +468,7 @@ class HarperRing(RealNormEuclidRing):
             ArithmeticError: TODO: Remove?
             NotImplementedError: If we were unable to find a quotient and remainder.
                 Shouldn't happen. If it does, please contact a developer. Preferably one smarter than me.
-        """
+        """  # noqa: DOC502 (raised by the shared hyperbola-branch search)
         y_norm = abs(y)  # signed norm (may be negative for D>0)
         abs_y_norm = abs(y_norm)
         if abs_y_norm == 0:
@@ -588,118 +552,7 @@ class HarperRing(RealNormEuclidRing):
                 r = x - q * y
                 return q, r
 
-        # Branch-aware fallback for real quadratic indefinite norm.
-        # For fixed A, small |da^2 - D*db^2| tends to occur near db ~= +/- |da|/sqrt(D),
-        # which may correspond to B far away from the naive center B0.
-        #   These branch centers are computed with exact integer math (see _hyperbola_branch_centers),
-        #   floats would overflow on large inputs.
-        D = self.D
-        best_a, best_b = search.best_ab
-        best_q: QuadInt | None = None
-        best_r: QuadInt | None = None
-
-        phi = self.phi
-        make = x._make
-        den = self.den
-
-        def consider(A: int, B: int) -> None:
-            """Score one lattice candidate (A,B) exactly once."""
-            nonlocal best_a, best_b, best_score, best_q, best_r
-
-            if den == 2 and ((A ^ B) & 1):
-                return
-
-            if witness is not None:
-                s = score_for_AB(A, B)
-                if best_score is None or s < best_score:
-                    best_score = s
-                    best_a = A
-                    best_b = B
-                return
-
-            q = make(A, B)
-            r = x - q * y
-            pr = phi(r)
-            dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
-            s = (0 if pr < phi_y else 1, pr, dist2)
-
-            if best_score is None or s < best_score:
-                best_score = s
-                best_a = A
-                best_b = B
-                best_q = q
-                best_r = r
-
-        def has_reducing_best() -> bool:
-            return best_score is not None and best_score[0] == 0
-
-        @cache
-        def _candidate_Bs_for_A(A: int) -> tuple[int, ...]:
-            """Generate a small cached set of promising B values for this A."""
-            da = A * y_norm - num_a
-            cands: set[int] = set()
-
-            if den == 1:
-                # The local search already checked the center. In the branch pass
-                # for indefinite norm forms, only the two hyperbola branches matter.
-                for Bc in _hyperbola_branch_centers(num_b, da, y_norm, D):
-                    cands.update(Bc + dB for dB in (-1, 0, 1))
-
-                return tuple(cands)
-
-            def add_with_parity(Bcand: int):
-                # den==2 parity constraint: A ≡ B (mod 2)
-                if ((A ^ Bcand) & 1) == 0:
-                    cands.add(Bcand)
-                else:
-                    cands.add(Bcand - 1)
-                    cands.add(Bcand + 1)
-
-            # Center-ish values (B0 is also the midpoint, round(num_b / y_norm))
-            for dB in range(-3, 4):
-                add_with_parity(B0 + dB)
-
-            # Hyperbola branch targets: db ~= +/- |da| / sqrt(D)
-            # where db = B*y_norm - num_b
-            for Bc in _hyperbola_branch_centers(num_b, da, y_norm, D):
-                for dB in range(-4, 5):
-                    add_with_parity(Bc + dB)
-
-            return tuple(cands)
-
-        prev_branch_rad = -1
-
-        for rad in (64, 128, 256, 512, 1024, 2048, 4096, 65536):
-            a_ranges: tuple[range, ...]
-            if prev_branch_rad < 0:
-                # First pass: scan full A range once
-                a_ranges = (range(A0 - rad, A0 + rad + 1),)
-            else:
-                # Later passes: scan only the new A annulus
-                a_ranges = (
-                    range(A0 - rad, A0 - prev_branch_rad),
-                    range(A0 + prev_branch_rad + 1, A0 + rad + 1),
-                )
-
-            for a_range in a_ranges:
-                for A in a_range:
-                    for B in _candidate_Bs_for_A(A):
-                        consider(A, B)
-
-            prev_branch_rad = rad
-
-            if has_reducing_best():
-                if best_q is not None and best_r is not None:
-                    return best_q, best_r
-
-                q = make(best_a, best_b)
-                r = x - q * y
-                return q, r
-
-        raise NotImplementedError(
-            f"No Harper-style phi-reducing quotient found for D={self.D}, den={self.den} "
-            "within search radii; expand radius or refine weighted-phi construction",
-        )
+        return self._divmod_on_branches(x, y, search, num_a, num_b, y_norm)
 
 
 # While I've defined principal generators for all not-norm-Euclidean Euclidean fields with D<100 here,
