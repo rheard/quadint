@@ -399,7 +399,7 @@ class QuadInt:
             other = self._from_obj(other)
 
         if not isinstance(other, QuadInt):
-            raise NotImplementedError
+            return NotImplemented
 
         self.assert_same_ring(other)
         return self.ring.divmod(self, other)
@@ -422,8 +422,9 @@ class QuadInt:
         return NotImplemented
 
     def __floordiv__(self, other: complex | int | float | QuadInt):
-        q, _ = divmod(self, other)
-        return q
+        # Not divmod(self, other), so an unsupported other gets its own __rfloordiv__ and a TypeError naming //
+        qr = self.__divmod__(other)
+        return qr if qr is NotImplemented else qr[0]
 
     def __rfloordiv__(self, other: int | float | complex):
         if isinstance(other, _OTHER_OP_TYPES):
@@ -433,8 +434,8 @@ class QuadInt:
         return NotImplemented
 
     def __mod__(self, other: complex | int | float | QuadInt):
-        _, r = divmod(self, other)
-        return r
+        qr = self.__divmod__(other)
+        return qr if qr is NotImplemented else qr[1]
 
     def __rmod__(self, other: int | float | complex):
         if isinstance(other, _OTHER_OP_TYPES):
@@ -449,7 +450,7 @@ class QuadInt:
             divisor = self._from_obj(divisor)
 
         if not isinstance(divisor, QuadInt):
-            raise NotImplementedError
+            raise TypeError(f"unsupported type for exact_div: {type(divisor).__name__!r}")
 
         self.assert_same_ring(divisor)
         return self.ring.exact_div(self, divisor)
@@ -460,7 +461,7 @@ class QuadInt:
             x = self._from_obj(x)
 
         if not isinstance(x, QuadInt):
-            raise NotImplementedError
+            raise TypeError(f"unsupported type for divides: {type(x).__name__!r}")
 
         self.assert_same_ring(x)
         return self.ring.divides(x, self)
@@ -471,7 +472,7 @@ class QuadInt:
             x = self._from_obj(x)
 
         if not isinstance(x, QuadInt):
-            raise NotImplementedError
+            raise TypeError(f"unsupported type for xgcd: {type(x).__name__!r}")
 
         self.assert_same_ring(x)
         return self.ring.xgcd(self, x)
@@ -482,7 +483,7 @@ class QuadInt:
             x = self._from_obj(x)
 
         if not isinstance(x, QuadInt):
-            raise NotImplementedError
+            raise TypeError(f"unsupported type for gcd: {type(x).__name__!r}")
 
         self.assert_same_ring(x)
         return self.ring.gcd(self, x)
@@ -493,7 +494,7 @@ class QuadInt:
             mod = self._from_obj(mod)
 
         if not isinstance(mod, QuadInt):
-            raise NotImplementedError
+            raise TypeError(f"unsupported type for inv_mod: {type(mod).__name__!r}")
 
         self.assert_same_ring(mod)
         return self.ring.inv_mod(self, mod)

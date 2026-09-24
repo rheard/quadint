@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 import os
 import random
 
@@ -316,6 +317,18 @@ class TestDiv(QuadIntTests):
 
         with pytest.raises(NotImplementedError):
             _ = mul_int / a_int
+
+    def test_unsupported_types_raise_type_error(self):
+        """An unsupported operand type should raise TypeError (as it does for int), not NotImplementedError."""
+        x = ZI(3, 4)
+
+        for op in (operator.floordiv, operator.mod, operator.truediv, divmod):
+            with pytest.raises(TypeError):
+                op(x, "a")
+
+        for method in (x.exact_div, x.divides, x.gcd, x.xgcd, x.inv_mod):
+            with pytest.raises(TypeError):
+                method("a")
 
     def test_pow_mod_matches_pow_then_mod_gaussian(self):
         """pow(x, e, m) should match (x**e) % m in Gaussian integers."""

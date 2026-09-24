@@ -1412,11 +1412,7 @@ class TestExactDivAndDivides(QuadIntTests):
         pytest.skip("No den=2 parity-mismatch witness found in the search window (unexpected).")
 
     def test_exact_div_zero_norm_divisor_not_supported(self):
-        """
-        In rings with zero divisors (DualRing D=0, SplitRing D=1), exact_div should reject
-        divisors with norm 0 (currently NotImplementedError in QuadraticRing.exact_div).
-        """
-        # Dual numbers: epsilon has a=0 => norm 0
+        """In the dual ring, exact_div still rejects a nonzero divisor of norm 0 like epsilon (not implemented yet)."""
         Q0 = QuadraticRing(0)
         x0 = Q0(5, 7)
         eps = Q0(0, 1)
@@ -1424,13 +1420,17 @@ class TestExactDivAndDivides(QuadIntTests):
         with pytest.raises(NotImplementedError):
             _ = x0.exact_div(eps)
 
-        # Split-complex: a=±b => norm 0
-        Q1 = QuadraticRing(1)  # default den=2
-        x1 = Q1(6, 2)
-        z = Q1(0, 0)
-        assert abs(z) == 0
-        with pytest.raises(NotImplementedError):
-            _ = x1.exact_div(z)
+    @pytest.mark.parametrize("Q", [ZI, ZE, ZN5, Z2, QuadraticRing(0), Z1, QuadraticRing(1, 1)], ids=str)
+    def test_division_by_zero(self, Q: QuadraticRing):
+        """exact_div by 0 should raise ZeroDivisionError, and 0 should divide only 0 (while everything divides 0)."""
+        x = Q.one + Q.one
+
+        with pytest.raises(ZeroDivisionError):
+            _ = x.exact_div(Q.zero)
+
+        assert Q.zero.divides(x) is False
+        assert Q.zero.divides(Q.zero) is True
+        assert x.divides(Q.zero) is True
 
 
 class TestGcdXgcd(QuadIntTests):

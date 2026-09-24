@@ -880,10 +880,17 @@ class QuadraticRing:
 
         Returns:
             QuadInt: Solely the quotient if the remainder is 0, else None.
+
+        Raises:
+            ZeroDivisionError: If y is 0.
+            NotImplementedError: If y is some other element of norm 0 (a zero divisor, as in the dual ring).
         """
+        if not y:
+            raise ZeroDivisionError("division by zero")
+
         N = abs(y)  # signed norm
         if N == 0:
-            # This happens in zero-divisor rings (D=0 dual, D=1 split) and for zero divisors.
+            # A nonzero zero divisor: the dual ring (D=0) and square D have these. (SplitRing has its own exact_div.)
             # TODO: Divisibility is still meaningful there, but needs a different solver.
             raise NotImplementedError
 
@@ -912,6 +919,9 @@ class QuadraticRing:
 
     def divides(self, x: QuadInt, y: QuadInt) -> bool:
         """Return True iff y | x in this ring, i.e. x is a multiple of y (the argument order of exact_div(x, y))."""
+        if not y:
+            return not x  # 0 is only a divisor of 0
+
         return self.exact_div(x, y) is not None
 
     def _canonicalize_bezout_result(self, g: QuadInt, s: QuadInt, t: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:

@@ -348,9 +348,9 @@ class TestExactDiv(SplitIntTests):
                 assert (q is not None) is (x in multiples)
                 assert q is None or q * y == x
 
-    def test_exact_div_zero_raises_not_implemented(self):
-        """Division by literal zero is currently unsupported by exact_div."""
-        with pytest.raises(NotImplementedError):
+    def test_exact_div_by_zero_raises(self):
+        """Division by literal zero should raise ZeroDivisionError."""
+        with pytest.raises(ZeroDivisionError):
             _ = self.a_int.exact_div(splitint(0, 0))
 
     def test_exact_div_rejects_parity_mismatch_quotient(self):

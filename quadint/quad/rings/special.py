@@ -147,12 +147,15 @@ class SplitRing(QuadraticRing):
 
         Returns:
             QuadInt | None: A quotient q with x == q*y, or None if there is none.
+
+        Raises:
+            ZeroDivisionError: If y is 0.
         """
         u1, v1 = _split_uv(x)
         u2, v2 = _split_uv(y)
 
         if u2 == 0 and v2 == 0:
-            raise NotImplementedError
+            raise ZeroDivisionError("division by zero")
 
         if u2 == 0 or v2 == 0:
             # Taking the free component equal to the other one keeps the den=1 parity rule (u == v mod 2),
