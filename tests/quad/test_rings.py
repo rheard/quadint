@@ -1490,7 +1490,7 @@ class TestGcdXgcd(QuadIntTests):
         assert g2 == compact
         assert t2 * a == g2
 
-    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 5, 57, 73, 69], ids=str)
+    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 5, 57, 73, 69, 14, 23, 83, 94], ids=str)
     def test_xgcd_bezout_and_divisibility_random(self, D: int):
         """
         Property test:
@@ -1556,7 +1556,7 @@ class TestGcdXgcd(QuadIntTests):
         ("D", "xa", "xb", "ya", "yb"),
         [
             # Plain Euclid gives up on every one of these, because a quotient search finds nothing that reduces phi.
-            #   In Harper rings, coprime pairs never reach Euclid (the lattice check catches them first)
+            #   (xgcd in Harper rings no longer runs Euclid at all, it goes straight to the ideal (a, b))
             (14, 55, 37, 36, -34),  # coprime
             (14, 6, -12, 33, 39),  # gcd has norm 45
             (14, -189, -243, 224, 9),  # gcd has norm 217
@@ -1585,6 +1585,34 @@ class TestGcdXgcd(QuadIntTests):
         input_bits = max(abs(c) for z in (a, b) for c in (z.a, z.b)).bit_length()
         coeff_bits = max(abs(c) for z in (s, t) for c in (z.a, z.b)).bit_length()
         assert coeff_bits <= 2 * input_bits + 8
+
+    @pytest.mark.parametrize("D", [14, 62, 83], ids=str)
+    def test_harper_xgcd_with_a_shared_factor(self, D: int):
+        """
+        Harper xgcd should handle inputs sharing a factor, which used to cost Euclid seconds per pair.
+
+        The gcd has to generate the ideal (a, b), which here is (c) times the ideal of the cofactors.
+        """
+        Q = QuadraticRing(D)
+        rng = random.Random(9_000 + D)
+
+        for _ in range(10):
+            c = _rand_elem(rng, Q, 1_000)
+            a = c * _rand_elem(rng, Q, 2**64)
+            b = c * _rand_elem(rng, Q, 2**64)
+            if not (c and a and b):
+                continue
+
+            g, s, t = a.xgcd(b)
+
+            assert s * a + t * b == g
+            assert Q.ideal(g) == Q.ideal(a, b)
+            assert c.divides(g)
+            assert g == g._canonical_associate()
+
+            input_bits = max(abs(v) for z in (a, b) for v in (z.a, z.b)).bit_length()
+            coeff_bits = max(abs(v) for z in (s, t) for v in (z.a, z.b)).bit_length()
+            assert coeff_bits <= 2 * input_bits + 8
 
     @pytest.mark.parametrize("Q", [ZI, ZE, Z5], ids=str)
     def test_gcd_contains_common_factor(self, Q: QuadraticRing):

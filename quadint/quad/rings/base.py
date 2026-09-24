@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 
+from contextlib import suppress
 from dataclasses import dataclass
 from itertools import count
 from math import isqrt, prod
@@ -385,8 +386,8 @@ class QuadraticRing:
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
     SUPPORTS_FACTORIZATION: ClassVar[bool] = False
-    # Have xgcd check whether 1 is in the ideal (a, b) before running Euclid. Only worth it where Euclid is slow.
-    _XGCD_COPRIME_SHORTCUT: ClassVar[bool] = False
+    # Have xgcd skip Euclid, and take the gcd from a generator of the ideal (a, b). Only worth it where Euclid is slow.
+    _XGCD_FROM_IDEAL: ClassVar[bool] = False
     _CACHE: ClassVar[dict[tuple[int, int], QuadraticRing]] = {}
 
     D: int
@@ -986,14 +987,15 @@ class QuadraticRing:
             - This is only implemented for rings with divmod support (Euclidean-style division).
             - The gcd is only defined up to multiplication by a unit; this returns a stable
               associate using QuadInt._canonical_associate() and adjusts (s,t) by the same unit.
-            - If a divmod quotient search comes up empty (it can in real rings), this finishes
-              from a generator of the ideal (a, b) instead, which always exists since Euclidean rings are PIDs.
+            - Rings whose quotients are slow searches (_XGCD_FROM_IDEAL) skip Euclid, and a quotient search can also
+              come up empty in real rings. Either way this finishes from a generator of the ideal (a, b) instead,
+              which always exists since Euclidean rings are PIDs.
 
         Returns:
             (g, s, t): such that s*a + t*b == g
 
         Raises:
-            ArithmeticError: If Euclid had to give up and (a, b) turned out not to be principal,
+            ArithmeticError: If Euclid was skipped or gave up and (a, b) turned out not to be principal,
                 which would mean this ring is not really Euclidean.
         """
         # TODO: For now: avoid the zero-divisor rings (dual), where "gcd" semantics differ.
@@ -1011,33 +1013,26 @@ class QuadraticRing:
             return self._canonicalize_bezout_result(a, self.one, self.zero)
         # endregion
 
-        if self._XGCD_COPRIME_SHORTCUT:
-            # Most inputs are coprime, and 1 is in the lattice for (a, b) exactly when they are.
-            #   That check is cheap, and needs no generator search, so it can skip a slow Euclid entirely.
-            coprime = _bezout_coefficients(self, a, b, self.one)
-            if coprime is not None:
-                s, t = coprime
-                s, t = self._shrink_bezout(a, b, self.one, s, t)
-                return self._canonicalize_bezout_result(self.one, s, t)
-
         r0, r1 = a, b
         s0, s1 = self.one, self.zero
         t0, t1 = self.zero, self.one
 
-        try:
-            while r1:
-                q, r = self.divmod(
-                    r0,
-                    r1,
-                )
-                r0, r1 = r1, r
-                s0, s1 = s1, s0 - q * s1
-                t0, t1 = t1, t0 - q * t1
-        except NotImplementedError as exc:
-            # The quotient search can come up empty in real rings, where the norm is indefinite and a good quotient
-            #   may be far away from x/y. But every Euclidean ring is a PID, so (r0, r1) == (a, b) == (g) for some g,
-            #   and we can finish from that generator instead. Nothing was updated for the failed step,
-            #   so u*r0 + v*r1 == g carries straight over to a and b.
+        if not self._XGCD_FROM_IDEAL:
+            # A quotient search can come up empty in real rings, where the norm is indefinite and a good quotient
+            #   may be far away from x/y. Nothing is updated for the failed step, so this just finishes from the ideal.
+            with suppress(NotImplementedError):
+                while r1:
+                    q, r = self.divmod(
+                        r0,
+                        r1,
+                    )
+                    r0, r1 = r1, r
+                    s0, s1 = s1, s0 - q * s1
+                    t0, t1 = t1, t0 - q * t1
+
+        if r1:
+            # Euclid was skipped or gave up. But every Euclidean ring is a PID, so (r0, r1) == (a, b) == (g) for some g,
+            #   and u*r0 + v*r1 == g carries straight over to a and b.
             #
             # Real rings go straight to the search, since principal_generator() would cache every ideal that
             #   a gcd-heavy caller ever makes. (All unit ideals are equal, so those only ever take one cache entry.)
@@ -1045,7 +1040,7 @@ class QuadraticRing:
             g = ideal._principal_generator_real() if self.D > 0 and ideal.norm > 1 else ideal.principal_generator()
             bezout = None if g is None else _bezout_coefficients(self, r0, r1, g)
             if g is None or bezout is None:
-                raise ArithmeticError(f"({r0}, {r1}) is not a principal ideal, so this ring is not Euclidean") from exc
+                raise ArithmeticError(f"({r0}, {r1}) is not a principal ideal, so this ring is not Euclidean")
 
             u, v = bezout
             s, t = self._shrink_bezout(a, b, g, u * s0 + v * s1, u * t0 + v * t1)

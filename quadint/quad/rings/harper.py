@@ -174,8 +174,9 @@ class HarperRing(RealNormEuclidRing):
 
     SUPPORTS_DIVISION = True  # once divmod is implemented
 
-    # Every quotient here is a weighted search (often a slow one), so let xgcd check for coprime inputs first
-    _XGCD_COPRIME_SHORTCUT: ClassVar[bool] = True
+    # Every quotient here is a weighted search, often a slow one, and Euclid can take seconds when a and b share
+    #   a factor. The ideal (a, b) gives the gcd in milliseconds either way, so xgcd goes straight there.
+    _XGCD_FROM_IDEAL: ClassVar[bool] = True
 
     # According to the rules, any D value added here (with default den):
     #   * Must be square free (no prime factors with an exponent 2 or greater).
