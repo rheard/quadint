@@ -136,6 +136,7 @@ print(z * w)          # 0j   (zero divisor behavior)
   * and the Heegner maximal orders for `D=-7` and `D=-11`.
   Other rings may raise `NotImplementedError`.
 * Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
+  * Equality is the exception, and is exact: `complexint(1) == 1.9` is `False`. A value that equals a Python number also hashes like it, so `complexint(1)` and `1` are the same dict key (as `1` and `1.0` are).
 
 Example of truncation behavior:
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 from math import gcd, isqrt
 from typing import TYPE_CHECKING, ClassVar, Iterator  # ruff: ignore[deprecated-import]
 
@@ -9,6 +11,10 @@ if TYPE_CHECKING:
     from quadint.quad.rings import Factorization, QuadraticRing
 
 _OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
+
+# CPython hashes a complex as hash(real) + sys.hash_info.imag * hash(imag), wrapped to a signed machine word
+_HASH_IMAG = sys.hash_info.imag
+_HASH_WORD = 1 << sys.hash_info.width
 
 
 def _key(w_: QuadInt) -> tuple[int, int, int, int, int]:
@@ -621,19 +627,40 @@ class QuadInt:
         raise IndexError("Quadratic integer index out of range (valid: 0 or 1)")
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, _OTHER_OP_TYPES):
-            other = self._from_obj(other)
+        if isinstance(other, QuadInt):
+            return self.ring is other.ring and self.a == other.a and self.b == other.b
 
-        if not isinstance(other, QuadInt):
-            return False
+        # Python numbers compare exactly (unlike arithmetic, which truncates floats with int()), since anything equal
+        #   has to hash the same too (see __hash__). Only the Gaussian integers reach past the real axis of complex.
+        if isinstance(other, int):
+            return self.b == 0 and self.a == other * self.ring.den
 
-        return self.ring is other.ring and self.a == other.a and self.b == other.b
+        if isinstance(other, (float, complex)):
+            real, imag = other.real, other.imag
+            if not (real.is_integer() and imag.is_integer()) or (imag and (self.ring.D != -1 or self.ring.den != 1)):
+                return False
+
+            return self.a == int(real) * self.ring.den and self.b == int(imag)
+
+        return False
 
     def __ne__(self, other: object) -> bool:
         # This shouldn't be required but mypyc is really messing this up...
         return not self.__eq__(other)
 
     def __hash__(self) -> int:
+        # Equal objects must hash the same, so hash like the Python numbers that __eq__ says these are equal to
+        if self.b == 0:
+            return hash(self.a // self.ring.den)
+
+        if self.ring.D == -1 and self.ring.den == 1:
+            # The complex hash, where -1 (reserved by CPython to signal an error) becomes -2
+            h = (hash(self.a) + _HASH_IMAG * hash(self.b)) % _HASH_WORD
+            if h >= _HASH_WORD // 2:
+                h -= _HASH_WORD
+
+            return -2 if h == -1 else h
+
         return hash((self.a, self.b, self.ring.D, self.ring.den))
 
     def __repr__(self) -> str:

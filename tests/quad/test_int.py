@@ -740,6 +740,71 @@ class TestComplex:
         assert complex(x) == c  # ruff: ignore[float-equality-comparison]
 
 
+class TestEqualityWithNumbers:
+    """Tests for __eq__ and __hash__ against plain Python numbers"""
+
+    @pytest.mark.parametrize(
+        ("x", "n"),
+        [
+            (complexint(5, 0), 5),
+            (ZI(-4, 0), -4),
+            (ZE(6, 0), 3),  # den=2
+            (Z5(-2, 0), -1),  # den=2, and -1 is the one int whose hash is not itself
+            (Z2(0, 0), 0),
+            (Z1(8, 0), 4),  # split integers, den=2
+            (ZN5(7, 0), 7),
+            (Z2(-6, 0), -6),
+        ],
+        ids=repr,
+    )
+    def test_integers_equal_and_hash_like_int(self, x: QuadInt, n: int):
+        """A plain integer equals the same int, float, and complex, and must hash like them to be the same dict key."""
+        for number in (n, float(n), complex(n, 0)):
+            assert x == number
+            assert number == x
+            assert hash(x) == hash(number)
+
+        assert {n: "int"}[x] == "int"
+        assert len({x, n, float(n), complex(n, 0)}) == 1
+
+    @pytest.mark.parametrize(("a", "b"), [(1, 2), (-3, 5), (0, -7), (2**52 + 1, -(2**50)), (-(2**53), 2**53)], ids=str)
+    def test_gaussian_equals_and_hashes_like_complex(self, a: int, b: int):
+        """Gaussian integers equal the matching complex, so they must hash like it too."""
+        x = complexint(a, b)
+        c = complex(a, b)
+
+        assert x == c
+        assert hash(x) == hash(c)
+        assert {c: "complex"}[x] == "complex"
+
+    def test_gaussian_hash_keeps_complex_minus_one_rule(self):
+        """CPython never returns -1 as a hash (it signals an error), so a complex that would hash to -1 hashes to -2."""
+        c = complex(-1000004, 1)  # hash(-1000004) + 1000003 * hash(1) == -1
+        assert hash(c) == -2
+        assert hash(complexint(-1000004, 1)) == -2
+
+    @pytest.mark.parametrize(
+        ("x", "number"),
+        [
+            (complexint(1), 1.9),  # arithmetic truncates floats with int(), but equality is exact
+            (complexint(1), 1.5 + 2j),
+            (complexint(1, 2), 1 + 2.5j),
+            (ZE(2, 0), 1.25),
+            (complexint(1), float("inf")),
+            (complexint(0), float("nan")),
+            (Z2(0, 1), 1j),  # only the Gaussian integers equal a complex off the real axis
+            (ZN5(1, 1), 1 + 1j),
+            (ZE(1, 1), 0.5),
+            (Z2(3, 1), 3),
+        ],
+        ids=repr,
+    )
+    def test_unequal_numbers(self, x: QuadInt, number: complex):
+        """Equality with Python numbers is exact, and never raises (which would break `in` checks on lists)."""
+        assert x != number
+        assert number != x
+
+
 class TestContent:
     """Tests for the content method"""
 
