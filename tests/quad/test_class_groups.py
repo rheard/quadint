@@ -200,6 +200,11 @@ class TestNontrivialGroups:
         assert (IdealClass(prime_two) ** 2).is_trivial()
         assert (IdealClass(prime_three) ** 2).is_trivial()
 
+    @pytest.mark.parametrize(("D", "expected"), [(-23, 3), (-47, 5), (-71, 7), (-199, 9), (-89, 12), (-254, 16)])
+    def test_imaginary_class_numbers(self, D: int, expected: int):
+        """Imaginary class numbers should match the count of reduced binary quadratic forms."""
+        assert ClassGroup(QuadraticRing(D)).order == expected
+
 
 class TestGroupBehavior:
     """Tests for basic class group behavior."""
