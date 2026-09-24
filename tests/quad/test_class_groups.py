@@ -52,6 +52,24 @@ class TestConstruct:
         with pytest.raises(NotImplementedError, match="quadratic field"):
             ClassGroup(ring)
 
+    @pytest.mark.parametrize(
+        "ring",
+        [
+            QuadraticRing(-3, den=1),
+            QuadraticRing(-7, den=1),
+            QuadraticRing(-15, den=1),
+            QuadraticRing(5, den=1),
+        ],
+        ids=str,
+    )
+    def test_not_maximal_order(self, ring: QuadraticRing):
+        """Non-maximal orders should be rejected (their non-invertible primes used to make these loop forever)."""
+        with pytest.raises(NotImplementedError, match="maximal orders"):
+            ClassGroup(ring)
+
+        with pytest.raises(NotImplementedError, match="maximal orders"):
+            _ = ring.class_number
+
 
 class TestBounds:
     """Tests for Minkowski bounds."""
@@ -240,3 +258,24 @@ class TestGroupBehavior:
 
         assert group.generators is group.generators
         assert group.classes is group.classes
+
+
+class TestNonMaximalOrders:
+    """Tests for ideal classes in orders that are not maximal."""
+
+    def test_non_invertible_ideal_rejected(self):
+        """A non-invertible ideal has no class, and no power of it is principal (so its order would never return)."""
+        ring = QuadraticRing(-3, den=1)  # Z[sqrt(-3)], the order of conductor 2 in the Eisenstein integers
+        prime = ring.prime_ideals_over(2)[0]
+
+        assert prime * prime == ring.ideal(2) * prime  # so prime cannot be invertible
+        with pytest.raises(ValueError, match="not invertible"):
+            IdealClass(prime)
+
+    def test_invertible_ideal_accepted(self):
+        """Invertible ideals of a non-maximal order still have classes, with finite orders."""
+        ring = QuadraticRing(-15, den=1)  # Z[sqrt(-15)], whose Picard group has order 2
+        prime = ring.prime_ideals_over(3)[0]
+
+        assert not prime.is_principal()
+        assert IdealClass(prime).order == 2

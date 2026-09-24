@@ -600,9 +600,18 @@ class IdealClass:
     _order: int | None
 
     def __init__(self, representative: Ideal) -> None:
-        """Create the ideal class represented by a nonzero integral ideal."""
-        if representative.norm == 0:
+        """Create the ideal class represented by a nonzero, invertible integral ideal."""
+        ring = representative.ring
+        norm = representative.norm
+        if norm == 0:
             raise ValueError("The zero ideal does not define an ideal class")
+
+        # Only invertible ideals have a class. Every nonzero ideal of a maximal order is invertible, but other orders
+        #   have some that are not, like (2, 1 + sqrt(-3)) in Z[sqrt(-3)], where P*P == 2*P so no power of P is ever
+        #   principal (and order would never return). An ideal I is invertible exactly when I * conj(I) == (N(I)),
+        #   and it always is when N(I) is coprime to the order's conductor, which divides 2*D.
+        if gcd(norm, 2 * ring.D) > 1 and representative * representative.conjugate() != ring.ideal(norm):
+            raise ValueError(f"{representative} is not invertible, so it does not define an ideal class")
 
         self.representative = representative
         self._order = None
@@ -697,6 +706,14 @@ class ClassGroup:
         """Return the cached class group for this exact kind of quadratic ring."""
         if ring.D in (0, 1) or (ring.D != -1 and not _is_squarefree(ring.D)):
             raise NotImplementedError("Class groups require a quadratic field/order")
+
+        # A non-maximal order (like Z[sqrt(-3)] inside Z[(1 + sqrt(-3))/2]) has prime ideals that are not invertible,
+        #   so its class group (the Picard group) needs a different set of generators than the Minkowski-bound primes.
+        if ring.den != (2 if ring.D % 4 == 1 else 1):
+            raise NotImplementedError(
+                f"Class groups are only implemented for maximal orders, and {ring!r} is not one "
+                f"(QuadraticRing({ring.D}) is)",
+            )
 
         key = (type(ring), ring.D, ring.den)
         inst = cls._CACHE.get(key)
