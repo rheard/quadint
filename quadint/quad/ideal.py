@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from sympy import Matrix, factorint, gcdex, primerange
 from sympy.matrices.normalforms import hermite_normal_form
-from sympy.solvers.diophantine.diophantine import diop_DN
 
 from quadint.quad.int import QuadInt
 from quadint.utils import _is_squarefree
@@ -160,11 +159,20 @@ def _bezout_coefficients(ring: QuadraticRing, a: QuadInt, b: QuadInt, g: QuadInt
     return _from_coords(ring, coeffs[0], coeffs[1]), _from_coords(ring, coeffs[2], coeffs[3])
 
 
-def _key(z: QuadInt) -> tuple[int, int, int, int, int]:
-    """Prefer compact, deterministic generators when several associates are available."""
+def _key(z: QuadInt) -> tuple[int, int, int, int, int, int]:
+    """
+    Prefer compact, deterministic generators when several associates are available.
+
+    For a real quadratic z = (a + b*sqrt(D)) / den, the sum of its two embeddings' sizes is
+        |a + b*sqrt(D)|/den + |a - b*sqrt(D)|/den == 2*max(|a|, |b|*sqrt(D))/den, compared here through its square.
+        Along the associates z*unit**k that sum is convex in k, so walking downhill from anywhere finds the smallest.
+
+    Returns:
+        tuple: The sort key.
+    """
     abs_z_a = abs(z.a)
     abs_z_b = abs(z.b)
-    return (max(abs_z_a, abs_z_b), abs_z_a, abs_z_b, z.a, z.b)
+    return (max(z.a * z.a, z.ring.D * z.b * z.b), max(abs_z_a, abs_z_b), abs_z_a, abs_z_b, z.a, z.b)
 
 
 class Ideal:
@@ -280,44 +288,61 @@ class Ideal:
 
     def _principal_generator_real(self) -> QuadInt | None:
         """
-        Return a real quadratic generator by solving the norm equation directly.
+        Return the most compact generator of this real quadratic ideal, found without factoring anything.
 
-        A principal generator alpha must satisfy |N(alpha)| == Norm(I).
-            Conversely, if alpha is in I and has that norm, then (alpha) ⊆ I has the same index as I, so (alpha) == I.
+        Write I = c*J with J = [m, z + w] primitive (w = sqrt(D) for den=1, or (1 + sqrt(D))/2 for den=2).
+            Then J = m*[1, theta] with theta = (z + w) / m, and J is principal exactly when theta is equivalent to w.
+            When it is, the continued fraction of theta eventually reaches the cycle of w, where Q == +/-den,
+            and the convergents at that point give an element of J with norm +/-m. That element generates J,
+            since (alpha) is inside J with the same index.
 
         Returns:
-            A real quadratic generator, if one can be found.
+            A generator, or None if this ideal is not principal.
         """
         ring = self.ring
+        D = ring.D
         den = ring.den
-        target_abs = self.norm * den * den
-        cls = ring.DEFAULT_KLASS
-        best: QuadInt | None = None
+        unit = ring.fundamental_unit()  # (this also rejects square D, where theta is rational and none of this works)
+
+        a, b, c = self.hnf
+        m, z = a // c, b // c
+
+        # This is the PQa algorithm, in the notation of Mollin (and Robertson). With A_i/B_i the convergents of
+        #   theta = (P0 + sqrt(D)) / Q0, and G_i = Q0*A_i - P0*B_i, each step keeps
+        #
+        #     G_{i-1}**2 - D*B_{i-1}**2 == (-1)**i * Q0 * Q_i
+        #
+        # so Q_i == +/-den means (G + B*sqrt(D)) / den has norm +/-m. Those elements Q0*A + B*(sqrt(D) - P0) lie in
+        #   [Q0, sqrt(D) - P0], which is why P0 is negated here, so that lattice is J itself (doubled when den=2).
+        P, Q = (-z, m) if den == 1 else (-2 * z - 1, 2 * m)
+        g_prev, g, b_prev, b_cur = -P, Q, 1, 0  # G_{-2}, G_{-1}, B_{-2}, B_{-1}
+        sqrt_d = isqrt(D)
         seen: set[tuple[int, int]] = set()
 
-        for target in (target_abs, -target_abs):
-            for a_raw, b_raw in diop_DN(ring.D, target):
-                a = int(a_raw)
-                b = int(b_raw)
+        while abs(Q) != den:
+            if (P, Q) in seen:
+                return None  # went all the way around theta's cycle without meeting w's, so J is not principal
 
-                for aa, bb in ((a, b), (-a, -b), (a, -b), (-a, b)):
-                    if den == 2 and ((aa ^ bb) & 1):
-                        continue
+            seen.add((P, Q))
+            q = (P + sqrt_d + (1 if Q < 0 else 0)) // Q  # floor((P + sqrt(D)) / Q)
+            P = q * Q - P
+            Q = (D - P * P) // Q
+            g_prev, g = g, q * g + g_prev
+            b_prev, b_cur = b_cur, q * b_cur + b_prev
 
-                    key = (aa, bb)
-                    if key in seen:
-                        continue
+        # Any associate is a generator, so walk through units to the most compact one (see _key)
+        alpha = ring.DEFAULT_KLASS(c * g, c * b_cur, ring, skip_basis=True)
+        alpha = min((alpha, -alpha), key=_key)
+        for step in (unit, ~unit):
+            while True:
+                nxt = alpha * step
+                nxt = min((nxt, -nxt), key=_key)
+                if _key(nxt) >= _key(alpha):
+                    break
 
-                    seen.add(key)
-                    candidate = cls(aa, bb, ring, skip_basis=True)
-                    if (
-                        abs(abs(candidate)) == self.norm
-                        and candidate in self
-                        and (best is None or _key(candidate) < _key(best))
-                    ):
-                        best = candidate
+                alpha = nxt
 
-        return best
+        return alpha
 
     def is_principal(self) -> bool:
         """Return True iff this ideal is principal."""
