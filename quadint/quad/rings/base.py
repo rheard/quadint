@@ -172,11 +172,17 @@ class PrimeIdealData:
         )
 
 
-def _check_den(den: int) -> int:
-    """Validate and return ring denominator."""
+def _check_den(den: int, D: int) -> int:
+    """Validate and return the ring denominator for D."""
     den0 = int(den)
     if den0 not in (1, 2):
         raise ValueError(f"den must be 1 or 2, got {den0!r}")
+
+    # (1 + sqrt(D))/2 squared is (D + 1 + 2*sqrt(D))/4, which is only back in the ring when D % 4 == 1.
+    #   Nothing is lost: every quadratic order is Z[sqrt(D)] (den=1) or Z[(1 + sqrt(D))/2] with D % 4 == 1 (den=2).
+    if den0 == 2 and D % 4 != 1:
+        raise ValueError(f"den=2 needs D % 4 == 1, otherwise it is not closed under multiplication (got D={D})")
+
     return den0
 
 
@@ -398,7 +404,7 @@ class QuadraticRing:
         """Handle singleton logic"""
         D0 = int(D)
         default_den = 2 if (D0 % 4) == 1 else 1
-        den0 = default_den if den is None else _check_den(den)
+        den0 = default_den if den is None else _check_den(den, D0)
 
         key = (D0, den0)
         inst = QuadraticRing._CACHE.get(key)
@@ -424,7 +430,7 @@ class QuadraticRing:
     def __init__(self, D: int, den: int | None = None) -> None:
         """Initialize the ring settings"""
         self.D = int(D)
-        self.den = (2 if (self.D % 4) == 1 else 1) if den is None else _check_den(den)
+        self.den = (2 if (self.D % 4) == 1 else 1) if den is None else _check_den(den, self.D)
 
     @classmethod
     def _subclasses(cls):
@@ -548,9 +554,6 @@ class QuadraticRing:
             roots = sqrt_mod(self.D % p, p, all_roots=True)
 
         else:
-            if self.D % 4 != 1:
-                raise NotImplementedError("den=2 prime ideals require D ≡ 1 mod 4")
-
             # O = Z[w], where w = (1 + sqrt(D)) / 2
             #
             # The defining polynomial is:
@@ -770,12 +773,10 @@ class QuadraticRing:
             # We are expanding sqrt(D), written as (P + sqrt(D)) / Q.
             P = 0
             Q = 1
-        elif self.den == 2 and D % 4 == 1:
+        else:
             # We are expanding w = (1 + sqrt(D)) / 2.
             P = 1
             Q = 2
-        else:
-            raise NotImplementedError("fundamental units only support den=1 or den=2 with D ≡ 1 mod 4")
 
         cls = self.DEFAULT_KLASS
 

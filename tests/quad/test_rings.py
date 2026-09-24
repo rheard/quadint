@@ -123,6 +123,35 @@ class TestQuadraticRing(RingTests):
         with pytest.raises(ValueError, match="den must be 1 or 2"):
             _ = QuadraticRing(5, den)
 
+    @pytest.mark.parametrize("D", [-1, -2, 0, 2, 3, 14, -5, 8], ids=str)
+    def test_den_two_needs_d_one_mod_four(self, D: int):
+        """With D % 4 != 1, (1 + sqrt(D))/2 squared is not back in the ring, so den=2 would not be a ring at all."""
+        with pytest.raises(ValueError, match=r"den=2 needs D % 4 == 1"):
+            _ = QuadraticRing(D, 2)
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        [
+            (5, 1),  # Z[sqrt(5)], conductor 2 in Q(sqrt(5))
+            (-3, 1),  # Z[sqrt(-3)], conductor 2 in Q(sqrt(-3))
+            (1, 1),  # the split-complex integers
+            (-27, 2),  # Z[(1 + sqrt(-27))/2], conductor 3 in Q(sqrt(-3))
+            (45, 2),  # Z[(1 + sqrt(45))/2], conductor 3 in Q(sqrt(5))
+        ],
+        ids=str,
+    )
+    def test_non_maximal_orders_still_allowed(self, D: int, den: int):
+        """Every quadratic order is den=1, or den=2 with D % 4 == 1, so each of these is still a (closed) ring."""
+        ring = QuadraticRing(D, den)
+        assert ring.den == den
+
+        if den == 1:
+            w = ring(0, 1)  # sqrt(D)
+            assert w * w == D
+        else:
+            w = ring(1, 1)  # (1 + sqrt(D))/2, a root of x**2 - x - (D - 1)/4
+            assert w * w == w + (D - 1) // 4
+
     def test_repeated_calls_do_not_mutate_cached_instance(self):
         """Repeated construction should not corrupt cached fields"""
         q = QuadraticRing(1)  # default den=2
@@ -144,8 +173,8 @@ class TestQuadraticRing(RingTests):
 
         assert isinstance(ZI.one, complexint)
 
-        # Now verify complexint isn't returned for the non-default ring
-        non_default_ZI = QuadraticRing(-1, 2)
+        # Now verify complexint isn't returned for another order of Q(i), here Z[2i]
+        non_default_ZI = QuadraticRing(-4)
         assert non_default_ZI.DEFAULT_KLASS is not complexint
 
         a = non_default_ZI(2, 4)
@@ -451,7 +480,6 @@ class TestHarperHelpers:
         [
             (14, None, 56),  # default den=1 -> disc = 4D
             (14, 1, 56),
-            (14, 2, 14),  # explicit non-default order
             (23, None, 92),
             (23, 1, 92),
             (61, None, 61),  # default den=2 since 61 % 4 == 1
@@ -993,7 +1021,8 @@ class TestHarperAcceptOverride(RingTests):
 
     @pytest.mark.parametrize(
         ("D", "den"),
-        [(14, 2), (22, 2), (23, 2), (61, 1)],
+        # Z[sqrt(D)] in Harper fields with D % 4 == 1 (the only non-default den that is a ring, see _check_den)
+        [(53, 1), (61, 1), (77, 1), (97, 1)],
         ids=str,
     )
     def test_nonmax_orders_not_selected(self, D: int, den: int):

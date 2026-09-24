@@ -5,7 +5,7 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
 - **`complexint`**: a Gaussian integer type that mirrors Python’s `complex`, but stores **`int`** components (no floating-point drift).
 - **`QuadInt` / `QuadraticRing`**: a general quadratic-integer implementation for elements of the form  
   $(a + b\sqrt{D}) / \mathrm{den}$ with $den ∈ {1,2}$. 
-  - By default, `QuadraticRing(D)` chooses `den = 2` when `D % 4 == 1`, otherwise `den = 1` (and you can override with `QuadraticRing(D, den=1)` / `den=2` to work in a non-default order).
+  - By default, `QuadraticRing(D)` chooses `den = 2` when `D % 4 == 1`, otherwise `den = 1` (and you can override with `QuadraticRing(D, den=1)` to work in the non-maximal order $\mathbb{Z}[\sqrt{D}]$). `den=2` is only allowed when `D % 4 == 1`, since otherwise these numbers are not closed under multiplication.
 - **`eisensteinint`**: Eisenstein integers in the ω-basis (`a + bω`, where $ω = (-1 + \sqrt{-3})/2$).
 - **`dualint`**: dual integers of the form `a + bε` where **`ε² = 0`** and **`ε != 0`**.
 - **`splitint`**: split-complex (hyperbolic) integers of the form `a + bj` where **`j² = 1`** and **`j != 1`**.
@@ -334,7 +334,7 @@ print(decompose_number(91, no_trivial_solutions=False))
 * `dualint(a: int = 0, b: int = 0)`
 * `splitint(a: int = 0, b: int = 0)`
 * `QuadraticRing(D: int = 0, den: int = None)`
-  * If `den` is omitted (`None`), it defaults to `2` when `D % 4 == 1`, otherwise `1`.
+  * If `den` is omitted (`None`), it defaults to `2` when `D % 4 == 1`, otherwise `1`. Passing `den=2` for any other `D` raises `ValueError`.
 
 ### Ring instance (`QuadraticRing`)
 
