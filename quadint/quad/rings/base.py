@@ -448,7 +448,7 @@ class QuadraticRing:
         return cls(int(a), int(b), self)
 
     def __contains__(self, x: object) -> bool:
-        """Return True iff x is a QuadInt element of this ring (by parameters)."""
+        """Return True iff x is a QuadInt element of this ring (by parameters), or a number equal to one."""
         if isinstance(x, int):
             return True
 
@@ -456,7 +456,9 @@ class QuadraticRing:
             return x.is_integer()
 
         if isinstance(x, complex):
-            return self.D == -1 and self.den == 1
+            # Integral parts, and only the Gaussian integers reach past the real axis (the same rule as QuadInt.__eq__)
+            real, imag = x.real, x.imag
+            return real.is_integer() and imag.is_integer() and (not imag or (self.D == -1 and self.den == 1))
 
         if not isinstance(x, QuadInt):
             return False

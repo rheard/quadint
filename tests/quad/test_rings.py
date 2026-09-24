@@ -77,6 +77,26 @@ class RingTests:
 class TestQuadraticRing(RingTests):
     """Tests for the QuadraticRing behavior"""
 
+    @pytest.mark.parametrize(
+        ("x", "ring", "expected"),
+        [
+            (3, Z2, True),
+            (2.0, Z2, True),
+            (2.5, Z2, False),
+            (1 + 2j, ZI, True),
+            (1.5j, ZI, False),
+            (0.5 + 1j, ZI, False),
+            (3 + 0j, Z2, True),  # it equals Z2's integer 3
+            (1j, Z2, False),  # only the Gaussian integers reach past the real axis
+            (float("nan"), ZI, False),
+            (complex(float("inf"), 0), ZI, False),
+        ],
+        ids=repr,
+    )
+    def test_contains_python_numbers(self, x: complex, ring: QuadraticRing, expected: bool):  # ruff: ignore[boolean-type-hint-positional-argument]
+        """A Python number should be in a ring exactly when some element of the ring equals it."""
+        assert (x in ring) is expected
+
     def test_same_instance_default_den(self):
         """QuadraticRing(D) should be a singleton per (D, default_den)"""
         q1 = QuadraticRing(-1)
