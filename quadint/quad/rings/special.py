@@ -139,17 +139,27 @@ class SplitRing(QuadraticRing):
         return self((s * self.den) // 2, (t * self.den) // 2)
 
     def exact_div(self, x: QuadInt, y: QuadInt) -> QuadInt | None:
-        """Exact division in split coordinates (handles zero-norm divisors)."""
+        """
+        Exact division in split coordinates, where it is componentwise (handles zero-norm divisors).
+
+        A zero divisor y (u2 == 0 or v2 == 0) still divides x when x is 0 in that component too,
+            but then that component of the quotient could be anything, so this picks one.
+
+        Returns:
+            QuadInt | None: A quotient q with x == q*y, or None if there is none.
+        """
         u1, v1 = _split_uv(x)
         u2, v2 = _split_uv(y)
 
         if u2 == 0 and v2 == 0:
             raise NotImplementedError
 
-        # Both components must divide exactly (or be 0/0 which we skip)
         if u2 == 0 or v2 == 0:
-            # Zero divisor: cannot divide uniquely in general
-            return None
+            # Taking the free component equal to the other one keeps the den=1 parity rule (u == v mod 2),
+            #   and makes q the plain integer x/y whenever there is one, e.g. (3 + 3j) / (1 + j) == 3.
+            n, d, x_zero = (v1, v2, u1) if u2 == 0 else (u1, u2, v1)
+            q, r = divmod(n, d)
+            return self._uv_to_ab(q, q) if x_zero == 0 and r == 0 else None
 
         qu, ru = divmod(u1, u2)
         qv, rv = divmod(v1, v2)

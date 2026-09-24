@@ -315,14 +315,38 @@ class TestExactDiv(SplitIntTests):
         assert res_int is not None
         self.assert_split_equal((self.a_int.real, self.a_int.hyper), res_int)
 
-    def test_exact_div_zero_divisor_returns_none(self):
-        """Division by a nonzero zero divisor should return None (not a unique quotient)."""
+    def test_exact_div_by_zero_divisor(self):
+        """A nonzero zero divisor still divides x when x is 0 in the same split component (just not uniquely)."""
         z = splitint(1, 1)  # split coords (2, 0), norm 0
-        x = splitint(3, 3)  # split coords (6, 0), so z divides x non-uniquely
+        x = splitint(3, 3)  # split coords (6, 0), so x == 3*z
 
         assert abs(z) == 0
-        assert x.exact_div(z) is None
-        assert z.divides(x) is False
+        assert x.exact_div(z) == 3
+        assert z.divides(x) is True
+
+        # split coords (8, 2): the second component would need 2 == q*0
+        assert splitint(5, 3).exact_div(z) is None
+        assert z.divides(splitint(5, 3)) is False
+
+    @pytest.mark.parametrize("den", [1, 2], ids=str)
+    def test_divides_matches_brute_force(self, den: int):
+        """y.divides(x) should hold exactly when some q in the ring has q*y == x, zero divisors included."""
+        Q = QuadraticRing(1, den)
+        small = [Q(a, b) for a in range(-4, 5) for b in range(-4, 5) if (a - b) % den == 0]
+        # Every quotient between two small elements, when there is one, has a representative in this range
+        wide = range(-16, 17)
+        quotients = [Q(a, b) for a in wide for b in wide if (a - b) % den == 0]
+
+        for y in small:
+            if not y:
+                continue
+
+            multiples = {q * y for q in quotients}
+            for x in small:
+                q = x.exact_div(y)
+                assert y.divides(x) is (x in multiples)
+                assert (q is not None) is (x in multiples)
+                assert q is None or q * y == x
 
     def test_exact_div_zero_raises_not_implemented(self):
         """Division by literal zero is currently unsupported by exact_div."""
