@@ -268,7 +268,8 @@ class QuadInt:
     def __rmul__(self, other: int | float | complex):
         return self.__mul__(other)
 
-    def __pow__(self, exp: float, mod: complex | int | float | QuadInt | None = None):
+    # Not just `exp: float`, since mypyc would turn an int exponent into a double and lose every bit past 2**53
+    def __pow__(self, exp: int | float, mod: complex | int | float | QuadInt | None = None):
         if isinstance(mod, _OTHER_OP_TYPES):
             mod = self._from_obj(mod)
 
