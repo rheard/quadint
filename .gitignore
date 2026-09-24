@@ -11,3 +11,5 @@ dist/
 quadint-stubs/
 *.zip
 uv.lock
+
+__pycache__/
