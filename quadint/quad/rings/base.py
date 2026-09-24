@@ -195,7 +195,7 @@ def _nearest_quotient(x: QuadInt, y: QuadInt) -> QuadInt:
     Return a ring element near x / y, with each coordinate rounded.
 
     This is only for shrinking things modulo y. Unlike divmod it makes no promise about the remainder's norm,
-        so it never has to search (or fail).
+        so it never has to search (or fail). Halves always round up, so x - q*y only depends on x's class mod y.
 
     Returns:
         QuadInt: The rounded quotient.
@@ -208,9 +208,12 @@ def _nearest_quotient(x: QuadInt, y: QuadInt) -> QuadInt:
     num_a = x.a * y.a - x.b * y.b * ring.D
     num_b = y.a * x.b - x.a * y.b
     scale = den * abs(y)
+    if scale < 0:
+        num_a, num_b, scale = -num_a, -num_b, -scale
 
-    A = _round_div_ties_away_from_zero(num_a, scale)
-    B = _round_div_ties_away_from_zero(num_b, scale)
+    # floor(v + 1/2), which (unlike rounding ties away from zero) commutes with adding an integer to v
+    A = (2 * num_a + scale) // (2 * scale)
+    B = (2 * num_b + scale) // (2 * scale)
     if den == 2 and ((A ^ B) & 1):
         B += 1  # any nearby lattice point is fine here
 
@@ -1086,6 +1089,25 @@ class QuadraticRing:
         g, _, _ = self.xgcd(a, b)
         return g
 
+    def _residue(self, x: QuadInt, m: QuadInt) -> QuadInt:
+        """
+        Reduce x modulo m, for modular arithmetic (inv_mod, and pow with a modulus).
+
+        This is the Euclidean remainder x % m whenever divmod finds one. But modular arithmetic only needs some element
+            of x's class, so when the quotient search gives up (some Harper-style divisions have no quotient that
+            reduces phi at all), this rounds x / m instead, which cannot fail.
+
+        Returns:
+            QuadInt: An element congruent to x modulo m.
+        """
+        try:
+            return self.divmod(x, m)[1]
+        except NotImplementedError:
+            if not self.supports_division():
+                raise  # rings without any divmod keep refusing modular arithmetic
+
+            return x - _nearest_quotient(x, m) * m
+
     def inv_mod(self, a: QuadInt, m: QuadInt) -> QuadInt:
         """
         Modular inverse in Euclidean quadratic rings.
@@ -1108,7 +1130,7 @@ class QuadraticRing:
         if abs(abs(g)) != 1:
             raise ValueError(f"{a} is not invertible mod {m} (gcd={g})")
 
-        return (s * ~g) % m
+        return self._residue(s * ~g, m)
 
     def factor_detail(self, x: QuadInt) -> Factorization:
         """Factor `x` and return structured details when supported by this ring."""
