@@ -194,7 +194,7 @@ class QuadInt:
             a = int(n.real)
             b = int(n.imag)
         elif isinstance(n, QuadInt):
-            if n.ring is not self:
+            if n.ring is not self.ring:
                 raise TypeError("Cannot mix QuadInt from different rings")
 
             return n

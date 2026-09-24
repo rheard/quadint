@@ -118,6 +118,14 @@ class QuadIntTests:
 class TestArithmetic:
     """Tests for direct quadratic-integer arithmetic."""
 
+    def test_from_obj_passes_same_ring_elements_through(self):
+        """_from_obj should hand back an element of the same ring as is, and refuse one from another ring."""
+        x = ZI(3, 4)
+        assert x._from_obj(x) is x
+
+        with pytest.raises(TypeError, match="different rings"):
+            x._from_obj(Z2(1, 1))
+
     @pytest.mark.parametrize(
         ("x", "y", "expected"),
         [
