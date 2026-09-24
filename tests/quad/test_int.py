@@ -9,6 +9,7 @@ import pytest
 
 from quadint import QuadInt, complexint
 from quadint.quad import Factorization, QuadraticRing
+from quadint.quad.rings import NORM_EUCLID_D
 
 
 def brute_content(x: QuadInt) -> int:
@@ -392,7 +393,7 @@ class TestDiv(QuadIntTests):
 
         return Q(a, b)
 
-    @pytest.mark.parametrize("D", [-11, -7, -3, -2, -1, 2, 3, 5, 6, 7, 11, 13], ids=str)
+    @pytest.mark.parametrize("D", sorted(NORM_EUCLID_D), ids=str)
     def test_divmod_random_remainder_is_norm_reducing(self, D: int):
         """For supported norm-Euclidean orders, divmod should satisfy x=qy+r and |N(r)| < |N(y)|."""
         Q = QuadraticRing(D)
@@ -411,6 +412,27 @@ class TestDiv(QuadIntTests):
 
                 assert x == q * y + r, f"division identity failed for D={D}, x={x}, y={y}"
                 assert abs(abs(r)) < abs(abs(y)), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
+
+    @pytest.mark.parametrize(
+        ("D", "xa", "xb", "ya", "yb"),
+        [
+            # The only norm-reducing quotients for these are out on the hyperbola branches, past the local search
+            (19, -14, -9, -14, 0),
+            (57, -9, -7, -9, 3),
+            (73, -7, -5, -6, 2),
+        ],
+        ids=str,
+    )
+    def test_divmod_quotient_on_hyperbola_branch(self, D: int, xa: int, xb: int, ya: int, yb: int):
+        """Real norm-Euclidean divmod should still find a norm-reducing remainder when no nearby quotient has one."""
+        Q = QuadraticRing(D)
+        x = Q(xa, xb)
+        y = Q(ya, yb)
+
+        q, r = divmod(x, y)
+
+        assert x == q * y + r
+        assert abs(abs(r)) < abs(abs(y))
 
 
 class TestUnits:

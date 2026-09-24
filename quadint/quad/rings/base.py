@@ -269,7 +269,8 @@ class _NeighborhoodSearch:
         self._best_a = 0
         self._best_b = 0
 
-    def _consider(self, A: int, B: int) -> None:
+    def consider(self, A: int, B: int) -> None:
+        """Score one candidate (A, B), keeping it if it beats the best so far."""
         if self.den == 2 and ((A ^ B) & 1):
             return
 
@@ -287,7 +288,7 @@ class _NeighborhoodSearch:
         if radius == 0:
             A = self.A0
             B = self.B0_for_A(A)
-            self._consider(A, B)
+            self.consider(A, B)
             return
 
         left = self.A0 - radius
@@ -299,11 +300,11 @@ class _NeighborhoodSearch:
             if A in (left, right):
                 # New vertical edges: full range
                 for B in range(B0 - radius, B0 + radius + 1):
-                    self._consider(A, B)
+                    self.consider(A, B)
             else:
                 # New top/bottom edge only
-                self._consider(A, B0 - radius)
-                self._consider(A, B0 + radius)
+                self.consider(A, B0 - radius)
+                self.consider(A, B0 + radius)
 
     def expand_to(self, radius: int) -> tuple[int, int]:
         """Expand the search incrementally up to `radius` and return current best (A,B)."""
