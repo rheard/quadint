@@ -1,6 +1,6 @@
 # quadint
 
-Fast, integer-backed algebraic number types for **exact** arithmetic in imaginary quadratic integer rings.
+Fast, integer-backed algebraic number types for **exact** arithmetic in quadratic integer rings (imaginary and real), plus the dual and split-complex integers.
 
 - **`complexint`**: a Gaussian integer type that mirrors Python’s `complex`, but stores **`int`** components (no floating-point drift).
 - **`QuadInt` / `QuadraticRing`**: a general quadratic-integer implementation for elements of the form  
@@ -12,9 +12,10 @@ Fast, integer-backed algebraic number types for **exact** arithmetic in imaginar
  
 Designed for discrete math, number theory tooling, and high-throughput exact computations (this project is built to compile cleanly with **mypyc**).
 
-New helper methods on every quadratic integer value:
+Helper methods on every quadratic integer value:
 
 * `x.content()` — largest positive integer `n` such that `x = n*y` in the same ring.
+* `x.gcd(y)`, `x.xgcd(y)`, `x.inv_mod(m)`, and `pow(x, e, m)` — gcds and modular arithmetic, in the rings with division (see below).
 * `x.factor_detail()` — structured factorization as `Factorization(unit, primes)`.
 * `x.factor()` — a plain `{prime_like_factor: exponent}` mapping whose product is exactly `x`.
 * `x.basis`, `x.basis_a`, `x.basis_b` — public/user-facing basis coordinates, which may differ from the internal `(a, b)` numerator coordinates.
@@ -66,7 +67,22 @@ print(x * y)           # "(-21+12*sqrt(-2))"
 print(abs(x))          # norm: 1^2 - (-2)*2^2 = 9
 ```
 
-Common operations include `+`, `-`, `*`, `**` (non-negative powers), `conjugate()`, and `abs()` (the norm).
+Common operations include `+`, `-`, `*`, `**` (non-negative powers, or negative ones with a modulus, as in `pow(x, -1, m)`), `conjugate()`, and `abs()` (the norm).
+
+The two arguments are the numerators of $(a + b\sqrt{D}) / \mathrm{den}$. That only matters when `den == 2` (the default when `D % 4 == 1`), where `a` and `b` must have the same parity:
+
+```python
+from quadint import QuadraticRing
+
+Z5 = QuadraticRing(5)         # den=2, so this is Z[(1 + √5)/2]
+
+phi = Z5(1, 1)                # (1 + √5)/2, the golden ratio
+print(phi * phi)              # (3+1*sqrt(5))/2
+print(phi * phi == phi + 1)   # True
+print(Z5(2, 0) == 1)          # True: 1 is 2/2 here, and Z5(1, 0) raises ValueError
+print(Z5.from_ab(1, 1))       # (2+2*sqrt(5))/2, since from_ab takes a + b√D directly
+print(Z5.fundamental_unit())  # (1+1*sqrt(5))/2
+```
 
 ---
 
@@ -78,9 +94,9 @@ from quadint.eisenstein import eisensteinint
 z = eisensteinint(2, 3)   # 2 + 3ω
 w = eisensteinint(1, -1)  # 1 - ω
 
-print(z)
-print(z * w)              # exact product in Z[ω]
-print(abs(z))             # norm (integer)
+print(z)                  # (2+3ω)
+print(z * w)              # (5+4ω), the exact product in Z[ω]
+print(abs(z))             # 7, the norm a^2 - ab + b^2
 ```
 
 Use `real` and `omega` to access the ω-basis components.
@@ -95,8 +111,8 @@ from quadint import dualint
 z = dualint(2, 3)   # 2 + 3ε
 w = dualint(1, -1)  # 1 - ε
 
-print(z)
-print(z * w)              # (2+1ε)
+print(z)            # (2+3ε)
+print(z * w)        # (2+1ε)
 ```
 
 Use `real` and `dual` (or `epsilon`) to access the ε-basis components.
@@ -124,19 +140,18 @@ print(z * w)          # 0j   (zero divisor behavior)
 ## Division & interoperability notes
 
 * This package is primarily intended for **exact, discrete** arithmetic (`+`, `-`, `*`, `**`, conjugation, norms).
-* Division helpers (`divmod`, `//`, `%`, `/`) are implemented for the finite set of **norm-Euclidean** quadratic rings **at the default/maximal denominator**, and also for **dual** (`D=0`) and **split-complex integers** (`D=1`).
-  * New: division is also available in selected **Euclidean-but-not-norm-Euclidean real quadratic maximal orders** via a Harper-style method (weighted Euclidean score + local quotient search). This currently covers:
-    * `D=14,22,23,31,43,46,47,53,59,61,62,67,71,77,83,86,89,93,94,97`
-    * and `D=69` via a dedicated Clark-style Euclidean function implementation.
-    * Without `cypari`, Harper-style support is limited to the built-in hard-coded cases above (with `D < 100`); with `cypari` installed, additional admissible Harper-like cases may be discoverable.
-* Factorization (`factor` / `factor_detail`) is currently implemented for:
-  * `complexint` (`D=-1, den=1`),
-  * `QuadraticRing(-2, den=1)`,
-  * `eisensteinint` (`D=-3, den=2`),
-  * and the Heegner maximal orders for `D=-7` and `D=-11`.
-  Other rings may raise `NotImplementedError`.
+* Division (`divmod`, `//`, `%`, and `/`, which gives the same rounded quotient as `//`) is implemented for the **Euclidean** maximal orders (the default `den`), and for the **dual** (`D=0`) and **split-complex** (`D=1`) integers. `ring.supports_division()` says whether a ring has it, and rings without it raise `NotImplementedError`. The Euclidean rings are:
+  * the norm-Euclidean ones: `D=-1,-2,-3,-7,-11` and `D=2,3,5,6,7,11,13,17,19,21,29,33,37,41,57,73`,
+  * `D=69`, via Clark's Euclidean function,
+  * and real quadratic rings that are **Euclidean but not norm-Euclidean**, via a Harper-style method (a weighted Euclidean score plus a quotient search). Witnesses are built in for `D=14,22,23,31,43,46,47,53,59,61,62,67,71,77,83,86,89,93,94,97`, and any other real `D` whose maximal order has class number one is checked when the ring is created (`D=38`, `101`, `103`, and so on): it qualifies if its discriminant is at most 500, or if an admissible pair of witness primes turns up below 200.
+* In the Harper-style rings, `divmod`, `//` and `%` can raise `NotImplementedError` for some inputs, because the weighted score is not a Euclidean function for every pair (every remainder of `1 + √14` modulo `2` has a larger weighted norm than `2`, for example). `gcd`, `xgcd`, `inv_mod` and `pow(x, e, m)` don't use that search, so they aren't affected.
+* `gcd`, `xgcd` and `inv_mod` are available wherever division is, except in two rings that are not PIDs: the dual integers have none of them, and the `den=1` split-complex integers only have `gcd`. A gcd is only defined up to a unit, so it is normalized to a positive leading coefficient (the first quadrant in the Gaussian integers, the first sextant in the Eisenstein integers), and coprime elements have gcd `1`.
+* Factorization (`factor` / `factor_detail`) is implemented for the imaginary quadratic fields with class number one:
+  * `complexint` (`D=-1`), `QuadraticRing(-2)`, and `eisensteinint` (`D=-3`),
+  * and the maximal orders for `D=-7,-11,-19,-43,-67,-163`.
+  Other rings raise `NotImplementedError`.
 * Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
-  * Equality is the exception, and is exact: `complexint(1) == 1.9` is `False`. A value that equals a Python number also hashes like it, so `complexint(1)` and `1` are the same dict key (as `1` and `1.0` are).
+  * Equality is the exception, and is exact: `complexint(1) == 1.9` is `False`. A value that equals a Python number also hashes like it, so `complexint(1)` and `1` are the same dict key (as `1` and `1.0` are), and likewise `complexint(1, 2)` and `1+2j`.
 
 Example of truncation behavior:
 
@@ -161,12 +176,16 @@ print(a + 1.5)   # "(4+6j)"  (1.5 -> 1)
 ```python
 from quadint import QuadraticRing
 
-O = QuadraticRing(-5)
-I = O.ideal(3, O(1, 1))
+O = QuadraticRing(-5)                         # Z[√-5]
+I = O.ideal(3, O(1, 1))                       # (3, 1 + √-5)
 
-assert not I.is_principal()
-assert O.class_number == 2
+print(I.is_prime(), I.is_principal())         # True False
+print((I**2).principal_generator())           # (2-1*sqrt(-5)), so I**2 is the principal ideal (2 - √-5)
+print([P.norm for P in O.ideal(6).factor()])  # [2, 2, 3, 3]: (6) factors into four prime ideals
+print(O.class_number)                         # 2
 ```
+
+Principal generators come from lattice reduction in imaginary rings and continued fractions in real ones, so this stays fast for large ideals. Class groups (`O.class_group`, `O.class_number`) are available for maximal orders, real and imaginary. Non-maximal orders such as `QuadraticRing(-3, den=1)` raise `NotImplementedError`.
 
 ---
 
@@ -318,7 +337,7 @@ print(decompose_prime(7))
 # (1, 3)  # because 1^2 - 1*3 + 3^2 == 7
 
 print(decompose_number(91, no_trivial_solutions=False))
-# returns canonical pairs (a, b) with a^2 - a*b + b^2 == 91
+# {(1, 10), (5, 11)}, the canonical pairs (a, b) with a^2 - a*b + b^2 == 91
 ```
 
 `no_trivial_solutions=True` filters the obvious square-like rays where `a == 0`, `b == 0`, or `a == b`. As with the rest of `quadint.sums`, a factorization dictionary may be passed instead of an integer.
@@ -333,25 +352,36 @@ print(decompose_number(91, no_trivial_solutions=False))
 * `eisensteinint(a: int = 0, b: int = 0)` where `a + bω`
 * `dualint(a: int = 0, b: int = 0)`
 * `splitint(a: int = 0, b: int = 0)`
-* `QuadraticRing(D: int = 0, den: int = None)`
+* `QuadraticRing(D: int, den: int | None = None)`
   * If `den` is omitted (`None`), it defaults to `2` when `D % 4 == 1`, otherwise `1`. Passing `den=2` for any other `D` raises `ValueError`.
 
 ### Ring instance (`QuadraticRing`)
 
-* `Q(a: int = 0, b: int = 0) -> QuadInt` (constructs using the ring’s internal basis)
-* `Q.from_ab(a: int, b: int) -> QuadInt` (construct with user coords, respecting `den`)
-* `Q.from_obj(x) -> QuadInt` (embed `int`/`float`, and `complex` only when `D == -1`)
+* `Q(a: int = 0, b: int = 0) -> QuadInt` (the numerators of $(a + b\sqrt{D}) / \mathrm{den}$, so with `den=2` they must have the same parity)
+* `Q.from_ab(a: int, b: int) -> QuadInt` ($a + b\sqrt{D}$, whatever `den` is)
+* `Q.from_obj(x) -> QuadInt` (embed `int`/`float`, and `complex` only in the Gaussian integers)
+* `Q.ideal(*generators)`, `Q.prime_ideals_over(p)`, `Q.class_group`, `Q.class_number` (maximal orders)
+* `Q.fundamental_unit()` (real rings), `Q.elements_with_norm(n)`, `Q.has_element_with_norm(n)`
+* `Q.discriminant()`, `Q.supports_division()`, `Q.supports_factorization()`
 
 ### Value type (`QuadInt`)
 
 * `x.conjugate()`
 * `abs(x)` (norm)
 * `x.units` (finite torsion unit subgroup exposed as a tuple)
+* `x.is_unit()`, `x.is_irreducible()`
 * `x.content()`
 * `x.factor_detail()` (returns `Factorization(unit, primes)`)
 * `x.factor()` (returns plain `dict[QuadInt, int]`)
 * `divmod(x, y)`, `x // y`, `x % y` (where supported)
-* Iteration/indexing over the stored coefficients: `list(x)`, `x[0]`, `x[1]`
+* `x.gcd(y)`, `x.xgcd(y)` (returns `(g, s, t)` with `s*x + t*y == g`), `x.inv_mod(m)`, `pow(x, e, m)` (where supported)
+* `x.exact_div(y)` (the quotient if `y` divides `x`, otherwise `None`), `y.divides(x)`
+* Iteration/indexing over the basis coordinates: `list(x)`, `x[0]`, `x[1]`
+
+### Ideals (`Ideal`)
+
+* `I.norm`, `x in I`, `I * J`, `I**k`, `I // J` (exact quotient), `I.divides(J)`, `I.conjugate()`
+* `I.is_prime()`, `I.factor()` (prime ideals, with repeats), `I.is_principal()`, `I.principal_generator()`
 
 
 ### `quadint.sums`
