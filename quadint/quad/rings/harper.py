@@ -152,27 +152,35 @@ class Clark69Ring(RealNormEuclidRing):
 
 class HarperRing(RealNormEuclidRing):
     """
-    Harper-style Euclidean division for selected real quadratic maximal orders.
+    Euclidean division for real quadratic maximal orders that are Euclidean, but not norm-Euclidean.
 
-    This implementation uses admissible prime-pair witnesses to define a weighted
-    Euclidean score `phi` and then performs a nearest-lattice quotient search.
+    In these rings |N(x)| is not a Euclidean function, but a weighted version of it can be, as Harper showed for
+        Z[sqrt(14)]. The weights come from an admissible pair: prime ideals P1 and P2 of distinct, odd, unramified
+        prime norms p1 and p2, such that -1 and the fundamental unit generate (O/P1**2)* x (O/P2**2)*.
+        phi(x) is |N(x)| with each factor of P1 or P2 in x counted as p1 + 1 or p2 + 1 instead of p1 or p2
+        (like Clark69Ring's 23 -> 26), and divmod looks for a quotient that reduces phi, first near x/y and then
+        out along the hyperbola branches (see RealNormEuclidRing._divmod_on_branches).
 
-    We can really only do the Harper-like method with cypari, and even then it requires care to
-        test the witness speedup.
+    _HARDCODED stores the pair in one of two forms:
 
-    Therefor without cypari, this will only work for the D values that have been hard-coded and validated.
-    Even with cypari, the default behavior will be to tend towards accuracy, so division algorithms may be slow
-        (or heck, untested or incorrect).
+    * Witness primes (p1, i1, p2, i2), naming the i-th prime ideal over each p. phi then works from |N(x)| alone,
+        weighting every factor p1 or p2 of the norm, which is faster and good enough for most D.
+    * Principal generators (pi1, pi2) of P1 and P2. phi then counts how often each one divides x, which is slower,
+        but exact to the prime ideal. D=71 needs this (see _POST_HARDCODED).
 
-    CORRECTION: I have since written `Ideal`, `IdealClass`, and a whole host of classes and methods specifically
-        to replace cypari. Yes, in calculating the `class_number`, but also explicitly here: when it comes to finding
-        the admissible pairs.
+    This class is used for the rings in _HARDCODED (D < 100, found and checked ahead of time), and for any other
+        real D whose maximal order has class number one, which is checked when the ring is created. Such a D
+        qualifies if its discriminant is at most 500 (Harper's thesis showed all of those are Euclidean), or if an
+        admissible pair turns up among the primes up to 200. Its pair is then found on first use, as principal
+        generators. (Class numbers, prime ideals and generators all come from quadint's own Ideal machinery.)
 
-        As such we can now find new admissible pairs without cypari at all. While it is a bit slower,
-            it also means we can eliminate a dependency which is not supported on all platforms and versions.
+    phi is not a Euclidean function for every pair, though. For example, every remainder of 1 + sqrt(14) modulo 2
+        has phi at least 5 > 4 == phi(2), so divmod raises NotImplementedError there. Nothing else relies on it:
+        xgcd takes the gcd from a generator of the ideal (a, b) (these rings are PIDs), and inv_mod and modular pow
+        reduce with QuadraticRing._residue.
     """
 
-    SUPPORTS_DIVISION = True  # once divmod is implemented
+    SUPPORTS_DIVISION = True
 
     # Every quotient here is a weighted search, often a slow one, and Euclid can take seconds when a and b share
     #   a factor. The ideal (a, b) gives the gcd in milliseconds either way, so xgcd goes straight there.
@@ -180,7 +188,7 @@ class HarperRing(RealNormEuclidRing):
 
     # According to the rules, any D value added here (with default den):
     #   * Must be square free (no prime factors with an exponent 2 or greater).
-    #   * Must have class number 1 (_class_number_is_one is True).
+    #   * Must have class number 1 (class_number == 1).
     #   * Must have an admissible prime pair.
     #
     # This is a list of witness primes OR principal generators (which are defined in the _POST_HARDCODED list below)
@@ -467,8 +475,8 @@ class HarperRing(RealNormEuclidRing):
         Raises:
             ZeroDivisionError: If y has an absolute norm of 0.
             ArithmeticError: TODO: Remove?
-            NotImplementedError: If we were unable to find a quotient and remainder.
-                Shouldn't happen. If it does, please contact a developer. Preferably one smarter than me.
+            NotImplementedError: If no quotient reduces phi. That can happen, since phi is not a Euclidean function
+                for every pair (see the class docstring).
         """  # ruff: ignore[docstring-extraneous-exception] (raised by the shared hyperbola-branch search)
         y_norm = abs(y)  # signed norm (may be negative for D>0)
         abs_y_norm = abs(y_norm)
