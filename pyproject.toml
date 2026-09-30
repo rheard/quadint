@@ -31,9 +31,10 @@ classifiers = [
 ]
 keywords = ["complex", "math", "eisenstein"]
 dependencies = [
-    # TODO: Sympy began adding mypy type-hints and removed the py.typed file.
-    #   It is actively being worked on, see https://github.com/sympy/sympy/issues/17945
-    "sympy<=1.12.1",
+    # Only the build needs sympy <= 1.12.1, for its py.typed (see [build-system] above). At runtime the compiled
+    #   wheel calls into sympy like any other Python code, so it only needs a release with everything we import
+    #   (1.10 added hermite_normal_form). The floor matters since pip keeps an older sympy that is already installed.
+    "sympy>=1.10",
 ]
 
 [project.optional-dependencies]
