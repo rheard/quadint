@@ -491,14 +491,15 @@ class Ideal:
         return NotImplemented
 
     def __contains__(self, x: object) -> bool:
-        if not isinstance(x, _IDEAL_OP_TYPES):
+        # A Python number only counts if it equals a ring element (QuadraticRing.__contains__), instead of being
+        #   truncated the way arithmetic truncates it: 2.5 is not in (2), and 1.5 is in no ideal at all
+        if not isinstance(x, _IDEAL_OP_TYPES) or x not in self.ring:
             return False
 
-        try:
-            element = _coerce(self.ring, x)
-        except TypeError:
-            return False
+        if isinstance(x, complex) and not x.imag:
+            x = x.real  # from_obj only takes complex numbers in the Gaussian integers, but 3+0j is plain 3 in any ring
 
+        element = _coerce(self.ring, x)
         if self.norm == 0:
             return not element
 

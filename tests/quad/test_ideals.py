@@ -13,6 +13,7 @@ from tests.quad.test_rings import _rand_elem, ideal_prod
 ZN7 = QuadraticRing(-7)
 ZN5 = QuadraticRing(-5)
 ZI = QuadraticRing(-1)
+Z2 = QuadraticRing(2)
 
 
 class TestConstruct:
@@ -100,6 +101,47 @@ class TestMembership:
         assert 2 in ideal
         assert w in ideal
         assert ZN7.DEFAULT_KLASS(3, 1, ZN7, skip_basis=True) not in ideal
+
+    def test_python_numbers(self):
+        """Python numbers are members exactly when they equal an element of the ideal, not after truncation."""
+        two = ZI.ideal(2)
+
+        assert 2 in two
+        assert 2.0 in two
+        assert (4 - 6j) in two
+        assert 3.0 not in two
+        assert (2 + 1j) not in two
+
+        # These used to be truncated into members, the way arithmetic truncates them (2.5 -> 2)
+        assert 2.5 not in two
+        assert (2 + 0.5j) not in two
+        assert 1.5 not in ZI.unit_ideal()
+        assert 1.5j not in ZI.unit_ideal()
+        assert float("inf") not in ZI.unit_ideal()
+
+        # Complex numbers only reach past the real axis in the Gaussian integers, but 3+0j is plain 3 in any ring
+        assert (3 + 0j) in Z2.ideal(3)  # this one used to be rejected
+        assert 3j not in Z2.ideal(3)
+
+    @pytest.mark.parametrize(
+        "ideal",
+        [
+            ZI.ideal(2),
+            ZI.ideal(ZI(1, 1)),
+            ZN5.ideal(3, ZN5(1, 1)),
+            ZN7.ideal(2, ZN7.DEFAULT_KLASS(1, 1, ZN7, skip_basis=True)),
+            Z2.ideal(3),
+            ZI.zero_ideal(),
+        ],
+        ids=str,
+    )
+    def test_python_numbers_match_equality(self, ideal: Ideal):
+        """A Python number is in an ideal exactly when it == one of the ideal's elements."""
+        elements = list(islice(ideal, 41 * 41))  # every element with basis coefficients up to 20
+
+        for real in (-4, -3, -2.5, -2, -1, -0.5, 0, 1, 1.5, 2, 3, 4, 6):
+            for value in (real, float(real), complex(real, 0), complex(real, 1), complex(real, 2), complex(real, 0.5)):
+                assert (value in ideal) == any(z == value for z in elements), value
 
 
 class TestBezoutCoefficients:
