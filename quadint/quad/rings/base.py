@@ -648,37 +648,34 @@ class QuadraticRing:
             yield self.zero
             return
 
-        seen: set[tuple[int, int]] = set()
-
         if self.D < 0:
             if target < 0:
                 return
 
-            max_b = isqrt(target // abs(self.D)) + 1
+            # diop_DN gives every solution with a, b >= 0, except that before sympy 1.14, its Cornacchia step missed
+            #   the ones on an axis, where a == 0 or b == 0. Those are an isqrt away, so they are checked here too.
+            found = {(int(a), int(b)) for a, b in diop_DN(self.D, target)}
 
-            for b in range(-max_b, max_b + 1):
-                a_squared = target + self.D * b * b
-                if a_squared < 0:
+            root = isqrt(target)
+            if root * root == target:
+                found.add((root, 0))
+
+            b_squared, rem = divmod(target, -self.D)
+            root = isqrt(b_squared)
+            if rem == 0 and root * root == b_squared:
+                found.add((0, root))
+
+            # Every choice of signs, in order of b and then a
+            signed = {(sign_a * a, sign_b * b) for a, b in found for sign_a in (1, -1) for sign_b in (1, -1)}
+            for b, a in sorted((b, a) for a, b in signed):
+                if self.den == 2 and ((a ^ b) & 1):
                     continue
 
-                a_abs = isqrt(a_squared)
-                if a_abs * a_abs != a_squared:
-                    continue
-
-                a_values = (0,) if a_abs == 0 else (-a_abs, a_abs)
-
-                for a in a_values:
-                    if self.den == 2 and ((a ^ b) & 1):
-                        continue
-
-                    key = (a, b)
-                    if key in seen:
-                        continue
-
-                    seen.add(key)
-                    yield cls(a, b, self, skip_basis=True)
+                yield cls(a, b, self, skip_basis=True)
 
             return
+
+        seen: set[tuple[int, int]] = set()
 
         seed_values: list[QuadInt] = []
         for a_raw, b_raw in diop_DN(self.D, target):

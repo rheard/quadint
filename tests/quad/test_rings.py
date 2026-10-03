@@ -937,6 +937,46 @@ class TestElementsWithNorm:
 
     @pytest.mark.parametrize(
         ("D", "den"),
+        [(-1, 1), (-2, 1), (-3, 1), (-3, 2), (-5, 1), (-7, 2), (-19, 2), (-59, 1), (-59, 2), (-163, 2)],
+        ids=str,
+    )
+    def test_imaginary_matches_brute_force_in_order(self, D: int, den: int):
+        """Imaginary orders yield exactly the solutions brute force finds, ordered by b and then a."""
+        ring = QuadraticRing(D, den)
+        for n in range(400):
+            values = [(z.a, z.b) for z in ring.elements_with_norm(n)]
+            expected = sorted((z.b, z.a) for z in brute_norm_solutions(ring, n, isqrt(n * den * den // -D) + 1))
+
+            assert values == [(a, b) for b, a in expected]
+
+    @pytest.mark.parametrize(("D", "den"), [(-2, 1), (-5, 1), (-12, 1), (-59, 1), (-59, 2), (-163, 2)], ids=str)
+    def test_imaginary_axis_solutions(self, D: int, den: int):
+        """Solutions with a == 0 or b == 0 are found too, which sympy's diop_DN missed before 1.14 when D < -1."""
+        ring = QuadraticRing(D, den)
+        for k in range(1, 8):
+            assert {ring.from_obj(k), ring.from_obj(-k)} <= set(ring.elements_with_norm(k * k))
+            assert {ring.from_ab(0, k), ring.from_ab(0, -k)} <= set(ring.elements_with_norm(-D * k * k))
+
+    def test_gaussian_huge_norms(self):
+        """Huge Gaussian norms (far past a search over b) give exactly the count the sum-of-two-squares formula does."""
+        rng = random.Random(24)
+        for _ in range(40):
+            # n = 2**j * q**(2*m) * (primes 1 mod 4 to various powers), which has 4 * prod(k + 1) solutions
+            n = 2 ** rng.randint(0, 3) * rng.choice([1, 3, 7, 11]) ** (2 * rng.randint(0, 2))
+            count = 4
+            for p in rng.sample([5, 13, 17, 29, 37, 41, 53, 61, 73, 89, 97, 10**12 + 61], rng.randint(1, 5)):
+                k = rng.randint(1, 4)
+                n *= p**k
+                count *= k + 1
+
+            values = list(ZI.elements_with_norm(n))
+
+            assert len(values) == count
+            assert len(set(values)) == count
+            assert all(abs(z) == n for z in values)
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
         [(8, 1), (12, 1), (18, 1), (20, 1), (27, 1), (45, 1), (45, 2), (50, 1), (125, 2)],
         ids=str,
     )
