@@ -616,13 +616,89 @@ class Ideal:
         return f"({self.basis[0]}, {self.basis[1]})"
 
 
+# region Binary quadratic forms
+#   In an imaginary quadratic order, an ideal's class can be pinned down by a binary quadratic form, which turns class
+#   comparisons into comparing three integers. A form a*x**2 + b*x*y + c*y**2 with b**2 - 4*a*c equal to the
+#   discriminant goes with the ideal [a, (-b + sqrt(disc))/2], and two ideals are in the same class exactly when their
+#   forms are properly equivalent: one becomes the other under a change of variables (x, y) -> (p*x + q*y, r*x + s*y)
+#   with p*s - q*r == 1. When the discriminant is negative, every equivalence class has exactly one reduced form.
+def _reduce_form(a: int, b: int, c: int) -> tuple[int, int, int]:
+    """
+    Return the reduced form properly equivalent to the positive definite form a*x**2 + b*x*y + c*y**2.
+
+    Reduced means |b| <= a <= c, with b >= 0 when |b| == a or a == c. This is Gauss's reduction, alternating two
+        changes of variables: x -> x + k*y, which adds 2*a*k to b (to bring it into (-a, a]), and (x, y) -> (-y, x),
+        which swaps a and c and negates b (when c < a). Each swap makes a smaller, so this stops.
+
+    Returns:
+        tuple[int, int, int]: The reduced (a, b, c).
+    """
+    while True:
+        if not -a < b <= a:
+            k = (a - b) // (2 * a)
+            b, c = b + 2 * a * k, c + k * (b + a * k)
+
+        if a <= c:
+            break
+
+        a, b, c = c, -b, a
+
+    if a == c and b < 0:
+        b = -b  # (x, y) -> (-y, x) again, which only negates b when a == c
+
+    return a, b, c
+
+
+def _class_form(ideal: Ideal) -> tuple[int, int, int]:
+    """
+    Return the reduced form of a nonzero invertible ideal's class, in an imaginary quadratic order.
+
+    The ideal is k*J for J = [m, z + w], which is in the same class. Writing z + w as (B + sqrt(disc))/2, the form that
+        goes with J is (m, -B, (B**2 - disc)/(4*m)), so J is the ideal [a, (-b + sqrt(disc))/2] of that form.
+
+    Returns:
+        tuple[int, int, int]: The reduced (a, b, c), the same one for every ideal in the class.
+    """
+    ring = ideal.ring
+    a, b, k = ideal.hnf
+    m, z = a // k, b // k
+    B = 2 * z + ring.den - 1
+    disc = ring.discriminant()
+    return _reduce_form(m, -B, (B * B - disc) // (4 * m))
+
+
+def _reduced_forms(disc: int) -> Iterator[tuple[int, int, int]]:
+    """
+    Yield every primitive reduced form (a, b, c) of the negative discriminant disc, by increasing a.
+
+    These are one per ideal class of the order with that discriminant, starting with the principal form (1, b, c).
+        A reduced form has |b| <= a <= c, so -disc == 4*a*c - b**2 >= 3*a**2, which bounds a.
+
+    Yields:
+        tuple[int, int, int]: The forms (a, b, c).
+    """
+    a = 1
+    while 3 * a * a <= -disc:
+        # b**2 - disc must be a multiple of 4*a, so b has the parity of disc, starting from the first such b > -a
+        for b in range(-a + 1 + (a - 1 - disc) % 2, a + 1, 2):
+            c, r = divmod(b * b - disc, 4 * a)
+            if r == 0 and (a < c or (a == c and b >= 0)) and gcd(gcd(a, b), c) == 1:
+                yield a, b, c
+
+        a += 1
+
+
+# endregion
+
+
 class IdealClass:
     """Ideal class represented by a nonzero integral ideal."""
 
-    __slots__ = ("representative", "_order")
+    __slots__ = ("representative", "_order", "_form")
 
     representative: Ideal
     _order: int | None
+    _form: tuple[int, int, int] | None
 
     def __init__(self, representative: Ideal) -> None:
         """Create the ideal class represented by a nonzero, invertible integral ideal."""
@@ -640,6 +716,9 @@ class IdealClass:
 
         self.representative = representative
         self._order = None
+        # Real orders have no reduced form that is unique to the class (they come in cycles), so those still compare
+        #   classes by testing whether I * conj(J) is principal
+        self._form = _class_form(representative) if ring.D < 0 else None
 
     @property
     def ring(self) -> QuadraticRing:
@@ -663,6 +742,10 @@ class IdealClass:
 
     def is_trivial(self) -> bool:
         """Return True iff this is the principal ideal class."""
+        form = self._form
+        if form is not None:
+            return form[0] == 1  # the principal form (1, b, c) is the only reduced form with a == 1
+
         return self.representative.is_principal()
 
     def __invert__(self) -> IdealClass:
@@ -695,6 +778,9 @@ class IdealClass:
         if self.ring is not other.ring:
             return False
 
+        if self._form is not None:
+            return self._form == other._form
+
         return (self.representative * other.representative.conjugate()).is_principal()
 
     def __ne__(self, other: object) -> bool:
@@ -702,7 +788,8 @@ class IdealClass:
         return not self.__eq__(other)
 
     def __hash__(self) -> int:
-        return hash(self.representative.ring)
+        # Without a reduced form (in real orders), every class of the ring hashes the same
+        return hash((self.representative.ring, self._form))
 
     def __reduce__(self) -> tuple:
         return IdealClass, (self.representative,)
@@ -794,11 +881,22 @@ class ClassGroup:
 
     @property
     def classes(self) -> tuple[IdealClass, ...]:
-        """Return all ideal classes in this class group."""
+        """Return all ideal classes in this class group, starting with the principal class."""
         if self._classes is not None:
             return self._classes
 
-        out = [IdealClass(self.ring.unit_ideal())]
+        ring = self.ring
+        if ring.D < 0:
+            # Every class has exactly one reduced form, so listing those lists the classes without multiplying any
+            #   ideals. Each is represented by the ideal [a, (-b + sqrt(disc))/2] of its form, which has the smallest
+            #   norm in its class.
+            self._classes = tuple(
+                IdealClass(Ideal(ring, _hnf=(a, -(b + ring.den - 1) // 2, 1)))
+                for a, b, _ in _reduced_forms(ring.discriminant())
+            )
+            return self._classes
+
+        out = [IdealClass(ring.unit_ideal())]
 
         for generator in self.generators:
             self._adjoin(out, generator)

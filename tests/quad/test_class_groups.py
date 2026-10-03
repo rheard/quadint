@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import random
+
 import pytest
 
-from quadint import QuadraticRing
-from quadint.quad.ideal import ClassGroup, IdealClass
+from quadint import Ideal, QuadraticRing
+from quadint.quad.ideal import ClassGroup, IdealClass, _reduce_form, _reduced_forms  # ruff: ignore[import-private-name]
+from quadint.utils import _is_squarefree  # ruff: ignore[import-private-name]
+from tests.quad.test_rings import _rand_elem
 
 ZI = QuadraticRing(-1)
 ZE = QuadraticRing(-3)
@@ -223,6 +227,24 @@ class TestNontrivialGroups:
         """Imaginary class numbers should match the count of reduced binary quadratic forms."""
         assert ClassGroup(QuadraticRing(D)).order == expected
 
+    def test_small_imaginary_class_numbers(self):
+        """The imaginary fields with class number 1, 2 or 3 should be exactly the known lists (all with d < 1000)."""
+        # Heegner and Stark (h = 1), Baker and Stark (h = 2), Oesterle (h = 3), as d for Q(sqrt(-d))
+        known = {
+            1: {1, 2, 3, 7, 11, 19, 43, 67, 163},
+            2: {5, 6, 10, 13, 15, 22, 35, 37, 51, 58, 91, 115, 123, 187, 235, 267, 403, 427},
+            3: {23, 31, 59, 83, 107, 139, 211, 283, 307, 331, 379, 499, 547, 643, 883, 907},
+        }
+
+        found: dict[int, set[int]] = {1: set(), 2: set(), 3: set()}
+        for d in range(1, 1000):
+            if d == 1 or _is_squarefree(d):
+                h = ClassGroup(QuadraticRing(-d)).order
+                if h in found:
+                    found[h].add(d)
+
+        assert found == known
+
 
 class TestGroupBehavior:
     """Tests for basic class group behavior."""
@@ -258,6 +280,109 @@ class TestGroupBehavior:
 
         assert group.generators is group.generators
         assert group.classes is group.classes
+
+
+class TestReducedForms:
+    """Tests for the reduced binary quadratic forms behind imaginary ideal classes."""
+
+    @pytest.mark.parametrize(
+        ("form", "expected"),
+        [
+            ((1, 0, 5), (1, 0, 5)),  # already reduced
+            ((5, 0, 1), (1, 0, 5)),  # swap a and c
+            ((2, -2, 3), (2, 2, 3)),  # b == -a moves up to a
+            ((2, -3, 4), (2, 1, 3)),  # shift b into (-a, a]
+            ((3, 1, 2), (2, -1, 3)),  # swap, which negates b
+            ((2, -1, 2), (2, 1, 2)),  # a == c needs b >= 0
+            ((12, 19, 8), (1, 1, 6)),  # several rounds, back to the principal form of disc -23
+        ],
+        ids=str,
+    )
+    def test_reduce_form_examples(self, form: tuple[int, int, int], expected: tuple[int, int, int]):
+        """_reduce_form should find the reduced form, keeping the discriminant."""
+        a, b, c = form
+        assert _reduce_form(a, b, c) == expected
+        assert expected[1] ** 2 - 4 * expected[0] * expected[2] == b * b - 4 * a * c
+
+    @pytest.mark.parametrize("disc", [-3, -4, -20, -23, -47, -56, -71, -84, -199, -420, -4004], ids=str)
+    def test_reduce_form_ignores_changes_of_variables(self, disc: int):
+        """Every form properly equivalent to a reduced form should reduce back to it, and the forms are distinct."""
+        rng = random.Random(-disc)
+        forms = list(_reduced_forms(disc))
+        assert len(set(forms)) == len(forms)
+
+        for a, b, c in forms:
+            assert b * b - 4 * a * c == disc
+            assert abs(b) <= a <= c
+
+            for _ in range(30):
+                # A random change of variables (x, y) -> (p*x + q*y, r*x + s*y) with p*s - q*r == 1
+                p, q, r, s = 1, 0, 0, 1
+                for _ in range(rng.randint(1, 8)):
+                    k = rng.randint(-5, 5)
+                    p, q, r, s = (q, -p + k * q, s, -r + k * s) if rng.random() < 0.5 else (p, q + k * p, r, s + k * r)
+
+                assert p * s - q * r == 1
+                moved = (
+                    a * p * p + b * p * r + c * r * r,
+                    2 * a * p * q + b * (p * s + q * r) + 2 * c * r * s,
+                    a * q * q + b * q * s + c * s * s,
+                )
+                assert _reduce_form(*moved) == (a, b, c)
+
+    @pytest.mark.parametrize(
+        "ring",
+        [ZN5, ZN19, QuadraticRing(-23), QuadraticRing(-105), QuadraticRing(-15, den=1), QuadraticRing(-12)],
+        ids=str,
+    )
+    def test_class_equality_matches_principal_test(self, ring: QuadraticRing):
+        """Comparing reduced forms should agree with testing whether I * conj(J) is principal, and so should hashes."""
+        rng = random.Random(ring.D)
+
+        ideals = []
+        while len(ideals) < 25:
+            ideal = ring.ideal(_rand_elem(rng, ring, 30), _rand_elem(rng, ring, 30))
+            if not ideal.norm:
+                continue
+
+            try:
+                IdealClass(ideal)
+            except ValueError:
+                continue  # not invertible, in the non-maximal orders
+
+            ideals.append(ideal)
+
+        for left in ideals:
+            assert IdealClass(left).is_trivial() == left.is_principal()
+            for right in ideals:
+                same = (left * right.conjugate()).is_principal()
+                assert (IdealClass(left) == IdealClass(right)) == same
+                if same:
+                    assert hash(IdealClass(left)) == hash(IdealClass(right))
+
+    def test_classes_are_represented_by_smallest_ideals(self):
+        """Each listed class should be represented by the ideal of its reduced form, which has the smallest norm."""
+        ring = QuadraticRing(-4999)
+        group = ClassGroup(ring)
+
+        assert group.order == 33
+        assert group.classes[0] == IdealClass(ring.unit_ideal())
+        assert len(set(group.classes)) == 33  # hashable, and distinct
+
+        # Find the smallest norm in each class from every ideal of norm below 82, which is past every reduced form's a
+        #   (a <= sqrt(19996 / 3)). An ideal's hnf (A, B, k) has norm A*k, with k dividing A and B.
+        smallest: dict[IdealClass, int] = {}
+        for n in range(1, 82):
+            for k in range(1, n + 1):
+                if n % (k * k) == 0:
+                    for B in range(0, n // k, k):
+                        lattice = Ideal(ring, _hnf=(n // k, B, k))
+                        if ring.ideal(*lattice.basis) == lattice:  # closed under multiplication, so an ideal
+                            smallest.setdefault(IdealClass(lattice), n)
+
+        assert len(smallest) == 33
+        for cls in group.classes:
+            assert cls.representative.norm == smallest[cls]
 
 
 class TestNonMaximalOrders:
