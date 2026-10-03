@@ -47,13 +47,12 @@ def _coerce(ring: QuadraticRing, x: complex | int | float | QuadInt) -> QuadInt:
 
 
 def _canonical_hnf(a: int, b: int, c: int) -> tuple[int, int, int]:
-    """Return a canonical normal form"""
-    if a < 0:
-        a = -a
-        b = -b
+    """Normalize the lattice basis (a, 0), (b, c) to a > 0, c > 0 and 0 <= b < a, without changing the lattice."""
+    # Each step trades the basis for another basis of the same lattice: negating (a, 0), negating (b, c) (where b has
+    #   to flip along with c, as they are one vector), and subtracting multiples of (a, 0) from (b, c) (the b % a)
+    a = abs(a)
     if c < 0:
-        c = -c
-        b = -b
+        b, c = -b, -c
 
     return a, b % a, c
 

@@ -7,7 +7,7 @@ from itertools import islice
 import pytest
 
 from quadint import Ideal, QuadraticRing
-from quadint.quad.ideal import IdealClass, _bezout_coefficients  # ruff: ignore[import-private-name]
+from quadint.quad.ideal import IdealClass, _bezout_coefficients, _canonical_hnf  # ruff: ignore[import-private-name]
 from tests.quad.test_rings import _rand_elem, ideal_prod
 
 ZN7 = QuadraticRing(-7)
@@ -50,12 +50,36 @@ class TestConstruct:
         assert ZN5(0, 1) in unit
 
     def test_hnf(self):
-        """The internal HNF path should normalize signs and residues."""
+        """The internal HNF path should normalize signs and residues, without changing the lattice."""
+        # -3 and -4 - sqrt(-5) span the same lattice as 3 and 1 + sqrt(-5): negate both, then add 3 to the second
         ideal = Ideal(ZN5, _hnf=(-3, -4, -1))
 
-        assert ideal.hnf == (3, 2, 1)
+        assert ideal.hnf == (3, 1, 1)
         assert ideal.norm == 3
-        assert ideal == ZN5.ideal(3, ZN5(2, 1))
+        assert ideal == ZN5.ideal(3, ZN5(1, 1))
+        assert ZN5(-3) in ideal
+        assert ZN5(-4, -1) in ideal
+
+    def test_canonical_hnf_keeps_the_lattice(self):
+        """Normalizing a basis (a, 0), (b, c) should give a basis of exactly the same lattice, whatever the signs."""
+        rng = random.Random(49)
+        for _ in range(2_000):
+            a = rng.choice((-1, 1)) * rng.randint(1, 40)
+            b = rng.randint(-300, 300)
+            c = rng.choice((-1, 1)) * rng.randint(1, 40)
+
+            a2, b2, c2 = _canonical_hnf(a, b, c)
+            assert a2 > 0
+            assert c2 > 0
+            assert 0 <= b2 < a2
+
+            # The new lattice contains both old basis vectors, so it contains the old lattice. Its basis also has the
+            #   same |determinant| (the area of a cell), so it can't be any bigger: the two lattices are the same.
+            assert a2 * c2 == abs(a * c)
+            assert a % a2 == 0
+            n, r = divmod(c, c2)
+            assert r == 0
+            assert (b - n * b2) % a2 == 0
 
     def test_invalid(self):
         """Invalid constructor combinations should raise clear errors."""
