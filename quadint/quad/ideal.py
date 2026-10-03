@@ -667,6 +667,11 @@ def _class_form(ideal: Ideal) -> tuple[int, int, int]:
     return _reduce_form(m, -B, (B * B - disc) // (4 * m))
 
 
+def _form_ideal(ring: QuadraticRing, a: int, b: int) -> Ideal:
+    """Return the ideal [a, (-b + sqrt(disc))/2] of a form (a, b, c) of the ring's discriminant (see _class_form)."""
+    return Ideal(ring, _hnf=(a, -(b + ring.den - 1) // 2, 1))
+
+
 def _reduced_forms(disc: int) -> Iterator[tuple[int, int, int]]:
     """
     Yield every primitive reduced form (a, b, c) of the negative discriminant disc, by increasing a.
@@ -692,7 +697,12 @@ def _reduced_forms(disc: int) -> Iterator[tuple[int, int, int]]:
 
 
 class IdealClass:
-    """Ideal class represented by a nonzero integral ideal."""
+    """
+    Ideal class represented by a nonzero integral ideal.
+
+    In imaginary orders, the classes that products and powers give back are represented by the ideal of their reduced
+        form (the one with the smallest norm in the class), instead of the product of the representatives.
+    """
 
     __slots__ = ("representative", "_order", "_form")
 
@@ -731,10 +741,11 @@ class IdealClass:
         if self._order is not None:
             return self._order
 
-        power = self.representative
+        # Multiplying classes rather than ideals keeps the powers small in imaginary orders (see __mul__)
+        power = self
         order = 1
-        while not power.is_principal():
-            power *= self.representative
+        while not power.is_trivial():
+            power *= self
             order += 1
 
         self._order = order
@@ -759,17 +770,35 @@ class IdealClass:
         if self.ring is not other.ring:
             raise TypeError("Cannot multiply ideal classes from different rings")
 
-        return IdealClass(self.representative * other.representative)
+        product = self.representative * other.representative
+        if self._form is None:
+            return IdealClass(product)
+
+        # The ideal of the reduced form is in the same class, and its norm is at most sqrt(|disc|/3), while the norm of
+        #   a product is the product of the norms: through ** or order, those would keep growing without end
+        a, b, _ = _class_form(product)
+        return IdealClass(_form_ideal(self.ring, a, b))
 
     def __pow__(self, exp: int) -> IdealClass:
         e = int(exp)
-        if e == 0:
-            return IdealClass(self.ring.unit_ideal())
-
         if e < 0:
             return (~self) ** -e
 
-        return IdealClass(self.representative**e)
+        if self._form is None:
+            return IdealClass(self.representative**e)
+
+        # Square and multiply on the classes rather than the ideals, so every step stays reduced (see __mul__)
+        result = IdealClass(self.ring.unit_ideal())
+        base = self
+        while e:
+            if e & 1:
+                result *= base
+
+            e >>= 1
+            if e:
+                base *= base
+
+        return result
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, IdealClass):
@@ -890,10 +919,8 @@ class ClassGroup:
             # Every class has exactly one reduced form, so listing those lists the classes without multiplying any
             #   ideals. Each is represented by the ideal [a, (-b + sqrt(disc))/2] of its form, which has the smallest
             #   norm in its class.
-            self._classes = tuple(
-                IdealClass(Ideal(ring, _hnf=(a, -(b + ring.den - 1) // 2, 1)))
-                for a, b, _ in _reduced_forms(ring.discriminant())
-            )
+            forms = _reduced_forms(ring.discriminant())
+            self._classes = tuple(IdealClass(_form_ideal(ring, a, b)) for a, b, _ in forms)
             return self._classes
 
         out = [IdealClass(ring.unit_ideal())]

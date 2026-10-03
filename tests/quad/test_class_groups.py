@@ -384,6 +384,52 @@ class TestReducedForms:
         for cls in group.classes:
             assert cls.representative.norm == smallest[cls]
 
+    def test_products_and_powers_stay_reduced(self):
+        """Products and powers of imaginary classes should land in the right class, with a reduced representative."""
+        ring = QuadraticRing(-10007)  # class number 77
+        group = ClassGroup(ring)
+        rng = random.Random(10007)
+
+        for _ in range(100):
+            left, right = rng.choice(group.classes), rng.choice(group.classes)
+            product = left * right
+
+            assert product == IdealClass(left.representative * right.representative)
+            assert 3 * product.representative.norm**2 <= 10007  # a reduced form has 3*a**2 <= |disc|
+
+        cls = group.classes[5]
+        k = cls.order
+        assert k > 1
+        assert (cls**k).is_trivial()
+        assert cls**3 == cls * cls * cls
+        assert cls ** (k + 3) == cls**3
+        assert cls**-1 == ~cls
+
+        # Without reducing along the way, this representative would be an ideal whose norm has about 10**18 digits
+        huge = cls ** (10**18)
+        assert huge == cls ** (10**18 % k)
+        assert 3 * huge.representative.norm**2 <= 10007
+
+    def test_order_adds_nothing_to_the_generator_cache(self):
+        """Finding an imaginary class's order should compare reduced forms, not cache every power as an ideal."""
+        cache_info = Ideal.principal_generator.cache_info
+        group = ClassGroup(QuadraticRing(-10007))
+        before = cache_info().currsize
+
+        orders = [IdealClass(cls.representative).order for cls in group.classes]
+
+        assert cache_info().currsize == before
+        assert orders[0] == 1
+        assert all(77 % order == 0 for order in orders)  # Lagrange: every order divides the class number
+
+    def test_real_products_are_unchanged(self):
+        """Real orders have no reduced form to shrink to, so products stay the products of the representatives."""
+        left = IdealClass(Z15.prime_ideals_over(2)[0])
+        right = IdealClass(Z15.prime_ideals_over(3)[0])
+
+        assert (left * right).representative == left.representative * right.representative
+        assert (left**3).representative == left.representative**3
+
 
 class TestNonMaximalOrders:
     """Tests for ideal classes in orders that are not maximal."""
