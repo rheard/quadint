@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import random
 
-from itertools import islice
+from functools import reduce
+from itertools import combinations, islice
+from math import gcd
 
 import pytest
 
 from quadint import Ideal, QuadraticRing
-from quadint.quad.ideal import IdealClass, _bezout_coefficients, _canonical_hnf  # ruff: ignore[import-private-name]
+from quadint.quad.ideal import IdealClass, _bezout_coefficients, _canonical_hnf, _lattice_hnf  # ruff: ignore[import-private-name]
 from tests.quad.test_rings import _rand_elem, ideal_prod
 
 ZN7 = QuadraticRing(-7)
@@ -80,6 +82,41 @@ class TestConstruct:
             n, r = divmod(c, c2)
             assert r == 0
             assert (b - n * b2) % a2 == 0
+
+    def test_lattice_hnf_spans_the_same_lattice(self):
+        """_lattice_hnf should give the normalized basis of exactly the lattice its vectors span, or reject rank 1."""
+        rng = random.Random(50)
+        for _ in range(3_000):
+            vectors = [(rng.randint(-60, 60), rng.randint(-60, 60)) for _ in range(rng.randint(1, 6))]
+            if rng.random() < 0.2:
+                # Every vector on one line through the origin (or all of them zero)
+                dx, dy = rng.randint(-5, 5), rng.randint(-5, 5)
+                vectors = [(k * dx, k * dy) for k in (rng.randint(-9, 9) for _ in vectors)]
+
+            # The lattice the vectors span has covolume (the area of a cell) gcd(det(v, v')) over all pairs of them,
+            #   which is 0 when they don't span the plane
+            covolume = reduce(gcd, (x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in combinations(vectors, 2)), 0)
+            if covolume == 0:
+                if any(v != (0, 0) for v in vectors):
+                    with pytest.raises(ValueError, match="rank-2"):
+                        _lattice_hnf(vectors)
+                else:
+                    assert _lattice_hnf(vectors) == (0, 0, 0)
+
+                continue
+
+            a, b, c = _lattice_hnf(vectors)
+            assert a > 0
+            assert c > 0
+            assert 0 <= b < a
+
+            # The new lattice contains every old vector, so it contains the old lattice, and with the same covolume
+            #   it can't be any bigger: they are the same lattice
+            assert a * c == covolume
+            for x, y in vectors:
+                n, r = divmod(y, c)
+                assert r == 0
+                assert (x - b * n) % a == 0
 
     def test_invalid(self):
         """Invalid constructor combinations should raise clear errors."""

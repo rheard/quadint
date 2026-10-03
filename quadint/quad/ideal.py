@@ -5,8 +5,7 @@ from itertools import product
 from math import gcd, isqrt, pi, prod, sqrt
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import Matrix, factorint, primerange
-from sympy.matrices.normalforms import hermite_normal_form
+from sympy import factorint, primerange
 from sympy.polys.domains import ZZ
 
 from quadint.quad.int import QuadInt
@@ -86,6 +85,43 @@ def _combine_columns(u: list[int], v: list[int], row: int) -> tuple[list[int], l
         [s * x + t * y for x, y in zip(u, v, strict=True)],
         [b_g * x - a_g * y for x, y in zip(u, v, strict=True)],
     )
+
+
+def _lattice_hnf(vectors: list[tuple[int, int]]) -> tuple[int, int, int]:
+    """
+    Return the Hermite normal form (a, b, c) of the lattice the vectors span, the canonical basis (a, 0), (b, c).
+
+    This is the same column reduction as in _lattice_coefficients, only without tracking coefficients, and with the
+        rows the other way around, so the zero ends up below the diagonal.
+
+    Returns:
+        tuple[int, int, int]: The normalized (a, b, c), or (0, 0, 0) if every vector is zero.
+
+    Raises:
+        ValueError: If the vectors span a nonzero lattice of rank below 2.
+    """
+    columns = [[x, y] for x, y in vectors]
+    columns.append([0, 0])  # so there are always at least two columns to combine
+
+    # Leave the gcd of the second coordinates in `second`, and 0 in the second coordinate of every other column...
+    second = columns[0]
+    rest = columns[1:]
+    for i in range(len(rest)):
+        second, rest[i] = _combine_columns(second, rest[i], 1)
+
+    # ...then the gcd of the first coordinates in `first`, among the rest. Those span the lattice with second.
+    first = rest[0]
+    for i in range(1, len(rest)):
+        first, rest[i] = _combine_columns(first, rest[i], 0)
+
+    a, b, c = first[0], second[0], second[1]
+    if a == 0 and b == 0 and c == 0:
+        return 0, 0, 0
+
+    if a == 0 or c == 0:
+        raise ValueError("ideal generators must span a rank-2 lattice")
+
+    return _canonical_hnf(a, b, c)
 
 
 def _lattice_coefficients(vectors: list[tuple[int, int]], target: tuple[int, int]) -> list[int] | None:
@@ -209,18 +245,7 @@ class Ideal:
                 x = _coerce(ring, g)
                 vectors.extend((_coords(x), _coords(x * w)))
 
-            matrix = Matrix([[x for x, _ in vectors], [y for _, y in vectors]])
-            hnf = hermite_normal_form(matrix)
-
-            if hnf.shape[1] == 0:
-                self.hnf = (0, 0, 0)
-            elif hnf.shape[1] == 2:
-                a = int(hnf[0, 0])
-                b = int(hnf[0, 1])
-                c = int(hnf[1, 1])
-                self.hnf = _canonical_hnf(a, b, c)
-            else:
-                raise ValueError("ideal generators must span a rank-2 lattice")
+            self.hnf = _lattice_hnf(vectors)
 
         a, b, c = self.hnf
         self.basis = (_from_coords(ring, a, 0), _from_coords(ring, b, c))
@@ -392,15 +417,15 @@ class Ideal:
         a, b, c = self.hnf
         modulus = a * c
 
-        # This matrix stores the current candidate lattice for x.
+        # (la, lb, lc) is the current candidate lattice for x, as the basis (la, 0), (lb, lc) (like an ideal's hnf).
         #
         # Initially, every ring element x = u + v*w is allowed, so the coordinate
-        # lattice is just Z^2 with basis columns (1, 0), (0, 1).
+        # lattice is just Z^2 with basis (1, 0), (0, 1).
         #
         # Each condition "x * y is in self" cuts this lattice down by two modular
         # linear congruences. After processing both basis elements of other, the
         # remaining lattice is exactly (self : other).
-        basis_matrix = Matrix([[1, 0], [0, 1]])
+        la, lb, lc = 1, 0, 1
 
         for y in other.basis:
             y0, y1 = _coords(y)
@@ -426,8 +451,10 @@ class Ideal:
                 if mod == 1:
                     continue
 
-                s0 = int(r0 * basis_matrix[0, 0] + r1 * basis_matrix[1, 0])
-                s1 = int(r0 * basis_matrix[0, 1] + r1 * basis_matrix[1, 1])
+                # The congruence is r0*x0 + r1*x1 == 0 (mod mod) for x = x0 + x1*w, and s0, s1 are its left side on the
+                #   two basis vectors, so x = alpha*(la, 0) + beta*(lb, lc) passes iff s0*alpha + s1*beta == 0 (mod mod)
+                s0 = r0 * la
+                s1 = r0 * lb + r1 * lc
 
                 if s0 == 0 and s1 == 0:
                     continue
@@ -443,21 +470,12 @@ class Ideal:
                 if int(d) != 1:
                     raise ArithmeticError("Failed to solve ideal quotient congruence")
 
-                solution_matrix = Matrix(
-                    [
-                        [-s1, q * int(u)],
-                        [s0, q * int(v)],
-                    ],
-                )
+                # The combinations of the basis vectors that solve it are spanned by (-s1, s0) and q*(u, v), so the new
+                #   lattice is spanned by -s1*(la, 0) + s0*(lb, lc) and q*u*(la, 0) + q*v*(lb, lc)
+                qu, qv = q * int(u), q * int(v)
+                la, lb, lc = _lattice_hnf([(s0 * lb - s1 * la, s0 * lc), (qu * la + qv * lb, qv * lc)])
 
-                basis_matrix = hermite_normal_form(basis_matrix * solution_matrix)
-
-        hnf = (
-            int(basis_matrix[0, 0]),
-            int(basis_matrix[0, 1]),
-            int(basis_matrix[1, 1]),
-        )
-        return Ideal(self.ring, _hnf=hnf)
+        return Ideal(self.ring, _hnf=(la, lb, lc))
 
     def exact_div(self, other: Ideal) -> Ideal:
         """Return the integral ideal q such that self == other * q."""
