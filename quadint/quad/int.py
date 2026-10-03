@@ -213,6 +213,17 @@ class QuadInt:
         if self.ring is not other.ring:
             raise TypeError("Cannot mix QuadInt from different rings")
 
+    def _coerce(self, x: complex | int | float | QuadInt, method: str) -> QuadInt:
+        """Return x as an element of this ring, or raise TypeError naming `method` (operators return NotImplemented)."""
+        if isinstance(x, _OTHER_OP_TYPES):
+            x = self._from_obj(x)
+
+        if not isinstance(x, QuadInt):
+            raise TypeError(f"unsupported type for {method}: {type(x).__name__!r}")
+
+        self.assert_same_ring(x)
+        return x
+
     def conjugate(self):
         """(a + b√D)/den -> (a - b√D)/den."""
         return self._make(self.a, -self.b)
@@ -450,58 +461,23 @@ class QuadInt:
 
     def exact_div(self, divisor: complex | int | float | QuadInt) -> QuadInt | None:
         """Return q if y * q == self in this ring, else None."""
-        if isinstance(divisor, _OTHER_OP_TYPES):
-            divisor = self._from_obj(divisor)
-
-        if not isinstance(divisor, QuadInt):
-            raise TypeError(f"unsupported type for exact_div: {type(divisor).__name__!r}")
-
-        self.assert_same_ring(divisor)
-        return self.ring.exact_div(self, divisor)
+        return self.ring.exact_div(self, self._coerce(divisor, "exact_div"))
 
     def divides(self, x: complex | int | float | QuadInt) -> bool:
         """Return True iff self | x in this ring."""
-        if isinstance(x, _OTHER_OP_TYPES):
-            x = self._from_obj(x)
-
-        if not isinstance(x, QuadInt):
-            raise TypeError(f"unsupported type for divides: {type(x).__name__!r}")
-
-        self.assert_same_ring(x)
-        return self.ring.divides(x, self)
+        return self.ring.divides(self._coerce(x, "divides"), self)
 
     def xgcd(self, x: complex | int | float | QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
         """Extended gcd in Euclidean quadratic rings."""
-        if isinstance(x, _OTHER_OP_TYPES):
-            x = self._from_obj(x)
-
-        if not isinstance(x, QuadInt):
-            raise TypeError(f"unsupported type for xgcd: {type(x).__name__!r}")
-
-        self.assert_same_ring(x)
-        return self.ring.xgcd(self, x)
+        return self.ring.xgcd(self, self._coerce(x, "xgcd"))
 
     def gcd(self, x: complex | int | float | QuadInt) -> QuadInt:
         """Greatest common divisor in Euclidean quadratic rings."""
-        if isinstance(x, _OTHER_OP_TYPES):
-            x = self._from_obj(x)
-
-        if not isinstance(x, QuadInt):
-            raise TypeError(f"unsupported type for gcd: {type(x).__name__!r}")
-
-        self.assert_same_ring(x)
-        return self.ring.gcd(self, x)
+        return self.ring.gcd(self, self._coerce(x, "gcd"))
 
     def inv_mod(self, mod: complex | int | float | QuadInt) -> QuadInt:
         """Return the modular inverse of self modulo mod (if it exists)."""
-        if isinstance(mod, _OTHER_OP_TYPES):
-            mod = self._from_obj(mod)
-
-        if not isinstance(mod, QuadInt):
-            raise TypeError(f"unsupported type for inv_mod: {type(mod).__name__!r}")
-
-        self.assert_same_ring(mod)
-        return self.ring.inv_mod(self, mod)
+        return self.ring.inv_mod(self, self._coerce(mod, "inv_mod"))
 
     # endregion
 
