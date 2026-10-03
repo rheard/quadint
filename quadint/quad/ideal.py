@@ -581,6 +581,10 @@ class Ideal:
     def __hash__(self) -> int:
         return hash((self.ring, self.hnf))
 
+    def __reduce__(self) -> tuple:
+        # The basis elements generate the ideal too (mypyc would rebuild it with no arguments)
+        return Ideal, (self.ring, *self.basis)
+
     def __repr__(self) -> str:
         if self.norm == 0:
             return f"Ideal({self.ring!r}, 0)"
@@ -681,6 +685,9 @@ class IdealClass:
 
     def __hash__(self) -> int:
         return hash(self.representative.ring)
+
+    def __reduce__(self) -> tuple:
+        return IdealClass, (self.representative,)
 
     def __repr__(self) -> str:
         return f"IdealClass({self.representative!r})"
@@ -804,6 +811,10 @@ class ClassGroup:
             return False
 
         return self._contains_class(self.classes, cls)
+
+    def __reduce__(self) -> tuple:
+        # Hands back the cached class group, like QuadraticRing.__reduce__ does for rings
+        return ClassGroup, (self.ring,)
 
     def __repr__(self) -> str:
         return f"ClassGroup({self.ring!r})"

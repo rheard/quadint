@@ -677,6 +677,10 @@ class QuadInt:
 
         return hash((self.a, self.b, self.ring.D, self.ring.den))
 
+    def __reduce__(self) -> tuple:
+        # Rebuild through the constructor, from the basis coordinates it takes (mypyc would call it with no arguments)
+        return self.__class__, (*self.basis, self.ring)
+
     def __repr__(self) -> str:
         den = self.ring.den
 

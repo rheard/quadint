@@ -31,6 +31,10 @@ class Factorization:
         yield self.unit
         yield self.primes
 
+    def __reduce__(self) -> tuple:
+        # mypyc's default pickling would set the fields one at a time, which a frozen dataclass refuses
+        return Factorization, (self.unit, self.primes)
+
     def prod(self):
         """Recreate the number using prod"""
         return prod((p**k for p, k in self.primes.items()), start=self.unit)
@@ -441,6 +445,11 @@ class QuadraticRing:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(D={self.D}, den={self.den})"
+
+    def __reduce__(self) -> tuple:
+        # Elements only mix when their rings are the very same object, so pickling (and copy.deepcopy) rebuild a ring
+        #   through __new__, which hands back the cached instance instead of making a copy
+        return QuadraticRing, (self.D, self.den)
 
     def __call__(self, a: int = 0, b: int = 0) -> QuadInt:
         """Create element (a + b*sqrt(D))/den with numerator coefficients a,b."""
