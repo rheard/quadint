@@ -34,6 +34,9 @@ class Clark69Ring(RealNormEuclidRing):
 
     The obstruction to norm-Euclidean-ness lives entirely at the primes above 23;
         inflating 23->26 fixes Euclidean descent.
+
+    That phi only depends on |N(x)|, so the division itself is RealNormEuclidRing.divmod, which scores its candidates
+        through _phi_from_abs_norm.
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = True
@@ -41,13 +44,15 @@ class Clark69Ring(RealNormEuclidRing):
     _BAD_P: ClassVar[int] = 23
     _BAD_REPL: ClassVar[int] = 26
 
+    # A slightly bigger radius schedule than the norm-Euclidean rings, just in case
+    _SEARCH_RADII: ClassVar[tuple[int, ...]] = (1, 2, 3, 4, 6, 8, 12, 16)
+
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:
         """Supported for the maximal order for D=69 only"""
         return D == 69 and den == default_den
 
-    @classmethod
-    def _phi_from_abs_norm(cls, abs_norm: int) -> int:
+    def _phi_from_abs_norm(self, abs_norm: int) -> int:
         """Compute Clark's adjusted Euclidean function value from the integer |N(x)|."""
         n = int(abs_norm)
         if n < 0:
@@ -55,7 +60,7 @@ class Clark69Ring(RealNormEuclidRing):
         if n == 0:
             return 0
 
-        p = cls._BAD_P
+        p = self._BAD_P
         e = 0
         qn, rn = divmod(n, p)
         while rn == 0:
@@ -64,90 +69,13 @@ class Clark69Ring(RealNormEuclidRing):
             qn, rn = divmod(n, p)
 
         if e:
-            n *= pow(cls._BAD_REPL, e)
+            n *= pow(self._BAD_REPL, e)
 
         return n
 
     def phi(self, x: QuadInt) -> int:
         """Return Clark's adjusted Euclidean function for the `D=69` maximal order."""
         return self._phi_from_abs_norm(super().phi(x))
-
-    def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
-        """Divide `x` by `y` and return a Clark-admissible quotient and remainder."""
-        # Same scaffolding as RealNormEuclidRing.divmod, but accept via phi() instead of |N|.
-        y_norm = abs(y)  # signed norm (may be negative for D>0)
-        abs_y_norm = abs(y_norm)
-        if abs_y_norm == 0:
-            raise ZeroDivisionError
-
-        phi_y = self._phi_from_abs_norm(abs_y_norm)
-        phi_y2 = phi_y * phi_y
-
-        # Candidate center from x/y ≈ (x * conj(y)) / N(y)
-        a1, b1 = x.a, x.b
-        a2, b2 = y.a, y.b
-
-        # num = x * conj(y), computed in numerators directly:
-        # (a1+b1√D)(a2-b2√D) = (a1*a2 - b1*b2*D) + (a2*b1 - a1*b2)√D
-        num_a = a1 * a2 - b1 * b2 * self.D
-        num_b = a2 * b1 - a1 * b2
-
-        if self.den != 1:
-            if (num_a % self.den) != 0 or (num_b % self.den) != 0:
-                raise ArithmeticError("Non-integral product; check ring parameters / parity")
-            num_a //= self.den
-            num_b //= self.den
-
-        A0 = _round_div_ties_away_from_zero(num_a, y_norm)
-        B0 = _round_div_ties_away_from_zero(num_b, y_norm)
-
-        dd = self.den * self.den  # here dd=4
-
-        def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
-            return B0
-
-        # Prefer any phi-reducing remainder; among those, minimize phi(w), then distance to (A0,B0).
-        #
-        # We work with w = q*N(y) - x*conj(y) = -(x-qy)*conj(y).
-        # Since phi is multiplicative (by construction), phi(w) = phi(x-qy)*phi(y),
-        # so phi(x-qy) < phi(y)  <=>  phi(w) < phi(y)^2.
-        def score_for_AB(A: int, B: int) -> tuple[int, ...]:
-            da = A * y_norm - num_a
-            db = B * y_norm - num_b
-
-            # numerator of N(w) where w=(da + db*sqrt(D))/den
-            nw_num = da * da - self.D * (db * db)
-            abs_nw_num = abs(nw_num)
-
-            if abs_nw_num % dd:
-                # Should not happen if parity/integrality is consistent, but be safe.
-                return (1, abs_nw_num, (A - A0) * (A - A0) + (B - B0) * (B - B0))
-
-            abs_nw = abs_nw_num // dd
-            phi_w = self._phi_from_abs_norm(abs_nw)
-
-            flag = 0 if phi_w < phi_y2 else 1
-            dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
-            return flag, phi_w, dist2
-
-        # A slightly bigger radius schedule than the norm-euclid case, just in case.
-        search = _NeighborhoodSearch(
-            A0=A0,
-            B0_for_A=B0_for_A,
-            score_for_AB=score_for_AB,
-            den=self.den,
-        )
-
-        for rad in (1, 2, 3, 4, 6, 8, 12, 16):
-            best_a, best_b = search.expand_to(rad)
-
-            best_score = search.best_score
-            if best_score is not None and best_score[0] == 0:
-                q = x._make(best_a, best_b)
-                r = x - q * y
-                return q, r
-
-        return self._divmod_on_branches(x, y, search, num_a, num_b, y_norm)
 
 
 class HarperRing(RealNormEuclidRing):
@@ -185,6 +113,9 @@ class HarperRing(RealNormEuclidRing):
     # Every quotient here is a weighted search, often a slow one, and Euclid can take seconds when a and b share
     #   a factor. The ideal (a, b) gives the gcd in milliseconds either way, so xgcd goes straight there.
     _XGCD_FROM_IDEAL: ClassVar[bool] = True
+
+    # Wider schedule than norm-euclid / Clark69; these cases are trickier.
+    _SEARCH_RADII: ClassVar[tuple[int, ...]] = (1, 2, 4, 8, 16, 32)
 
     # According to the rules, any D value added here (with default den):
     #   * Must be square free (no prime factors with an exponent 2 or greater).
@@ -389,7 +320,7 @@ class HarperRing(RealNormEuclidRing):
 
     # endregion
 
-    def _phi_from_abs_norm(self, abs_norm: int, witness: tuple) -> int:
+    def _witness_phi(self, abs_norm: int, witness: tuple) -> int:
         """
         Weighted-norm score used as a Harper-style search heuristic.
 
@@ -429,7 +360,7 @@ class HarperRing(RealNormEuclidRing):
         cached_pair: tuple = self._HARDCODED.get((self.D, self.den), ())
 
         if len(cached_pair) == 4:
-            return self._phi_from_abs_norm(n, cached_pair)  # faster fallback for witness cache entries
+            return self._witness_phi(n, cached_pair)  # faster fallback for witness cache entries
 
         if len(cached_pair) == 0:
             witness = self._find_admissible_witness_primes()
@@ -495,7 +426,7 @@ class HarperRing(RealNormEuclidRing):
             phi_y = self.phi(y)
             phi_y2 = 0
         else:
-            phi_y = self._phi_from_abs_norm(abs_y_norm, witness)
+            phi_y = self._witness_phi(abs_y_norm, witness)
             phi_y2 = phi_y * phi_y
 
         # Candidate center from x/y ≈ (x * conj(y)) / N(y)
@@ -536,7 +467,7 @@ class HarperRing(RealNormEuclidRing):
                 if abs_nw >= phi_y2:
                     return 1, abs_nw, dist2
 
-                phi_w = self._phi_from_abs_norm(abs_nw, witness)
+                phi_w = self._witness_phi(abs_nw, witness)
                 flag = 0 if phi_w < phi_y2 else 1
                 return flag, phi_w, dist2
 
@@ -551,7 +482,6 @@ class HarperRing(RealNormEuclidRing):
             flag = 0 if pr < phi_y else 1
             return flag, pr, dist2
 
-        # Wider schedule than norm-euclid / Clark69; these cases are trickier.
         search = _NeighborhoodSearch(
             A0=A0,
             B0_for_A=B0_for_A,
@@ -559,7 +489,7 @@ class HarperRing(RealNormEuclidRing):
             den=self.den,
         )
 
-        for rad in (1, 2, 4, 8, 16, 32):
+        for rad in self._SEARCH_RADII:
             best_a, best_b = search.expand_to(rad)
 
             best_score = search.best_score

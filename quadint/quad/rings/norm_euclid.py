@@ -55,20 +55,37 @@ class RealNormEuclidRing(QuadraticRing):
 
     This class provides the general division algorithm used for both positive and negative
         discriminants in NORM_EUCLID_D (excluding D=0 and D=1 special cases).
+        Clark69Ring reuses it with its own Euclidean function (see _phi_from_abs_norm).
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = True
+
+    # divmod checks for a phi-reducing quotient after searching each of these radii around the rounded quotient,
+    #   and then carries on out along the hyperbola branches
+    _SEARCH_RADII: ClassVar[tuple[int, ...]] = (1, 2, 3, 4, 6, 8)
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:
         """Should this class be used for the given values?"""
         return D in NORM_EUCLID_D and den == default_den
 
+    def _phi_from_abs_norm(self, abs_norm: int) -> int:
+        """
+        Return the Euclidean function phi of an element from its |N|, which in a norm-Euclidean ring is just |N|.
+
+        A subclass can weight some primes of the norm instead (like Clark69Ring's 23 -> 26). divmod relies on phi
+            being multiplicative and never below |N|.
+
+        Returns:
+            int: phi.
+        """
+        return abs_norm
+
     def divmod(self, x: QuadInt, y: QuadInt):
         """
-        Division in a norm-Euclidean real quadratic ring.
+        Division that reduces the Euclidean function phi from _phi_from_abs_norm.
 
-        We use the absolute norm as the Euclidean function:
+        In a norm-Euclidean ring that is the absolute norm:
             f(z) = |N(z)|.
 
         For the known finite list of D where the ring of integers is norm-Euclidean,
@@ -106,27 +123,30 @@ class RealNormEuclidRing(QuadraticRing):
         A0 = _round_div_ties_away_from_zero(num_a, y_norm)
         B0 = _round_div_ties_away_from_zero(num_b, y_norm)
         dd = self.den**2
-        threshold = abs_y_norm * abs_y_norm * dd
+
+        # A candidate quotient q leaves the remainder r = x - q*y, and w = q*N(y) - x*conj(y) is -r*conj(y).
+        #   phi is multiplicative, so phi(w) == phi(r) * phi(y), and r reduces phi exactly when phi(w) < phi(y)**2.
+        #   phi is never below |N| either, so any w with |N(w)| >= phi(y)**2 is out without working out its phi.
+        limit = self._phi_from_abs_norm(abs_y_norm) ** 2
 
         def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return B0
 
-        # Prefer any norm-reducing remainder; among those, minimize |N(r)| then distance to (A0,B0).
+        # Prefer any phi-reducing remainder; among those, minimize phi(w), then distance to (A0,B0).
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
             da = A * y_norm - num_a
             db = B * y_norm - num_b
-
-            # numerator of N(w) where w=(da + db*sqrt(D))/den
-            nw_num = da * da - self.D * (db * db)
-            abs_nw_num = abs(nw_num)
-
-            # norm-reducing condition: |N(w)| < |Ny|^2  <=>  |nw_num| < |Ny|^2 * den^2
-            flag = 0 if abs_nw_num < threshold else 1
-
             dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
-            return flag, abs_nw_num, dist2
 
-        # Expand search radius until we find a norm-reducing remainder.
+            # |N(w)| for w = (da + db*sqrt(D))/den, which is always in the ring, so den**2 divides the numerator
+            abs_nw = abs(da * da - self.D * (db * db)) // dd
+            if abs_nw >= limit:
+                return 1, abs_nw, dist2
+
+            phi_w = self._phi_from_abs_norm(abs_nw)
+            return (0 if phi_w < limit else 1), phi_w, dist2
+
+        # Expand search radius until we find a phi-reducing remainder.
         search = _NeighborhoodSearch(
             A0=A0,
             B0_for_A=B0_for_A,
@@ -134,10 +154,10 @@ class RealNormEuclidRing(QuadraticRing):
             den=self.den,
         )
 
-        for rad in (1, 2, 3, 4, 6, 8):
+        for rad in self._SEARCH_RADII:
             best_a, best_b = search.expand_to(rad)
 
-            # score_for_AB returns (flag, abs_nw_num, dist2)
+            # score_for_AB returns (flag, phi or |N|, dist2)
             best_score = search.best_score
             if best_score is not None and best_score[0] == 0:
                 q = x._make(best_a, best_b)
