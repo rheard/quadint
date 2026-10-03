@@ -56,7 +56,8 @@ class QuadInt:
     INTERNAL_TO_BASIS: ClassVar[tuple[tuple[int, int], tuple[int, int]]] = ((1, 0), (0, 1))
     INTERNAL_TO_BASIS_DEN: ClassVar[int] = 1
 
-    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = None, *, skip_basis: bool = False):
+    # skip_basis isn't keyword-only, so that _make can pass it positionally (see there)
+    def __init__(self, a: int = 0, b: int = 0, ring: QuadraticRing | None = None, skip_basis: bool = False):  # ruff: ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         """Init and validate the integer works for this ring"""
         ring = ring or self.DEFAULT_RING
         if ring is None:
@@ -83,7 +84,10 @@ class QuadInt:
 
     def _make(self, a: int, b: int):
         """Construct a new value of *this* conceptual type from internal numerators a,b."""
-        return self.__class__(a, b, self.ring, skip_basis=True)
+        # Every arithmetic result is built here, through an ordinary Python call even when compiled (self.__class__ is
+        #   only known at runtime). Matching skip_basis up by name would cost about a fifth of a + b, compiled or not,
+        #   so it goes positionally.
+        return self.__class__(a, b, self.ring, True)  # ruff: ignore[boolean-positional-value-in-call]
 
     @property
     def zero(self) -> QuadInt:
