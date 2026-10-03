@@ -512,7 +512,6 @@ class QuadInt:
             return False
 
         abs_norm = abs(abs(self))
-        # if self.is_unit():
         if abs_norm == 1:
             return False
 

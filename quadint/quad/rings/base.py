@@ -87,7 +87,6 @@ class PrimeIdealData:
 
         # Harper will only use odd, unramified split primes here.
         # For p == 2 or ramified primes, the simple Hensel lift is not valid/useful.
-        # TODO: Will this be a problem? I think it will be?
         if self.p == 2 or self.ring.discriminant() % self.p == 0:
             return None
 

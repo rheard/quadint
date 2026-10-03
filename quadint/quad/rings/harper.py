@@ -186,9 +186,6 @@ class HarperRing(RealNormEuclidRing):
         temp_ring: QuadraticRing = cls(D, den)
         disc = temp_ring.discriminant()
 
-        # if isqrt(abs(disc)) ** 2 == abs(disc):
-        #     return False
-
         # Must be a PID
         if temp_ring.class_number != 1:
             return False
@@ -408,7 +405,7 @@ class HarperRing(RealNormEuclidRing):
 
         Raises:
             ZeroDivisionError: If y has an absolute norm of 0.
-            ArithmeticError: TODO: Remove?
+            ArithmeticError: In the event of a parity mismatch.
             NotImplementedError: If no quotient reduces phi. That can happen, since phi is not a Euclidean function
                 for every pair (see the class docstring).
         """  # ruff: ignore[docstring-extraneous-exception] (raised by the shared hyperbola-branch search)
