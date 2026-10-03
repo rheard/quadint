@@ -263,6 +263,18 @@ class TestNumberDecomposition:
         assert decompose_number(0, d, check_count=2, no_trivial_solutions=False) == set()
         assert decompose_number(-5, d, no_trivial_solutions=False) == set()
 
+    @mark.parametrize("d", [0, -1, -4, -5], ids=str)
+    def test_invalid_d(self, d: int):
+        """Only d >= 1 is supported, which used to quietly return no solutions instead of raising."""
+        with raises(ValueError, match="d must be >= 1"):
+            decompose_number(25, d)
+
+        with raises(ValueError, match="d must be >= 1"):
+            decompose_number({5: 2}, d, no_trivial_solutions=False)
+
+        with raises(ValueError, match="d must be >= 1"):
+            decompose_number(0, d)
+
     def test_outside_range(self):
         """Verify large numbers"""
 

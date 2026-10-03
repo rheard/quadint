@@ -264,7 +264,12 @@ def decompose_number(
 
     Returns:
         set<tuple<int, int>>: All unique solutions (x, y)
+
+    Raises:
+        ValueError: If d < 1, where there can be infinitely many solutions (like 5**2 + 0*y**2 == 25 for every y).
     """
+    if d < 1:
+        raise ValueError(f"d must be >= 1, got {d!r}")
 
     # Step 1: Factor n. This is the most time consuming step, especially on larger numbers. Avoid if possible
     n_int, factors = _factor_input(n)
