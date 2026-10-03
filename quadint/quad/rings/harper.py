@@ -370,6 +370,9 @@ class HarperRing(RealNormEuclidRing):
         candidates = (x, -x, x.conjugate(), (-x).conjugate())
         return min(candidates, key=lambda z: (abs(z.a), abs(z.b), z.a, z.b))
 
+    # phi needs these on every call in the rings found at runtime, and always passes the ring's one witness,
+    #   so this keeps a single entry per ring however many elements go through it
+    @cache
     def _principal_generators_from_witness(
         self,
         witness: tuple[int, int, int, int],

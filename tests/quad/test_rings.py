@@ -1333,6 +1333,23 @@ class TestHarperDiv:
                 assert x == q * y + r, f"division identity failed for D={D}, x={x}, y={y}, q={q}, r={r}"
                 assert Q.phi(r) < Q.phi(y), f"non-reducing remainder for D={D}, x={x}, y={y}, r={r}"
 
+    def test_runtime_ring_finds_its_generators_once(self):
+        """A ring found at runtime should build its generators once, so phi caches one entry however often it runs."""
+        Q = QuadraticRing(103)
+        assert isinstance(Q, HarperRing)
+        assert (Q.D, Q.den) not in HarperRing._HARDCODED
+
+        cache_info = HarperRing._principal_generators_from_witness.cache_info
+        before = cache_info().currsize
+        rng = random.Random(103)
+        for _ in range(500):
+            Q.phi(self._rand_elem(rng, Q, 10**6))
+
+        witness = Q._find_admissible_witness_primes()
+        assert witness is not None
+        assert Q._principal_generators_from_witness(witness) is Q._principal_generators_from_witness(witness)
+        assert cache_info().currsize - before <= 1  # 0 if an earlier test in this process already used D=103
+
     def test_valuation_at_generator_counts_exact_powers(self):
         """_valuation_at_generator should count repeated exact divisibility by a generator."""
         Q = QuadraticRing(14, 1)
