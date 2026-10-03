@@ -524,22 +524,26 @@ class HarperRing(RealNormEuclidRing):
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
             dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
 
+            # w = q*N(y) - x*conj(y) is -(x - q*y)*conj(y), so |N(w)| == |N(r)| * |N(y)| for the remainder r = x - q*y
+            da = A * y_norm - num_a
+            db = B * y_norm - num_b
+            abs_nw_num = abs(da * da - self.D * db * db)
+            abs_nw, rem = divmod(abs_nw_num, dd)
+            if rem:
+                return 1, abs_nw_num, dist2
+
             if witness is not None:
-                da = A * y_norm - num_a
-                db = B * y_norm - num_b
-
-                nw_num = da * da - self.D * db * db
-                abs_nw_num = abs(nw_num)
-                abs_nw, rem = divmod(abs_nw_num, dd)
-                if rem:
-                    return 1, abs_nw_num, dist2
-
                 if abs_nw >= phi_y2:
                     return 1, abs_nw, dist2
 
                 phi_w = self._phi_from_abs_norm(abs_nw, witness)
                 flag = 0 if phi_w < phi_y2 else 1
                 return flag, phi_w, dist2
+
+            # phi(r) is never below |N(r)|, so once |N(r)| >= phi(y) this candidate can't reduce phi,
+            #   and there's no need to build r and count its valuations to find that out
+            if abs_nw >= phi_y * abs_y_norm:
+                return 1, abs_nw, dist2
 
             q = x._make(A, B)
             r = x - q * y
