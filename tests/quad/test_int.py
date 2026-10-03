@@ -731,6 +731,14 @@ class TestIrreducible:
         assert not ZN5.has_element_with_norm(-3)
         assert three.is_irreducible()
 
+    @pytest.mark.filterwarnings("ignore:D is not squarefree")
+    def test_irreducible_in_non_squarefree_orders(self):
+        """The norm certificates work in non-maximal orders like Z[2i] and Z[sqrt(8)], which used to raise."""
+        z2i = QuadraticRing(-4)
+        assert z2i(2).is_irreducible()  # N(2) == 4, but nothing in Z[2i] has norm 2 (in Z[i], 2 == -i*(1 + i)**2)
+        assert z2i(3).is_irreducible()  # N(3) == 9, and nothing has norm 3
+        assert QuadraticRing(8)(3).is_irreducible()  # nothing in Z[sqrt(8)] has norm 3 or -3
+
     def test_six_has_two_distinct_factorizations(self):
         """The classic equality 2*3 = (1 + sqrt(-5))*(1 - sqrt(-5)) holds in Z[sqrt(-5)]."""
         assert ZN5(2, 0) * ZN5(3, 0) == ZN5(6, 0)

@@ -6,7 +6,7 @@ import warnings
 
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from itertools import islice
-from math import prod
+from math import isqrt, prod
 from pathlib import Path
 
 import pytest
@@ -41,6 +41,26 @@ ZE = QuadraticRing(-3)
 def ideal_prod(ring: QuadraticRing, factors: tuple[Ideal, ...]) -> Ideal:
     """Return the product of a tuple of ideals."""
     return prod(factors, start=ring.unit_ideal())
+
+
+def brute_norm_solutions(ring: QuadraticRing, n: int, max_b: int) -> set[QuadInt]:
+    """Return every element (a + b*sqrt(D)) / den of the ring with norm n and |b| <= max_b, by brute force."""
+    target = n * ring.den * ring.den
+    out: set[QuadInt] = set()
+    for b in range(-max_b, max_b + 1):
+        a_squared = target + ring.D * b * b
+        if a_squared < 0:
+            continue
+
+        a = isqrt(a_squared)
+        if a * a != a_squared:
+            continue
+
+        for signed_a in {a, -a}:
+            if ring.den == 1 or not (signed_a ^ b) & 1:
+                out.add(ring(signed_a, b))
+
+    return out
 
 
 def norm_multiset(primes: dict[QuadInt, int]) -> list[int]:
@@ -901,11 +921,49 @@ class TestElementsWithNorm:
         """For nonsquare D, the equation a**2 - D*b**2 = 0 has only the zero solution."""
         assert list(Z2.elements_with_norm(0)) == [Z2(0, 0)]
 
-    def test_degenerate_orders_are_rejected(self):
-        """The norm-equation iterator should reject degenerate quadratic orders."""
-        for ring in (QuadraticRing(0), Z1):
-            with pytest.raises(NotImplementedError):
-                list(ring.elements_with_norm(1))
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        [(-4, 1), (-8, 1), (-9, 1), (-12, 1), (-18, 1), (-27, 1), (-27, 2), (-63, 2), (-75, 2)],
+        ids=str,
+    )
+    def test_imaginary_non_squarefree_matches_brute_force(self, D: int, den: int):
+        """Non-maximal imaginary orders like Z[2i] = Z[sqrt(-4)] yield exactly the solutions brute force finds."""
+        ring = QuadraticRing(D, den)
+        for n in range(300):
+            values = list(ring.elements_with_norm(n))
+
+            assert len(values) == len(set(values))
+            assert set(values) == brute_norm_solutions(ring, n, isqrt(n * den * den // -D) + 1)
+
+    @pytest.mark.parametrize(
+        ("D", "den"),
+        [(8, 1), (12, 1), (18, 1), (20, 1), (27, 1), (45, 1), (45, 2), (50, 1), (125, 2)],
+        ids=str,
+    )
+    @pytest.mark.filterwarnings("ignore:D is not squarefree")
+    def test_real_non_squarefree_finds_every_solution(self, D: int, den: int):
+        """Non-maximal real orders like Z[sqrt(8)] reach every solution, through their Pell seeds and unit orbits."""
+        ring = QuadraticRing(D, den)
+        for n in range(-40, 41):
+            missing = brute_norm_solutions(ring, n, 400)
+            seen: set[QuadInt] = set()
+            for z in islice(ring.elements_with_norm(n), 2_000):
+                assert abs(z) == n
+                assert z not in seen
+                seen.add(z)
+
+                missing.discard(z)
+                if not missing:
+                    break
+
+            assert not missing, f"never yielded {missing} for n={n}"
+
+    @pytest.mark.parametrize(("D", "den"), [(0, 1), (1, 1), (1, 2), (4, 1), (9, 1), (9, 2), (16, 1)], ids=str)
+    @pytest.mark.filterwarnings("ignore:D is not squarefree")
+    def test_square_d_is_rejected(self, D: int, den: int):
+        """A square D (like the dual D=0 and split-complex D=1 integers) factors the norm, which this doesn't handle."""
+        with pytest.raises(NotImplementedError, match="nonsquare D"):
+            list(QuadraticRing(D, den).elements_with_norm(1))
 
 
 class TestHasElementWithNorm:
@@ -930,6 +988,17 @@ class TestHasElementWithNorm:
     def test_has_element_with_norm_works_for_negative_imaginary_norm(self):
         """The existence predicate rejects negative norms in imaginary quadratic orders."""
         assert not ZN5.has_element_with_norm(-1)
+
+    @pytest.mark.filterwarnings("ignore:D is not squarefree")
+    def test_has_element_with_norm_in_non_squarefree_orders(self):
+        """Non-maximal orders answer too, instead of raising NotImplementedError."""
+        z2i = QuadraticRing(-4)
+        assert z2i.has_element_with_norm(5)  # 1 + 2i
+        assert not z2i.has_element_with_norm(2)  # 1 + i is not in Z[2i]
+
+        z8 = QuadraticRing(8)
+        assert z8.has_element_with_norm(1)  # 3 + sqrt(8)
+        assert not z8.has_element_with_norm(-1)  # a**2 - 8*b**2 == -1 has no solution, not even mod 8
 
 
 class TestClassNumber:

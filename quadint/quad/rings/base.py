@@ -13,7 +13,6 @@ from sympy.solvers.diophantine.diophantine import diop_DN
 
 from quadint.quad.ideal import ClassGroup, Ideal, _bezout_coefficients
 from quadint.quad.int import QuadInt
-from quadint.utils import _is_squarefree
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -633,16 +632,14 @@ class QuadraticRing:
             QuadInt: Elements of this order with norm `n`.
 
         Raises:
-            NotImplementedError: If called for a degenerate quadratic order where
-                this norm-equation interpretation is not appropriate.
+            NotImplementedError: If D is a perfect square, like the dual (D=0) and split-complex (D=1) integers.
         """
         n = int(n)
 
-        if self.D in (0, 1):
-            raise NotImplementedError("elements_with_norm requires a quadratic field order")
-
-        if self.D != -1 and not _is_squarefree(self.D):
-            raise NotImplementedError("elements_with_norm requires nonsquare D")
+        # A square D splits the norm a**2 - D*b**2 into two linear factors, which is a different problem. Any other D
+        #   works, squarefree or not: imaginary norms are positive definite, and diop_DN takes any nonsquare D > 0.
+        if self.D >= 0 and isqrt(self.D) ** 2 == self.D:
+            raise NotImplementedError(f"elements_with_norm requires a nonsquare D, got D={self.D}")
 
         target = n * self.den * self.den
         cls = self.DEFAULT_KLASS
