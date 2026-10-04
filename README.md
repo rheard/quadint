@@ -15,7 +15,7 @@ Designed for discrete math, number theory tooling, and high-throughput exact com
 Helper methods on every quadratic integer value:
 
 * `x.content()` — largest positive integer `n` such that `x = n*y` in the same ring.
-* `x.gcd(y)`, `x.xgcd(y)`, `x.inv_mod(m)`, and `pow(x, e, m)` — gcds and modular arithmetic, in the rings with division (see below).
+* `x.gcd(y)`, `x.xgcd(y)`, `x.inv_mod(m)`, and `pow(x, e, m)` — gcds and modular arithmetic, in the principal ideal domains (see below).
 * `x.factor_detail()` — structured factorization as `Factorization(unit, primes)`.
 * `x.factor()` — a plain `{prime_like_factor: exponent}` mapping whose product is exactly `x`.
 * `x.basis`, `x.basis_a`, `x.basis_b` — public/user-facing basis coordinates, which may differ from the internal `(a, b)` numerator coordinates.
@@ -145,7 +145,7 @@ print(z * w)          # 0j   (zero divisor behavior)
   * `D=69`, via Clark's Euclidean function,
   * and real quadratic rings that are **Euclidean but not norm-Euclidean**, via a Harper-style method (a weighted Euclidean score plus a quotient search). Witnesses are built in for `D=14,22,23,31,43,46,47,53,59,61,62,67,71,77,83,86,89,93,94,97`, and any other real `D` whose maximal order has class number one is checked when the ring is created (`D=38`, `101`, `103`, and so on): it qualifies if its discriminant is at most 500, or if an admissible pair of witness primes turns up below 200.
 * In the Harper-style rings, `divmod`, `//` and `%` can raise `NotImplementedError` for some inputs, because the weighted score is not a Euclidean function for every pair (every remainder of `1 + √14` modulo `2` has a larger weighted norm than `2`, for example). `gcd`, `xgcd`, `inv_mod` and `pow(x, e, m)` don't use that search, so they aren't affected.
-* `gcd`, `xgcd` and `inv_mod` are available wherever division is, except in two rings that are not PIDs: the dual integers have none of them, and the `den=1` split-complex integers only have `gcd`. A gcd is only defined up to a unit, so it is normalized to a positive leading coefficient (the first quadrant in the Gaussian integers, the first sextant in the Eisenstein integers), and coprime elements have gcd `1`.
+* `gcd`, `xgcd` and `inv_mod` are available in every principal ideal domain, which is the maximal orders with class number one. That includes every Euclidean ring above, and also `D=-19,-43,-67,-163`, which have no division, so their gcds come from generators of ideals instead. `pow(x, e, m)` works in all of those, and anywhere else with division. Other rings raise `NotImplementedError`, except for the split-complex integers, which have gcds of their own: the `den=2` ones have all of these, and the `den=1` ones have `gcd` (but not `xgcd` or `inv_mod`). A gcd is only defined up to a unit, so it is normalized to a positive leading coefficient (the first quadrant in the Gaussian integers, the first sextant in the Eisenstein integers), and coprime elements have gcd `1`.
 * Factorization (`factor` / `factor_detail`) is implemented for the imaginary quadratic fields with class number one:
   * `complexint` (`D=-1`), `QuadraticRing(-2)`, and `eisensteinint` (`D=-3`),
   * and the maximal orders for `D=-7,-11,-19,-43,-67,-163`.

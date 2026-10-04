@@ -266,6 +266,15 @@ class Ideal:
     @cache
     def principal_generator(self) -> QuadInt | None:
         """Return a generator of this ideal, or None if it is not principal."""
+        return self._generator()
+
+    def _generator(self) -> QuadInt | None:
+        """
+        Return principal_generator without its cache, for callers like xgcd that only ever ask once per ideal.
+
+        Returns:
+            QuadInt | None: The canonical generator, or None if this ideal is not principal.
+        """
         if self.norm == 0:
             return self.ring.zero
 

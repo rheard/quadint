@@ -71,6 +71,8 @@ class HeegnerNonEuclidUfdRing(HeegnerDen2Ring):
       - We do NOT rely on divmod()/Euclidean division.
       - We generate split prime elements π with N(π)=p using Cornacchia-style integer work.
       - Then we strip valuations using exact_div (fast, and works even when supports_division()==False).
+      - These are still PIDs, so gcd, xgcd, inv_mod and pow(x, e, m) work, from a generator of the ideal (a, b)
+        (see QuadraticRing.xgcd).
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = False

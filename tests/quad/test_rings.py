@@ -6,7 +6,7 @@ import warnings
 
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from itertools import islice
-from math import isqrt, prod
+from math import gcd, isqrt, prod
 from pathlib import Path
 
 import pytest
@@ -1645,14 +1645,79 @@ class TestGcdXgcd(QuadIntTests):
         assert s * a + t * b == g
         assert g == Z1(2, -2)
 
-    def test_xgcd_requires_division(self):
-        """xgcd/gcd should raise in rings without divmod support."""
-        a = Z15(5, 2)
-        b = Z15(3, -2)
-        with pytest.raises(NotImplementedError):
+    @pytest.mark.parametrize(
+        "Q",
+        [
+            Z15,  # class number 2
+            ZN5,  # class number 2
+            QuadraticRing(-3, 1),  # not maximal: its invertible ideals are principal, but (2, 1 + sqrt(-3)) is neither
+        ],
+        ids=str,
+    )
+    def test_xgcd_requires_a_pid(self, Q: QuadraticRing):
+        """xgcd/gcd should raise in rings that are not PIDs, where some pairs have no gcd that combines them."""
+        a = Q(5, 3)
+        b = Q(3, -1)
+        with pytest.raises(NotImplementedError, match="principal ideal domain"):
             _ = a.xgcd(b)
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotImplementedError, match="principal ideal domain"):
             _ = a.gcd(b)
+
+    @pytest.mark.parametrize("D", [-19, -43, -67, -163], ids=str)
+    def test_xgcd_in_pids_without_division(self, D: int):
+        """
+        These rings are PIDs but not Euclidean, so they have no divmod, and xgcd takes their gcds from the ideal (a, b).
+
+        The gcd has to generate that ideal, which here is (c) times the ideal of the cofactors.
+        """
+        Q = QuadraticRing(D)
+        assert Q.supports_division() is False
+        rng = random.Random(19_000 - D)
+
+        for _ in range(30):
+            c = _rand_elem(rng, Q, 12)
+            a = c * _rand_elem(rng, Q, 2_000)
+            b = c * _rand_elem(rng, Q, 2_000)
+            if not (c and a and b):
+                continue
+
+            g, s, t = a.xgcd(b)
+
+            assert s * a + t * b == g
+            assert Q.ideal(g) == Q.ideal(a, b)
+            assert c.divides(g)
+            assert g == g._canonical_associate()
+            assert a.gcd(b) == g
+            assert b.gcd(a) == g
+
+    @pytest.mark.parametrize("D", [-19, -43], ids=str)
+    def test_pid_gcd_matches_brute_force(self, D: int):
+        """Without using ideals: the gcd is the common divisor of the largest norm, and every other one divides it."""
+        Q = QuadraticRing(D)
+        rng = random.Random(43_000 - D)
+
+        checked = 0
+        while checked < 40:
+            c = _rand_elem(rng, Q, 4)
+            a = c * _rand_elem(rng, Q, 12)
+            b = c * _rand_elem(rng, Q, 12)
+            n = gcd(abs(a), abs(b))
+            if not (a and b) or n > 500:
+                continue
+
+            # A common divisor's norm divides both norms
+            common = [
+                d
+                for k in range(1, n + 1)
+                if n % k == 0
+                for d in Q.elements_with_norm(k)
+                if d.divides(a) and d.divides(b)
+            ]
+
+            g = a.gcd(b)
+            assert abs(g) == max(abs(d) for d in common)
+            assert all(d.divides(g) for d in common)
+            checked += 1
 
     @pytest.mark.parametrize(
         ("a", "other"),
@@ -1980,8 +2045,8 @@ class TestInvModAndNegativePow(QuadIntTests):
 
         assert m.divides(pow(a, 3, m) - a**3)
 
-    def test_inv_mod_requires_division(self):
-        """Rings without divmod/xgcd should reject inv_mod and negative modular pow."""
+    def test_inv_mod_requires_a_pid(self):
+        """Rings that are not PIDs (Z[sqrt(15)] has class number 2) should reject inv_mod and modular pow."""
         assert Z15.supports_division() is False
 
         a = Z15(5, 2)
@@ -1991,6 +2056,32 @@ class TestInvModAndNegativePow(QuadIntTests):
             _ = a.inv_mod(m)
         with pytest.raises(NotImplementedError):
             _ = pow(a, -1, m)
+        with pytest.raises(NotImplementedError):
+            _ = pow(a, 3, m)
+
+    @pytest.mark.parametrize("D", [-19, -43, -67, -163], ids=str)
+    def test_inv_mod_and_pow_in_pids_without_division(self, D: int):
+        """inv_mod and pow(x, e, m) work in the PIDs with no divmod too, which reduce by rounding x / m instead."""
+        Q = QuadraticRing(D)
+        rng = random.Random(21_000 - D)
+
+        for _ in range(30):
+            a = _rand_elem(rng, Q, 300)
+            m = _rand_elem(rng, Q, 30)
+            if not a or abs(abs(m)) <= 1:
+                continue
+
+            e = rng.randint(0, 40)
+            assert m.divides(pow(a, e, m) - a**e)
+
+            if Q.ideal(a, m) == Q.unit_ideal():
+                inv = a.inv_mod(m)
+                assert m.divides(a * inv - 1)
+                assert pow(a, -1, m) == inv
+                assert m.divides(pow(a, -e, m) * a**e - 1)
+            else:
+                with pytest.raises(ValueError, match="is not invertible"):
+                    _ = a.inv_mod(m)
 
     @pytest.mark.parametrize("Q", [ZI, Z2, Z5], ids=str)
     def test_inv_mod_and_pow_reject_modulus_zero(self, Q: QuadraticRing):

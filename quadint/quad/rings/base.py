@@ -863,6 +863,23 @@ class QuadraticRing:
         """
         return self.SUPPORTS_FACTORIZATION
 
+    @functools.cache
+    def _is_pid(self) -> bool:
+        """
+        Return whether this ring is a principal ideal domain, which is what gcd, xgcd, inv_mod and modular pow need.
+
+        Those are the maximal orders with class number one, including every Euclidean ring. (No other order is a PID,
+            since a PID is integrally closed.) The class group is only worked out once per ring, but checking for it
+            factors D, so the answer is cached too.
+
+        Returns:
+            bool: Whether every ideal of this ring is principal.
+        """
+        try:
+            return self.class_number == 1
+        except NotImplementedError:
+            return False  # no class group, so not a quadratic field's maximal order (like the dual and split integers)
+
     def phi(self, x: QuadInt) -> int:
         """Return the default Euclidean size `|N(x)|` used for division heuristics."""
         return abs(abs(x))
@@ -996,29 +1013,27 @@ class QuadraticRing:
 
     def xgcd(self, a: QuadInt, b: QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
         """
-        Extended gcd in Euclidean quadratic rings.
+        Extended gcd in the principal ideal domains: the maximal orders with class number one (see _is_pid).
 
         Notes:
-            - This is only implemented for rings with divmod support (Euclidean-style division).
+            - The Euclidean rings (the ones with divmod, apart from the dual and split-complex integers) are all PIDs,
+              and so are D=-19, -43, -67 and -163, which have no divmod.
             - The gcd is only defined up to multiplication by a unit; this returns a stable
               associate using QuadInt._canonical_associate() and adjusts (s,t) by the same unit.
-            - Rings whose quotients are slow searches (_XGCD_FROM_IDEAL) skip Euclid, and a quotient search can also
-              come up empty in real rings. Either way this finishes from a generator of the ideal (a, b) instead,
-              which always exists since Euclidean rings are PIDs.
+            - Euclid runs where there is a divmod, unless its quotients are slow searches (_XGCD_FROM_IDEAL), and
+              a quotient search can also come up empty in real rings. Otherwise this finishes from a generator of
+              the ideal (a, b) instead, which always exists in a PID.
 
         Returns:
             (g, s, t): such that s*a + t*b == g
 
         Raises:
-            ArithmeticError: If Euclid was skipped or gave up and (a, b) turned out not to be principal,
-                which would mean this ring is not really Euclidean.
+            NotImplementedError: If this ring is not a PID, where (a, b) can be an ideal with no generator at all.
+            ArithmeticError: If (a, b) turned out not to be principal after all, which would mean this ring is not
+                really a PID.
         """
-        # TODO: For now: avoid the zero-divisor rings (dual), where "gcd" semantics differ.
-        if self.D == 0:
-            raise NotImplementedError("xgcd not implemented for D=0 (non-domains)")
-
-        if not self.supports_division():
-            raise NotImplementedError("xgcd requires Euclidean-style division (supports_division()==True)")
+        if not self._is_pid():
+            raise NotImplementedError("xgcd needs a principal ideal domain, a maximal order with class number one")
 
         # region Handle trivial cases
         if not a:
@@ -1032,7 +1047,7 @@ class QuadraticRing:
         s0, s1 = self.one, self.zero
         t0, t1 = self.zero, self.one
 
-        if not self._XGCD_FROM_IDEAL:
+        if self.supports_division() and not self._XGCD_FROM_IDEAL:
             # A quotient search can come up empty in real rings, where the norm is indefinite and a good quotient
             #   may be far away from x/y. Nothing is updated for the failed step, so this just finishes from the ideal.
             with suppress(NotImplementedError):
@@ -1046,16 +1061,15 @@ class QuadraticRing:
                     t0, t1 = t1, t0 - q * t1
 
         if r1:
-            # Euclid was skipped or gave up. But every Euclidean ring is a PID, so (r0, r1) == (a, b) == (g) for some g,
+            # Euclid was skipped or gave up. But this is a PID, so (r0, r1) == (a, b) == (g) for some g,
             #   and u*r0 + v*r1 == g carries straight over to a and b.
             #
-            # Real rings go straight to the search, since principal_generator() would cache every ideal that
-            #   a gcd-heavy caller ever makes. (All unit ideals are equal, so those only ever take one cache entry.)
-            ideal = self.ideal(r0, r1)
-            g = ideal._principal_generator_real() if self.D > 0 and ideal.norm > 1 else ideal.principal_generator()
+            # This skips principal_generator()'s cache, which would otherwise keep every ideal that a gcd-heavy caller
+            #   ever makes.
+            g = self.ideal(r0, r1)._generator()
             bezout = None if g is None else _bezout_coefficients(self, r0, r1, g)
             if g is None or bezout is None:
-                raise ArithmeticError(f"({r0}, {r1}) is not a principal ideal, so this ring is not Euclidean")
+                raise ArithmeticError(f"({r0}, {r1}) is not a principal ideal, so this ring is not a PID")
 
             u, v = bezout
             s, t = self._shrink_bezout(a, b, g, u * s0 + v * s1, u * t0 + v * t1)
@@ -1072,7 +1086,7 @@ class QuadraticRing:
 
     def gcd(self, a: QuadInt, b: QuadInt) -> QuadInt:
         """
-        Greatest common divisor in Euclidean quadratic rings.
+        Greatest common divisor in the principal ideal domains (see xgcd).
 
         The result is only defined up to multiplication by a unit; this method returns the
         same stable representative as `xgcd()` (via `_canonical_associate()`), so callers
@@ -1081,8 +1095,7 @@ class QuadraticRing:
 
         Notes:
             - Implemented via `xgcd()`, so it is available exactly when `xgcd()` is available.
-            - Raises `NotImplementedError` for non-Euclidean rings (supports_division()==False)
-              and for D==0 where the ring is not a domain.
+            - Raises `NotImplementedError` in rings that are not PIDs, like Z[sqrt(-5)] and the dual integers.
 
         Returns:
             g: A *canonical associate* such that g divides both `a` and `b`,
@@ -1096,8 +1109,8 @@ class QuadraticRing:
         Reduce x modulo m, for modular arithmetic (inv_mod, and pow with a modulus).
 
         This is the Euclidean remainder x % m whenever divmod finds one. But modular arithmetic only needs some element
-            of x's class, so when the quotient search gives up (some Harper-style divisions have no quotient that
-            reduces phi at all), this rounds x / m instead, which cannot fail.
+            of x's class, so in a PID with no divmod, or when the quotient search gives up (some Harper-style divisions
+            have no quotient that reduces phi at all), this rounds x / m instead, which cannot fail.
 
         Returns:
             QuadInt: An element congruent to x modulo m.
@@ -1105,14 +1118,14 @@ class QuadraticRing:
         try:
             return self.divmod(x, m)[1]
         except NotImplementedError:
-            if not self.supports_division():
-                raise  # rings without any divmod keep refusing modular arithmetic
+            if not self._is_pid():
+                raise  # rings that are not PIDs keep refusing modular arithmetic, like they refuse gcd and inv_mod
 
             return x - _nearest_quotient(x, m) * m
 
     def inv_mod(self, a: QuadInt, m: QuadInt) -> QuadInt:
         """
-        Modular inverse in Euclidean quadratic rings.
+        Modular inverse in the principal ideal domains (see xgcd).
 
         Returns:
             inv: such that (a * inv) % m == 1 % m

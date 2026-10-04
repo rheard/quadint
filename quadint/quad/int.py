@@ -468,11 +468,11 @@ class QuadInt:
         return self.ring.divides(self._coerce(x, "divides"), self)
 
     def xgcd(self, x: complex | int | float | QuadInt) -> tuple[QuadInt, QuadInt, QuadInt]:
-        """Extended gcd in Euclidean quadratic rings."""
+        """Extended gcd (g, s, t) with s*self + t*x == g, in the principal ideal domains (see QuadraticRing.xgcd)."""
         return self.ring.xgcd(self, self._coerce(x, "xgcd"))
 
     def gcd(self, x: complex | int | float | QuadInt) -> QuadInt:
-        """Greatest common divisor in Euclidean quadratic rings."""
+        """Greatest common divisor in the principal ideal domains (see QuadraticRing.xgcd)."""
         return self.ring.gcd(self, self._coerce(x, "gcd"))
 
     def inv_mod(self, mod: complex | int | float | QuadInt) -> QuadInt:
