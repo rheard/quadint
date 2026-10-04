@@ -190,7 +190,7 @@ from quadint import QuadraticRing
 O = QuadraticRing(-5)                         # Z[√-5]
 I = O.ideal(3, O(1, 1))                       # (3, 1 + √-5)
 
-print(I.is_prime(), I.is_principal())         # True False
+print(I.is_prime, I.is_principal)             # True False
 print((I**2).principal_generator())           # (2-1*sqrt(-5)), so I**2 is the principal ideal (2 - √-5)
 print([P.norm for P in O.ideal(6).factor()])  # [2, 2, 3, 3]: (6) factors into four prime ideals
 print(O.class_number)                         # 2
@@ -392,7 +392,7 @@ print(decompose_number(91, no_trivial_solutions=False))
 ### Ideals (`Ideal`)
 
 * `I.norm`, `x in I`, `I * J`, `I**k`, `I // J` (exact quotient), `I.divides(J)`, `I.conjugate()`
-* `I.is_prime()`, `I.factor()` (prime ideals, with repeats), `I.is_principal()`, `I.principal_generator()`
+* `I.is_prime`, `I.factor()` (prime ideals, with repeats), `I.is_principal`, `I.principal_generator()`
 
 
 ### `quadint.sums`

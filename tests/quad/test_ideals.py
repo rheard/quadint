@@ -281,7 +281,7 @@ class TestPrimeIdeals:
         assert len(ideals) == 2
         assert {ideal.hnf for ideal in ideals} == {(3, 1, 1), (3, 2, 1)}
         assert all(ideal.norm == 3 for ideal in ideals)
-        assert all(ideal.is_prime() for ideal in ideals)
+        assert all(ideal.is_prime for ideal in ideals)
         assert ideal_prod(ZN5, ideals) == ZN5.ideal(3)
 
     def test_inert(self):
@@ -290,7 +290,7 @@ class TestPrimeIdeals:
 
         assert ideals == (ZI.ideal(3),)
         assert ideals[0].norm == 9
-        assert ideals[0].is_prime()
+        assert ideals[0].is_prime
         assert ZI.ideal(3).factor() == ideals
 
     def test_ramified(self):
@@ -299,7 +299,7 @@ class TestPrimeIdeals:
 
         assert len(ideals) == 1
         assert ideals[0].norm == 2
-        assert ideals[0].is_prime()
+        assert ideals[0].is_prime
         assert ZI.ideal(2).factor() == (ideals[0], ideals[0])
         assert ideals[0] ** 2 == ZI.ideal(2)
 
@@ -319,14 +319,14 @@ class TestPrincipal:
 
         assert generator is not None
         assert ZI.ideal(generator) == ideal
-        assert ideal.is_principal()
+        assert ideal.is_principal
 
     def test_nonprincipal(self):
         """The standard non-principal ideal in Z[sqrt(-5)] should not look principal."""
         ideal = ZN5.ideal(3, ZN5(1, 1))
 
         assert ideal.principal_generator() is None
-        assert not ideal.is_principal()
+        assert not ideal.is_principal
 
     def test_imaginary_den_two(self):
         """A den=2 generator's numerator a can reach isqrt(4*norm), which is past 2*isqrt(norm)."""
@@ -390,7 +390,7 @@ class TestPrincipal:
         assert 2 not in residues
         assert -2 % 5 not in residues
         assert ideal.principal_generator() is None
-        assert not ideal.is_principal()
+        assert not ideal.is_principal
 
 
 class TestOperations:
@@ -443,7 +443,7 @@ class TestOperations:
         factors = ideal.factor()
 
         assert factors
-        assert all(factor.is_prime() for factor in factors)
+        assert all(factor.is_prime for factor in factors)
         assert ideal_prod(ZN5, factors) == ideal
         assert ideal.factor() == factors
 
@@ -647,9 +647,9 @@ class TestIdealClassConstruct:
         rational_class = IdealClass(ZN5.ideal(3))
         element_class = IdealClass(ZN5.ideal(ZN5(1, 1)))
 
-        assert unit_class.is_trivial()
-        assert rational_class.is_trivial()
-        assert element_class.is_trivial()
+        assert unit_class.is_trivial
+        assert rational_class.is_trivial
+        assert element_class.is_trivial
 
         assert unit_class.order == 1
         assert rational_class.order == 1
@@ -665,10 +665,10 @@ class TestIdealClassConstruct:
 
         assert prime.hnf == (2, 1, 1)
         assert prime.norm == 2
-        assert not prime.is_principal()
+        assert not prime.is_principal
 
         assert prime**2 == ZN5.ideal(2)
-        assert not ideal_class.is_trivial()
+        assert not ideal_class.is_trivial
         assert ideal_class.order == 2
 
 
@@ -680,8 +680,8 @@ class TestIdealClassMath:
         prime_two = ZN5.prime_ideals_over(2)[0]
         prime_three = next(ideal for ideal in ZN5.prime_ideals_over(3) if ideal.hnf == (3, 1, 1))
 
-        assert not prime_two.is_principal()
-        assert not prime_three.is_principal()
+        assert not prime_two.is_principal
+        assert not prime_three.is_principal
 
         assert prime_two * prime_three.conjugate() == ZN5.ideal(ZN5(1, -1))
         assert IdealClass(prime_two) == IdealClass(prime_three)
@@ -710,12 +710,12 @@ class TestIdealClassMath:
         prime = ZN5.prime_ideals_over(2)[0]
         ideal_class = IdealClass(prime)
 
-        assert (ideal_class**0).is_trivial()
+        assert (ideal_class**0).is_trivial
         assert ideal_class**1 == ideal_class
-        assert (ideal_class**2).is_trivial()
+        assert (ideal_class**2).is_trivial
         assert ideal_class**3 == ideal_class
         assert ideal_class**-1 == ideal_class
-        assert (ideal_class**-2).is_trivial()
+        assert (ideal_class**-2).is_trivial
 
     def test_gaussian(self):
         """Prime ideals in the Gaussian integers should represent the trivial class."""
@@ -725,10 +725,10 @@ class TestIdealClassMath:
 
         for prime in primes:
             assert prime.norm == 5
-            assert prime.is_principal()
+            assert prime.is_principal
 
             ideal_class = IdealClass(prime)
 
-            assert ideal_class.is_trivial()
+            assert ideal_class.is_trivial
             assert ideal_class.order == 1
             assert ideal_class == IdealClass(ZI.unit_ideal())

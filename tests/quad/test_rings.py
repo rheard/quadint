@@ -662,7 +662,7 @@ class TestPrimeIdealDataOver:
             assert item.root is not None
             assert (item.root * item.root - ring.D) % item.p == 0
             assert item.ideal.norm == item.p
-            assert item.ideal.is_prime()
+            assert item.ideal.is_prime
             assert item.p in item.ideal
 
         assert ideal_prod(ring, tuple(item.ideal for item in data)) == ring.ideal(3)
@@ -681,7 +681,7 @@ class TestPrimeIdealDataOver:
         assert item.root_p2() is None
         assert item.ideal == ZI.ideal(3)
         assert item.ideal.norm == 9
-        assert item.ideal.is_prime()
+        assert item.ideal.is_prime
 
     def test_ramified_prime_data(self):
         """A ramified rational prime should have one root and square to the principal ideal (p)."""
@@ -694,7 +694,7 @@ class TestPrimeIdealDataOver:
         assert (item.root * item.root - ZI.D) % item.p == 0
         assert item.root_p2() is None
         assert item.ideal.norm == 2
-        assert item.ideal.is_prime()
+        assert item.ideal.is_prime
         assert item.ideal**2 == ZI.ideal(2)
 
     def test_den_two_prime_data(self):
@@ -710,7 +710,7 @@ class TestPrimeIdealDataOver:
             assert item.root is not None
             assert (item.root * item.root - item.root - 1) % item.p == 0
             assert item.ideal.norm == item.p
-            assert item.ideal.is_prime()
+            assert item.ideal.is_prime
             assert item.p in item.ideal
 
         assert ideal_prod(ring, tuple(item.ideal for item in data)) == ring.ideal(11)
@@ -780,7 +780,7 @@ class TestPrimeIdealsOver:
         ideals = ring.prime_ideals_over(p)
 
         assert tuple(ideal.norm for ideal in ideals) == expected_norms
-        assert all(ideal.is_prime() for ideal in ideals)
+        assert all(ideal.is_prime for ideal in ideals)
         assert all(p in ideal for ideal in ideals)
 
         if len(ideals) == 1 and ideals[0].norm == p:

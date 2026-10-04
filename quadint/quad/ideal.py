@@ -251,8 +251,9 @@ class Ideal:
         self.basis = (_from_coords(ring, a, 0), _from_coords(ring, b, c))
         self.norm = abs(a * c)
 
+    @property
     def is_prime(self) -> bool:
-        """Return True iff this ideal is prime."""
+        """Is this a prime ideal?"""
         if self.norm <= 1:
             return False
 
@@ -358,8 +359,9 @@ class Ideal:
         # Any associate is a generator, and the canonical one is the most compact
         return ring.DEFAULT_KLASS(c * g, c * b_cur, ring, skip_basis=True)._canonical_associate()
 
+    @property
     def is_principal(self) -> bool:
-        """Return True iff this ideal is principal."""
+        """Is this a principal ideal, one that a single element generates?"""
         return self.principal_generator() is not None
 
     def conjugate(self) -> Ideal:
@@ -763,20 +765,21 @@ class IdealClass:
         # Multiplying classes rather than ideals keeps the powers small in imaginary orders (see __mul__)
         power = self
         order = 1
-        while not power.is_trivial():
+        while not power.is_trivial:
             power *= self
             order += 1
 
         self._order = order
         return order
 
+    @property
     def is_trivial(self) -> bool:
-        """Return True iff this is the principal ideal class."""
+        """Is this the principal ideal class, the identity of the class group?"""
         form = self._form
         if form is not None:
             return form[0] == 1  # the principal form (1, b, c) is the only reduced form with a == 1
 
-        return self.representative.is_principal()
+        return self.representative.is_principal
 
     def __invert__(self) -> IdealClass:
         """Return the inverse ideal class."""
@@ -829,7 +832,7 @@ class IdealClass:
         if self._form is not None:
             return self._form == other._form
 
-        return (self.representative * other.representative.conjugate()).is_principal()
+        return (self.representative * other.representative.conjugate()).is_principal
 
     def __ne__(self, other: object) -> bool:
         # This shouldn't be required but mypyc is really messing this up...
@@ -921,7 +924,7 @@ class ClassGroup:
                     continue
 
                 cls = IdealClass(ideal)
-                if not cls.is_trivial() and not self._contains_class(out, cls):
+                if not cls.is_trivial and not self._contains_class(out, cls):
                     out.append(cls)
 
         self._generators = tuple(out)

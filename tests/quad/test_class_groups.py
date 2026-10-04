@@ -151,7 +151,7 @@ class TestTrivialGroups:
         primes = ZI.prime_ideals_over(5)
 
         assert len(primes) == 2
-        assert all(prime.is_principal() for prime in primes)
+        assert all(prime.is_principal for prime in primes)
         assert all(IdealClass(prime) in group for prime in primes)
         assert all(IdealClass(prime) == IdealClass(ZI.unit_ideal()) for prime in primes)
 
@@ -167,7 +167,7 @@ class TestTrivialGroups:
         for p in (2, 3):
             for ideal in Z14.prime_ideals_over(p):
                 if ideal.norm <= group.minkowski_bound:
-                    assert ideal.is_principal()
+                    assert ideal.is_principal
                     assert IdealClass(ideal) == IdealClass(Z14.unit_ideal())
 
 
@@ -187,15 +187,15 @@ class TestNontrivialGroups:
         assert len(group.classes) == 2
         assert len(group.generators) == 1
 
-        assert not prime_two.is_principal()
-        assert not prime_three.is_principal()
+        assert not prime_two.is_principal
+        assert not prime_three.is_principal
 
         assert IdealClass(prime_two) in group
         assert IdealClass(prime_three) in group
         assert IdealClass(prime_two) == IdealClass(prime_three)
 
         assert IdealClass(prime_two).order == 2
-        assert (IdealClass(prime_two) ** 2).is_trivial()
+        assert (IdealClass(prime_two) ** 2).is_trivial
 
     def test_zsqrt_fifteen(self):
         """Z[sqrt(15)] should have class group of order two."""
@@ -212,15 +212,15 @@ class TestNontrivialGroups:
 
         assert prime_two.norm == 2
         assert prime_three.norm == 3
-        assert not prime_two.is_principal()
-        assert not prime_three.is_principal()
+        assert not prime_two.is_principal
+        assert not prime_three.is_principal
 
         assert IdealClass(prime_two) in group
         assert IdealClass(prime_three) in group
         assert IdealClass(prime_two) == IdealClass(prime_three)
 
-        assert (IdealClass(prime_two) ** 2).is_trivial()
-        assert (IdealClass(prime_three) ** 2).is_trivial()
+        assert (IdealClass(prime_two) ** 2).is_trivial
+        assert (IdealClass(prime_three) ** 2).is_trivial
 
     @pytest.mark.parametrize(("D", "expected"), [(-23, 3), (-47, 5), (-71, 7), (-199, 9), (-89, 12), (-254, 16)])
     def test_imaginary_class_numbers(self, D: int, expected: int):
@@ -353,9 +353,9 @@ class TestReducedForms:
             ideals.append(ideal)
 
         for left in ideals:
-            assert IdealClass(left).is_trivial() == left.is_principal()
+            assert IdealClass(left).is_trivial == left.is_principal
             for right in ideals:
-                same = (left * right.conjugate()).is_principal()
+                same = (left * right.conjugate()).is_principal
                 assert (IdealClass(left) == IdealClass(right)) == same
                 if same:
                     assert hash(IdealClass(left)) == hash(IdealClass(right))
@@ -400,7 +400,7 @@ class TestReducedForms:
         cls = group.classes[5]
         k = cls.order
         assert k > 1
-        assert (cls**k).is_trivial()
+        assert (cls**k).is_trivial
         assert cls**3 == cls * cls * cls
         assert cls ** (k + 3) == cls**3
         assert cls**-1 == ~cls
@@ -448,5 +448,5 @@ class TestNonMaximalOrders:
         ring = QuadraticRing(-15, den=1)  # Z[sqrt(-15)], whose Picard group has order 2
         prime = ring.prime_ideals_over(3)[0]
 
-        assert not prime.is_principal()
+        assert not prime.is_principal
         assert IdealClass(prime).order == 2
