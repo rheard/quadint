@@ -11,7 +11,8 @@ if TYPE_CHECKING:
     from quadint.quad.rings import Factorization, QuadraticRing
 
 # The Python numbers that operations take besides QuadInt: a tuple for isinstance, since mypyc complains about a union
-#   there. (The annotation is for the stubs, where stubgen writes Incomplete for a constant it can't infer, like this.)
+#   there. Compiled, that isinstance copies the tuple on every call, a quarter of a + b, so the operations that usually
+#   get a QuadInt test for that first. (The annotation is for the stubs: stubgen writes Incomplete for this otherwise.)
 _OTHER_OP_TYPES: tuple[type[complex], type[int], type[float]] = (complex, int, float)
 
 # CPython hashes a complex as hash(real) + sys.hash_info.imag * hash(imag), wrapped to a signed machine word
@@ -217,7 +218,7 @@ class QuadInt:
 
     def _coerce(self, x: complex | int | float | QuadInt, method: str) -> QuadInt:
         """Return x as an element of this ring, or raise TypeError naming `method` (operators return NotImplemented)."""
-        if isinstance(x, _OTHER_OP_TYPES):
+        if not isinstance(x, QuadInt) and isinstance(x, _OTHER_OP_TYPES):
             x = self._from_obj(x)
 
         if not isinstance(x, QuadInt):
@@ -278,7 +279,7 @@ class QuadInt:
     # endregion
 
     def __add__(self, other: complex | int | float | QuadInt):
-        if isinstance(other, _OTHER_OP_TYPES):
+        if not isinstance(other, QuadInt) and isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
         if isinstance(other, QuadInt):
@@ -291,7 +292,7 @@ class QuadInt:
         return self.__add__(other)
 
     def __sub__(self, other: complex | int | float | QuadInt):
-        if isinstance(other, _OTHER_OP_TYPES):
+        if not isinstance(other, QuadInt) and isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
         if isinstance(other, QuadInt):
@@ -318,7 +319,7 @@ class QuadInt:
         raise ValueError(f"{self} is not a unit")
 
     def __mul__(self, other: complex | int | float | QuadInt):
-        if isinstance(other, _OTHER_OP_TYPES):
+        if not isinstance(other, QuadInt) and isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
         if isinstance(other, QuadInt):
@@ -352,7 +353,7 @@ class QuadInt:
 
     # Not just `exp: float`, since mypyc would turn an int exponent into a double and lose every bit past 2**53
     def __pow__(self, exp: int | float, mod: complex | int | float | QuadInt | None = None):
-        if isinstance(mod, _OTHER_OP_TYPES):
+        if mod is not None and not isinstance(mod, QuadInt) and isinstance(mod, _OTHER_OP_TYPES):
             mod = self._from_obj(mod)
 
         if mod is not None:
@@ -417,7 +418,7 @@ class QuadInt:
         Returns:
             tuple: The quotient and remainder of the division with other.
         """
-        if isinstance(other, _OTHER_OP_TYPES):
+        if not isinstance(other, QuadInt) and isinstance(other, _OTHER_OP_TYPES):
             other = self._from_obj(other)
 
         if not isinstance(other, QuadInt):
