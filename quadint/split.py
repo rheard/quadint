@@ -8,7 +8,7 @@ from quadint.quad import QuadInt, QuadraticRing
 # IMPORTANT: force den=1, otherwise D=1 would default to den=2 under the
 #   quadratic-field "maximal order" convention (D % 4 == 1), which is not what
 #   we want for the split-complex algebra.
-_ZJ = QuadraticRing(1, den=1)
+_ZJ: QuadraticRing = QuadraticRing(1, den=1)
 
 
 class splitint(QuadInt):
@@ -26,7 +26,7 @@ class splitint(QuadInt):
     #   but the mathematical convention is to use j for split numbers...
     #   I'm conflicted on what to do, so I guess having identical string values is correct?
     SYMBOL: ClassVar[str] = "j"
-    DEFAULT_RING = _ZJ
+    DEFAULT_RING: ClassVar[QuadraticRing | None] = _ZJ
 
     @property
     def real(self) -> int:

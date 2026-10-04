@@ -10,11 +10,13 @@ from sympy import factorint, isprime
 if TYPE_CHECKING:
     from quadint.quad.rings import Factorization, QuadraticRing
 
-_OTHER_OP_TYPES = (complex, int, float)  # I should be able to use the above with isinstance, but mypyc complains
+# The Python numbers that operations take besides QuadInt: a tuple for isinstance, since mypyc complains about a union
+#   there. (The annotation is for the stubs, where stubgen writes Incomplete for a constant it can't infer, like this.)
+_OTHER_OP_TYPES: tuple[type[complex], type[int], type[float]] = (complex, int, float)
 
 # CPython hashes a complex as hash(real) + sys.hash_info.imag * hash(imag), wrapped to a signed machine word
-_HASH_IMAG = sys.hash_info.imag
-_HASH_WORD = 1 << sys.hash_info.width
+_HASH_IMAG: int = sys.hash_info.imag
+_HASH_WORD: int = 1 << sys.hash_info.width
 
 
 def _compact_key(w_: QuadInt) -> tuple[int, int, int, int, int, int]:

@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from quadint.quad import QuadInt, QuadraticRing
 
-_ZI = QuadraticRing(-1)  # Gaussian integers
+_ZI: QuadraticRing = QuadraticRing(-1)  # Gaussian integers
 
 
 class complexint(QuadInt):

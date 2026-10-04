@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from quadint.quad import QuadInt, QuadraticRing
 
-_ZE = QuadraticRing(0)
+_ZE: QuadraticRing = QuadraticRing(0)
 
 
 class dualint(QuadInt):
@@ -19,7 +19,7 @@ class dualint(QuadInt):
     __slots__ = ()
 
     SYMBOL: ClassVar[str] = "ε"
-    DEFAULT_RING = _ZE
+    DEFAULT_RING: ClassVar[QuadraticRing | None] = _ZE
 
     @property
     def real(self) -> int:

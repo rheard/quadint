@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from quadint.quad.rings import QuadraticRing
 
-_IDEAL_OP_TYPES = (complex, int, float, QuadInt)
+_IDEAL_OP_TYPES: tuple[type[complex], type[int], type[float], type[QuadInt]] = (complex, int, float, QuadInt)
 
 
 def _coords(x: QuadInt) -> tuple[int, int]:
@@ -1017,7 +1017,7 @@ class ClassGroup:
         # This shouldn't be required but mypyc is really messing this up...
         return not self.__eq__(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.ring)
 
     def _contains_class(self, classes: list[IdealClass] | tuple[IdealClass, ...], cls: IdealClass) -> bool:

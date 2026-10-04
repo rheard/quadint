@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 # The d where QuadraticRing(-d) has class number one, which Baker, Heegner and Stark showed are the only ones. So these
 #   are the imaginary PIDs, known without working out any class group.
-_HEEGNER_D = {1, 2, 3, 7, 11, 19, 43, 67, 163}
+_HEEGNER_D: set[int] = {1, 2, 3, 7, 11, 19, 43, 67, 163}
 
 
 @dataclass(frozen=True, slots=True)
@@ -489,7 +489,7 @@ class QuadraticRing:
         # Work around occasional mypyc glue-generation assertions for __ne__.
         return not self.__eq__(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((type(self), self.D, self.den))
 
     @property

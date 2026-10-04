@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from quadint.quad import QuadInt, QuadraticRing
 
-_ZW = QuadraticRing(-3)
+_ZW: QuadraticRing = QuadraticRing(-3)
 
 
 class eisensteinint(QuadInt):
@@ -18,9 +20,9 @@ class eisensteinint(QuadInt):
 
     # user basis: x + y*ω, where ω = (-1 + sqrt(-3))/2
     # internal numerator basis: (2x - y) + y*sqrt(-3) over den=2
-    BASIS_TO_INTERNAL = ((2, -1), (0, 1))
-    INTERNAL_TO_BASIS = ((1, 1), (0, 2))
-    INTERNAL_TO_BASIS_DEN = 2
+    BASIS_TO_INTERNAL: ClassVar[tuple[tuple[int, int], tuple[int, int]]] = ((2, -1), (0, 1))
+    INTERNAL_TO_BASIS: ClassVar[tuple[tuple[int, int], tuple[int, int]]] = ((1, 1), (0, 2))
+    INTERNAL_TO_BASIS_DEN: ClassVar[int] = 2
 
     # Cannot use DEFAULT_RING here as that would register eisensteinint as the default for Z[-3], which it isn't.
     # skip_basis has to take a positional argument too, since QuadInt._make passes it that way

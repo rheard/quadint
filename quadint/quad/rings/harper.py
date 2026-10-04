@@ -108,7 +108,7 @@ class HarperRing(RealNormEuclidRing):
         reduce with QuadraticRing._residue.
     """
 
-    SUPPORTS_DIVISION = True
+    SUPPORTS_DIVISION: ClassVar[bool] = True
 
     # Every quotient here is a weighted search, often a slow one, and Euclid can take seconds when a and b share
     #   a factor. The ideal (a, b) gives the gcd in milliseconds either way, so xgcd goes straight there.
@@ -500,7 +500,7 @@ class HarperRing(RealNormEuclidRing):
 
 # While I've defined principal generators for all not-norm-Euclidean Euclidean fields with D<100 here,
 #   the witness primes defined in _HARDCODED work for most D and the algorithm with them is faster.
-_POST_HARDCODED = {
+_POST_HARDCODED: dict[tuple[int, int], tuple[tuple[int, int], tuple[int, int]]] = {
     # The following admissible primes are the ones Harper originally found:
     (14, 1): ((5, -1), (3, -2)),
     #   I've done my best to re-create the method Harper used to find these, and while I do find them as candidates,
