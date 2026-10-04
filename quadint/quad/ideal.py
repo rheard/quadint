@@ -369,7 +369,10 @@ class Ideal:
 
     def conjugate(self) -> Ideal:
         """Return the conjugate ideal."""
-        return Ideal(self.ring, *(x.conjugate() for x in self.basis))
+        # Conjugating the basis a, b + c*w gives a basis of the conjugate. conj(w) is -w when den == 1 (w = sqrt(D)),
+        #   and 1 - w when den == 2, so conj(b + c*w) is b + c*(den - 1) - c*w, which the _hnf path normalizes
+        a, b, c = self.hnf
+        return Ideal(self.ring, _hnf=(a, b + c * (self.ring.den - 1), -c))
 
     def factor(self) -> tuple[Ideal, ...]:
         """Return the prime-ideal factorization as a tuple with repeated factors."""
