@@ -338,8 +338,8 @@ def decompose_number(
 
         return {(0, 0)}
 
-    # Step 1.1: Sanitize d
-    sf_d, y_scale = _squarefree_part_and_scale(d)
+    # Step 1.1: Sanitize d. The class-number-one d are squarefree already, so d=1 doesn't get factored on every call.
+    sf_d, y_scale = (d, 1) if d in _HEEGNER_D else _squarefree_part_and_scale(d)
     if y_scale != 1:
         raw = decompose_number(
             n_int,
