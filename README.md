@@ -67,7 +67,7 @@ print(x * y)           # "(-21+12*sqrt(-2))"
 print(abs(x))          # norm: 1^2 - (-2)*2^2 = 9
 ```
 
-Common operations include `+`, `-`, `*`, `**` (non-negative powers, negative ones of units, whose inverse `~x` is in the ring, or negative ones of anything with a modulus, as in `pow(x, -1, m)`), `conjugate()`, and `abs()` (the norm).
+Common operations include `+`, `-`, `*`, `**` (non-negative powers, negative ones of units, whose inverse `~x` is in the ring, or negative ones of anything with a modulus, as in `pow(x, -1, m)`), `conjugate()`, `abs()` (the norm), and `.trace` (`x + x.conjugate()`).
 
 The two arguments are the numerators of $(a + b\sqrt{D}) / \mathrm{den}$. That only matters when `den == 2` (the default when `D % 4 == 1`), where `a` and `b` must have the same parity:
 
@@ -379,6 +379,7 @@ print(decompose_number(91, no_trivial_solutions=False))
 
 * `x.conjugate()`
 * `abs(x)` (norm)
+* `x.trace` (`x + x.conjugate()`, as an `int`; every `x` is a root of `x**2 - x.trace*x + abs(x)`)
 * `x.units` (finite torsion unit subgroup exposed as a tuple)
 * `x.is_unit`, `x.is_irreducible`
 * `x.content()`

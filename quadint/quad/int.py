@@ -555,6 +555,19 @@ class QuadInt:
             raise ArithmeticError("Non-integral norm; check ring parameters / parity")
         return d
 
+    @property
+    def trace(self) -> int:
+        """
+        The trace, x + conj(x), which for (a+b√D)/den is 2*a/den.
+
+        Always an integer for valid ring elements (with den=2, it is just a). Along with the norm abs(x), it gives the
+            quadratic every element is a root of: x**2 - x.trace*x + abs(x) == 0.
+
+        Returns:
+            int: The trace.
+        """
+        return 2 * self.a // self.ring.den
+
     def factor(self) -> dict[QuadInt, int]:
         """Return a plain factor dict whose product is `self`."""
         return self.ring.factor(self)

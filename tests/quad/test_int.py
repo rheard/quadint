@@ -4,13 +4,13 @@ import operator
 import os
 import random
 
-from itertools import product
+from itertools import pairwise, product
 from math import gcd, isclose, isqrt, prod
 from typing import TYPE_CHECKING
 
 import pytest
 
-from quadint import QuadInt, complexint, eisensteinint
+from quadint import QuadInt, complexint, dualint, eisensteinint, splitint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import NORM_EUCLID_D
 
@@ -192,6 +192,55 @@ class TestArithmetic:
     def test_conjugate_product_is_norm(self, x: QuadInt):
         """x*conjugate(x) should be the embedded rational norm."""
         assert x * x.conjugate() == x.ring.from_ab(abs(x), 0)
+
+    @pytest.mark.parametrize(
+        ("x", "expected"),
+        [
+            (ZI(2, 3), 4),
+            (ZN2(1, 3), 2),
+            (Z2(5, 2), 10),
+            (ZE(1, 1), 1),  # (1 + sqrt(-3))/2
+            (ZN7(3, -1), 3),
+            (Z5(1, 1), 1),  # the golden ratio, (1 + sqrt(5))/2
+            (Z1(1, 1), 1),
+            (complexint(3, 4), 6),
+            (eisensteinint(2, 1), 3),  # 2 + ω, where ω + conj(ω) == -1
+            (dualint(5, 3), 10),
+            (splitint(2, 7), 4),
+        ],
+        ids=str,
+    )
+    def test_trace_hand_calculated(self, x: QuadInt, expected: int):
+        """The trace should be x + conjugate(x), as an int, whatever the ring's denominator or basis."""
+        assert x.trace == expected
+        assert isinstance(x.trace, int)
+        assert x + x.conjugate() == expected
+
+    @pytest.mark.parametrize(
+        "ring",
+        [
+            *(ZI, ZE, ZN5, ZN7, Z2, Z5, Z15),
+            *(QuadraticRing(5, 1), QuadraticRing(-3, 1)),  # non-maximal orders
+            *(QuadraticRing(0), Z1, QuadraticRing(1, 1)),  # the dual and split-complex integers
+        ],
+        ids=str,
+    )
+    def test_trace_and_norm_give_the_polynomial(self, ring: QuadraticRing):
+        """Every element should be a root of x**2 - trace*x + norm, and traces should add like the elements do."""
+        rng = random.Random(5)
+        elements = []
+        for _ in range(100):
+            a, b = rng.randint(-99, 99), rng.randint(-99, 99)
+            if ring.den == 2 and (a ^ b) & 1:
+                b += 1
+
+            elements.append(ring(a, b))
+
+        for x, y in pairwise(elements):
+            assert x * x - x.trace * x + abs(x) == 0
+            assert (x + y).trace == x.trace + y.trace
+            assert (5 * x).trace == 5 * x.trace
+            assert x.conjugate().trace == x.trace
 
 
 class TestDiv(QuadIntTests):
