@@ -4,6 +4,7 @@ import operator
 import os
 import random
 
+from decimal import Decimal
 from itertools import pairwise, product
 from math import gcd, isclose, isqrt, prod
 from typing import TYPE_CHECKING
@@ -517,6 +518,46 @@ class TestDiv(QuadIntTests):
 
         assert x == q * y + r
         assert abs(abs(r)) < abs(abs(y))
+
+
+class TestPow:
+    """Tests for what ** and pow() take as an exponent."""
+
+    def test_number_exponents(self):
+        """An int exponent (a bool too) works, and a float one is truncated with int(), like any other float operand."""
+        x = ZI(1, 2)
+
+        assert x**True == x
+        assert pow(x, 2.0) == x * x
+        assert pow(x, 2.9) == x * x
+        assert pow(x, 2.9, 7) == pow(x, 2, 7)
+
+    def test_non_number_exponents(self):
+        """
+        Any other exponent raises TypeError in both builds, even one int() would take, like '2' (which pure Python used
+            to take), and a type with its own __rpow__ gets to handle it
+        """
+
+        class WithIndex:
+            def __index__(self) -> int:
+                return 2
+
+        class WithRpow:
+            def __rpow__(self, _: object) -> str:
+                return "rpow"
+
+        x = ZI(1, 2)
+        for exp in ("2", b"2", "2.5", "a", None, [2], Decimal(2), WithIndex()):
+            with pytest.raises(TypeError):
+                operator.pow(x, exp)
+
+            with pytest.raises(TypeError):
+                pow(x, exp, 7)
+
+            with pytest.raises(TypeError):
+                operator.ipow(x, exp)
+
+        assert x ** WithRpow() == "rpow"
 
 
 class TestUnits:

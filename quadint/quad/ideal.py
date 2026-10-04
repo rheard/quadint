@@ -597,6 +597,9 @@ class Ideal:
         return NotImplemented
 
     def __pow__(self, exp: int) -> Ideal:
+        if not isinstance(exp, int):
+            return NotImplemented  # what the compiled build does with any other exponent, a float included
+
         if exp < 0:
             raise ValueError("Negative ideal powers require fractional ideals")
 
@@ -808,6 +811,9 @@ class IdealClass:
         return IdealClass(_form_ideal(self.ring, a, b))
 
     def __pow__(self, exp: int) -> IdealClass:
+        if not isinstance(exp, int):
+            return NotImplemented  # what the compiled build does with any other exponent (see Ideal.__pow__)
+
         e = int(exp)
         if e < 0:
             return (~self) ** -e

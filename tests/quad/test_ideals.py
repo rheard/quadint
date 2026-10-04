@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 import random
 
 from functools import reduce
@@ -432,6 +433,24 @@ class TestOperations:
         with pytest.raises(ValueError, match="Negative"):
             ideal**-1
 
+    def test_non_int_exponents(self):
+        """
+        An exponent that isn't an int raises TypeError in both builds, a float included (which pure Python used to
+            truncate), and a type with its own __rpow__ gets to handle it
+        """
+
+        class WithRpow:
+            def __rpow__(self, _: object) -> str:
+                return "rpow"
+
+        ideal = ZN5.ideal(3, ZN5(1, 1))
+        for exp in (2.0, 2.5, "2", None, [2]):
+            with pytest.raises(TypeError):
+                operator.pow(ideal, exp)
+
+        assert ideal**True == ideal
+        assert ideal ** WithRpow() == "rpow"
+
     def test_conjugate(self):
         """Conjugating a split prime ideal should produce its opposite factor."""
         left, right = ZN5.prime_ideals_over(3)
@@ -731,6 +750,15 @@ class TestIdealClassMath:
         assert ideal_class**3 == ideal_class
         assert ideal_class**-1 == ideal_class
         assert (ideal_class**-2).is_trivial
+
+    def test_non_int_exponents(self):
+        """An exponent that isn't an int raises TypeError in both builds, a float included (see the Ideal test)."""
+        ideal_class = IdealClass(ZN5.prime_ideals_over(2)[0])
+        for exp in (2.0, 2.5, "2", None, [2]):
+            with pytest.raises(TypeError):
+                operator.pow(ideal_class, exp)
+
+        assert ideal_class**True == ideal_class
 
     def test_gaussian(self):
         """Prime ideals in the Gaussian integers should represent the trivial class."""

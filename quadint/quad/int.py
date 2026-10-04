@@ -353,6 +353,11 @@ class QuadInt:
 
     # Not just `exp: float`, since mypyc would turn an int exponent into a double and lose every bit past 2**53
     def __pow__(self, exp: int | float, mod: complex | int | float | QuadInt | None = None):
+        # The compiled build turns any other exponent away before getting here, so this has pure Python do the same,
+        #   rather than take whatever int() takes, like '2'. (An isinstance on a single type compiles to a quick check.)
+        if not (isinstance(exp, int) or isinstance(exp, float)):  # ruff: ignore[duplicate-isinstance-call]
+            return NotImplemented
+
         if mod is not None and not isinstance(mod, QuadInt) and isinstance(mod, _OTHER_OP_TYPES):
             mod = self._from_obj(mod)
 
