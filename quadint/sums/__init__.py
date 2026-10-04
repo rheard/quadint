@@ -295,7 +295,6 @@ def decompose_number(
     *,
     limited_checks: bool = False,
     no_trivial_solutions: bool = True,
-    warn: bool = True,  # ruff: ignore[unused-function-argument]
 ) -> set[tuple[int, int]]:
     """
     Decompose any number into all possible integer (x, y) solutions to:
@@ -318,7 +317,6 @@ def decompose_number(
         no_trivial_solutions (bool): Exclude trivial solutions? Defined as any symmetrical solution, or any
             solution with 0. Essentially excludes perfect squares and doubles of perfect squares.
             Note that a value of False will make the algorithm quite a bit slower.
-        warn: Ignored, and only kept so existing calls still work. It used to warn that a d could miss solutions.
 
     Returns:
         set<tuple<int, int>>: All unique solutions (x, y)

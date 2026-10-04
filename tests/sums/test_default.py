@@ -364,7 +364,7 @@ class TestNumberDecomposition:
     def test_high_exponents_general_d_match_bruteforce(self, n: int, d: int):
         """High prime powers for other d should still find every solution."""
         for no_trivial_solutions in (True, False):
-            got = decompose_number(n, d, no_trivial_solutions=no_trivial_solutions, warn=False)
+            got = decompose_number(n, d, no_trivial_solutions=no_trivial_solutions)
             expect = brute_force_quadratic_form(n, d, no_trivial_solutions=no_trivial_solutions)
 
             assert got == expect, f"Mismatch for n={n}, d={d}: missing={expect - got}, extra={got - expect}"
@@ -384,7 +384,7 @@ class TestNumberDecomposition:
     )
     def test_general_d_prime_shortcut_semantics(self, n: int, d: int, expected: set[tuple[int, int]]):
         """Prime shortcuts should return integer-form decompositions, not raw den=2 numerator coords."""
-        assert decompose_number(n, d, no_trivial_solutions=False, warn=False) == expected
+        assert decompose_number(n, d, no_trivial_solutions=False) == expected
 
     @mark.parametrize("no_trivial_solutions", [True, False], ids=str)
     @mark.parametrize("d", [2, 3, 4, 7, 11, 19], ids=str)
@@ -395,7 +395,6 @@ class TestNumberDecomposition:
                 n,
                 d,
                 no_trivial_solutions=no_trivial_solutions,
-                warn=False,
             )
             expect = brute_force_quadratic_form(
                 n,
@@ -407,54 +406,54 @@ class TestNumberDecomposition:
 
     def test_d11_matches_bruteforce(self):
         """d=11 used to miss every solution involving a split prime like 179 (537 == 19**2 + 11*4**2 == 3 * 179)."""
-        assert decompose_number(537, 11, warn=False) == {(19, 4)}
+        assert decompose_number(537, 11) == {(19, 4)}
 
         for n in range(1, 3_001):
             for no_trivial_solutions in (True, False):
-                got = decompose_number(n, 11, no_trivial_solutions=no_trivial_solutions, warn=False)
+                got = decompose_number(n, 11, no_trivial_solutions=no_trivial_solutions)
                 expect = brute_force_quadratic_form(n, 11, no_trivial_solutions=no_trivial_solutions)
 
                 assert got == expect, f"Mismatch for n={n}: missing={expect - got}, extra={got - expect}"
 
     def test_eisenstein_unit_orbit_for_pure_inert_square(self):
         """Pure inert-even factors still need unit orbits in D=-3."""
-        assert decompose_number(4, 3, no_trivial_solutions=False, warn=False) == {
+        assert decompose_number(4, 3, no_trivial_solutions=False) == {
             (2, 0),
             (1, 1),
         }
-        assert decompose_number(4, 3, no_trivial_solutions=True, warn=False) == {
+        assert decompose_number(4, 3, no_trivial_solutions=True) == {
             (1, 1),
         }
 
     def test_eisenstein_unit_orbit_with_ramified_axis_factor(self):
         """Unit orbits should also be applied after product enumeration, not only scalar cases."""
-        assert decompose_number(12, 3, no_trivial_solutions=False, warn=False) == {
+        assert decompose_number(12, 3, no_trivial_solutions=False) == {
             (0, 2),
             (3, 1),
         }
-        assert decompose_number(12, 3, no_trivial_solutions=True, warn=False) == {
+        assert decompose_number(12, 3, no_trivial_solutions=True) == {
             (3, 1),
         }
 
     def test_square_factor_reduction_preserves_orientation(self):
         """Reducing d=4 to d=1 must try both square-sum orientations."""
-        assert decompose_number(1, 4, no_trivial_solutions=False, warn=False) == {
+        assert decompose_number(1, 4, no_trivial_solutions=False) == {
             (1, 0),
         }
-        assert decompose_number(8, 4, no_trivial_solutions=True, warn=False) == {
+        assert decompose_number(8, 4, no_trivial_solutions=True) == {
             (2, 1),
         }
-        assert decompose_number(13, 4, no_trivial_solutions=True, warn=False) == {
+        assert decompose_number(13, 4, no_trivial_solutions=True) == {
             (3, 1),
         }
 
     def test_inert_even_scalar_branch_without_extra_units(self):
         """When no split primes exist, the simplified scalar-orbit branch is enough."""
-        assert decompose_number(9, 2, no_trivial_solutions=False, warn=False) == {
+        assert decompose_number(9, 2, no_trivial_solutions=False) == {
             (1, 2),
             (3, 0),
         }
-        assert decompose_number(9, 2, no_trivial_solutions=True, warn=False) == {
+        assert decompose_number(9, 2, no_trivial_solutions=True) == {
             (1, 2),
         }
 
@@ -525,10 +524,9 @@ class TestNumberDecomposition:
         assert decompose_number(4, 3, check_count=2, no_trivial_solutions=False) == {(1, 1), (2, 0)}
 
     def test_nothing_warns(self):
-        """No d can miss solutions anymore, so there is nothing left to warn about (warn is still accepted)."""
+        """No d can miss solutions anymore, so there is nothing left to warn about."""
         with warnings.catch_warnings():
             warnings.simplefilter("error")
 
             assert decompose_number(21, 5) == {(1, 2), (4, 1)}
-            assert decompose_number(21, 5, warn=True) == {(1, 2), (4, 1)}
             assert decompose_number(11 * 17, 19) == {(4, 3)}

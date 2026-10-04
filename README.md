@@ -398,4 +398,4 @@ print(decompose_number(91, no_trivial_solutions=False))
 ### `quadint.sums`
 
 * `decompose_prime(p: int, d: int = 1, den: int = 1) -> tuple[int, int]`
-* `decompose_number(n: int | dict[int, int], d: int = 1, check_count: int | None = None, *, limited_checks: bool = False, no_trivial_solutions: bool = True, warn: bool = True) -> set[tuple[int, int]]`
+* `decompose_number(n: int | dict[int, int], d: int = 1, check_count: int | None = None, *, limited_checks: bool = False, no_trivial_solutions: bool = True) -> set[tuple[int, int]]`
