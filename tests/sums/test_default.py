@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from pytest import mark, raises
-from sympy import factorint, isprime, legendre_symbol, primerange
+from sympy import factorint, isprime, legendre_symbol, nextprime, primerange
 
 import quadint.sums
 
@@ -224,6 +224,48 @@ class TestPrimeDecomposition:
             A, B = decompose_prime(p, d, 2)
             assert A * A + d * B * B == 4 * p, f"Wrong decomposition of {p} with d={d}"
 
+    @mark.parametrize("d", [1, 2, 3, 4, 5, 6, 7, 11, 12, 19, 163], ids=str)
+    def test_every_prime_matches_bruteforce(self, d: int):
+        """
+        A prime has at most one decomposition (up to order, when d == 1), and every one there is has to be found.
+
+        Every other prime has to raise, including the ones that divide d, and 2.
+        """
+        max_p = 3_000 if os.getenv("CI") else 20_000
+        for p in primerange(2, max_p):
+            expect = brute_force_quadratic_form(p, d, no_trivial_solutions=False)
+            assert len(expect) <= 1
+
+            if expect:
+                assert decompose_prime(p, d) == next(iter(expect)), f"Wrong decomposition of {p} with d={d}"
+            else:
+                with raises(ValueError, match="Could not decompose"):
+                    decompose_prime(p, d)
+
+    @mark.parametrize("d", [3, 7, 11, 15, 19, 23, 31, 35, 43, 67, 163], ids=str)
+    def test_every_prime_den2_matches_bruteforce(self, d: int):
+        """With den=2, 4*p has to be decomposed whenever it can be, for every d, not just the class-number-one ones."""
+        max_p = 3_000 if os.getenv("CI") else 10_000
+        for p in primerange(2, max_p):
+            expect = brute_force_quadratic_form(4 * p, d, no_trivial_solutions=False)
+            if expect:
+                assert decompose_prime(p, d, 2) in expect, f"Wrong decomposition of 4*{p} with d={d}"
+            else:
+                with raises(ValueError, match="Could not decompose"):
+                    decompose_prime(p, d, 2)
+
+    def test_large_primes(self):
+        """Big primes, including ones with many factors of 2 in p - 1, which take the most Tonelli-Shanks steps."""
+        rng = random.Random(2)
+        primes = [65537, 7 * 2**26 + 1, 119 * 2**23 + 1, 3 * 2**30 + 1, 2**64 - 2**32 + 1]
+        primes += [p for p in (nextprime(rng.randrange(10**15, 10**40)) for _ in range(100)) if p % 4 == 1]
+
+        for p in primes:
+            assert isprime(p)
+            x, y = decompose_prime(p)
+            assert x * x + y * y == p, f"Wrong decomposition of {p}"
+            assert 0 < x < y
+
     def test_invalid_parameters(self):
         """Validate parameter guards for generalized decomposition."""
         with raises(ValueError, match="d must be >= 1"):
@@ -401,6 +443,68 @@ class TestNumberDecomposition:
         twice_square = n % 2 == 0 and math.isqrt(n // 2) ** 2 == n // 2
         assert len(got) == (r2 - 4 * square - 4 * twice_square) // 8
         assert all(x * x + y * y == n and 0 < x < y for x, y in got)
+
+    def test_many_split_primes_are_complete(self):
+        """
+        Numbers with many primes that are 1 mod 4, which have the most solutions, have to get every one of them.
+
+        These are too big for brute force, so like test_high_exponents_are_complete this counts the solutions instead,
+            and checks that their prepared factorization and check_count agree.
+        """
+        rng = random.Random(1)
+        split = [p for p in primerange(5, 2_000) if p % 4 == 1]
+        inert = [q for q in primerange(3, 200) if q % 4 == 3]
+
+        for _ in range(40 if os.getenv("CI") else 200):
+            factors = {p: rng.randint(1, 3) for p in rng.sample(split, rng.randint(1, 6))}
+            factors |= {q: 2 * rng.randint(1, 2) for q in rng.sample(inert, rng.randint(0, 2))}
+            if rng.random() < 0.5:
+                factors[2] = rng.randint(1, 5)
+
+            n = math.prod(p**k for p, k in factors.items())
+            got = decompose_number(n)
+
+            r2 = 4 * math.prod(k + 1 for p, k in factors.items() if p % 4 == 1)
+            square = math.isqrt(n) ** 2 == n
+            twice_square = n % 2 == 0 and math.isqrt(n // 2) ** 2 == n // 2
+            assert len(got) == (r2 - 4 * square - 4 * twice_square) // 8, f"Missing solutions for {factors}"
+            assert all(x * x + y * y == n and 0 < x < y for x, y in got)
+
+            assert decompose_number(factors) == got
+            assert decompose_number(factors, check_count=len(got)) == got
+            assert len(decompose_number(factors, no_trivial_solutions=False)) == len(got) + square + twice_square
+
+    def test_factored_input_variants(self):
+        """
+        A prepared factorization has to give the same answer with its primes in any order, or with exponents of 0.
+
+        The order picks the prime that decompose_number fixes to halve its work, and an exponent of 0 can move a prime
+            number off its shortcut.
+        """
+        for n in range(1, 3_000 if os.getenv("CI") else 10_000):
+            factors = factorint(n)
+            reordered = dict(reversed(factors.items()))
+            padded = {**factors, 1_000_003: 0, 13: factors.get(13, 0)}
+
+            for no_trivial_solutions in (True, False):
+                expect = decompose_number(n, no_trivial_solutions=no_trivial_solutions)
+                for variant in (reordered, padded):
+                    got = decompose_number(variant, no_trivial_solutions=no_trivial_solutions)
+                    assert got == expect, f"Mismatch for {variant}: missing={expect - got}, extra={got - expect}"
+
+    @mark.parametrize("d", [1, 2, 3, 7], ids=str)
+    def test_limited_checks_with_prepared_input(self, d: int):
+        """limited_checks only skips checks that prepared input passes, so it can't change the answer when n has one."""
+        max_n = 3_000 if os.getenv("CI") else 20_000
+        for n in range(1, max_n):
+            if not brute_force_quadratic_form(n, d, no_trivial_solutions=False):
+                continue  # not prepared input, where limited_checks can give false positives (as documented)
+
+            factors = factorint(n)
+            for no_trivial_solutions in (True, False):
+                expect = decompose_number(n, d, no_trivial_solutions=no_trivial_solutions)
+                got = decompose_number(factors, d, limited_checks=True, no_trivial_solutions=no_trivial_solutions)
+                assert got == expect, f"Mismatch for n={n}: missing={expect - got}, extra={got - expect}"
 
     @mark.parametrize(
         ("n", "d"),
