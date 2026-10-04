@@ -1,6 +1,7 @@
 import math
 import os
 import random
+import warnings
 
 from functools import cache
 from pathlib import Path
@@ -456,3 +457,67 @@ class TestNumberDecomposition:
         assert decompose_number(9, 2, no_trivial_solutions=True, warn=False) == {
             (1, 2),
         }
+
+    def test_products_of_primes_without_elements(self):
+        """
+        With class number above one, primes can have no element of their norm, but products of them can.
+
+        Neither 3 nor 7 is x**2 + 5*y**2, since the prime ideals over them have no generators, but 21 == 4**2 + 5*1**2
+            == 1**2 + 5*2**2, from the two ways to multiply those ideals into principal ones. These used to give no
+            solutions at all, since 3 and 7 looked inert.
+        """
+        assert decompose_number(6, 5) == {(1, 1)}
+        assert decompose_number(21, 5) == {(1, 2), (4, 1)}
+
+        # Eight solutions, from four primes that are none of them x**2 + 5*y**2
+        assert len(decompose_number(3 * 7 * 23 * 103, 5)) == 8
+        assert decompose_number(3 * 7 * 23 * 103, 5) == brute_force_quadratic_form(3 * 7 * 23 * 103, 5)
+
+    @mark.parametrize("no_trivial_solutions", [True, False], ids=str)
+    @mark.parametrize("d", [5, 6, 10, 14, 15, 17, 21, 23, 26, 30, 47, 71, 20, 24, 45], ids=str)
+    def test_class_number_above_one_matches_bruteforce(self, d: int, *, no_trivial_solutions: bool):
+        """Every solution should be found for d with class number above one, and for their multiples by squares."""
+        for n in range(1, 801):
+            got = decompose_number(n, d, no_trivial_solutions=no_trivial_solutions)
+            expect = brute_force_quadratic_form(n, d, no_trivial_solutions=no_trivial_solutions)
+
+            assert got == expect, f"Mismatch for n={n}, d={d}: missing={expect - got}, extra={got - expect}"
+
+    @mark.parametrize(
+        ("n", "d"),
+        [
+            (2 * 3**3 * 7 * 23 * 47 * 89 * 103, 5),
+            (2 * 5 * 7**3 * 11 * 59 * 83 * 101, 6),
+            (2 * 3**2 * 5**3 * 13**2 * 19 * 23 * 113, 14),
+            (2 * 5**2 * 11 * 17 * 19 * 31**2 * 107, 21),
+        ],
+        ids=str,
+    )
+    def test_class_number_above_one_large_numbers(self, n: int, d: int):
+        """Numbers with 64 or 72 solutions each, from many primes that mostly have no element of their norm."""
+        for no_trivial_solutions in (True, False):
+            got = decompose_number(n, d, no_trivial_solutions=no_trivial_solutions)
+            expect = brute_force_quadratic_form(n, d, no_trivial_solutions=no_trivial_solutions)
+
+            assert got == expect, f"Mismatch for n={n}, d={d}: missing={expect - got}, extra={got - expect}"
+
+    @mark.parametrize("d", [1, 5, 19, 20, 23], ids=str)
+    def test_check_count_only_skips_numbers_with_fewer_solutions(self, d: int):
+        """check_count may give an empty set, but only when there really are fewer solutions than it asks for."""
+        for n in range(1, 801):
+            expect = brute_force_quadratic_form(n, d)
+            for check_count in (1, 2, 3):
+                got = decompose_number(n, d, check_count=check_count)
+                if len(expect) >= check_count:
+                    assert got == expect, f"n={n}, d={d}, check_count={check_count} skipped {expect}"
+                else:
+                    assert got in (expect, set())
+
+    def test_nothing_warns(self):
+        """No d can miss solutions anymore, so there is nothing left to warn about (warn is still accepted)."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            assert decompose_number(21, 5) == {(1, 2), (4, 1)}
+            assert decompose_number(21, 5, warn=True) == {(1, 2), (4, 1)}
+            assert decompose_number(11 * 17, 19) == {(4, 3)}

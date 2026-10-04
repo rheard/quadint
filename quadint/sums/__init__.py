@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import warnings
 
 from itertools import product
 from typing import TYPE_CHECKING
@@ -12,9 +11,11 @@ from quadint.quad.rings.base import QuadraticRing
 
 if TYPE_CHECKING:
     from quadint import QuadInt
+    from quadint.quad.ideal import Ideal
 
+# The d where QuadraticRing(-d) has class number one (Heegner, Stark): every prime ideal there has a generator, so the
+#   elements of norm p for the primes p of n multiply out to every solution. Any other d goes through ideals instead.
 _HEEGNER_D = {1, 2, 3, 7, 11, 19, 43, 67, 163}
-_EUCLIDEAN_HEEGNER_D = {x for x in _HEEGNER_D if x < 15}  # Only the first 5 are Euclidean
 
 
 def _factor_input(n: dict[int, int] | int) -> tuple[int, dict[int, int]]:
@@ -227,6 +228,66 @@ def decompose_prime(p: int, d: int = 1, den: int = 1) -> tuple[int, int]:
     return _decompose_prime_den2(p, d)
 
 
+def _decompose_by_ideals(
+    ring: QuadraticRing,
+    factors: dict[int, int],
+    check_count: int | None,
+    *,
+    no_trivial_solutions: bool,
+) -> set[tuple[int, int]]:
+    """
+    Find every solution of x**2 + d*y**2 == n through the ideals of norm n, for d with class number above one.
+
+    There, some primes p have no element of norm p (the prime ideals over them have no generator), but products of those
+        ideals can still have one, like 6 == 1**2 + 5*1**2 with neither 2 nor 3 of the form x**2 + 5*y**2. Every element
+        of norm n generates an ideal of norm n, and those are the products of one choice per prime power p**k of n:
+        P**i * conj(P)**(k - i) for any i when p splits into P and conj(P), P**k when p ramifies as P**2, and
+        (p)**(k/2) when p is inert, which needs an even k. So the solutions come from the generators of the principal
+        ones, each of which is only unique up to a unit (which _orbit tries).
+
+    Returns:
+        set[tuple[int, int]]: The solutions, in the form decompose_number returns them.
+    """
+    # Every ideal over an inert p has an even power of p as its norm, so an inert p with an odd exponent rules out all
+    #   of them. Most n fail like this, and Euler's criterion finds out without building any ideals: a p that does not
+    #   divide the discriminant is inert when the discriminant is not a square mod p (for p == 2: when it is 5 mod 8).
+    disc = ring.discriminant()
+    for p, k in factors.items():
+        if k % 2 and disc % p and (disc % 8 == 5 if p == 2 else pow(disc, (p - 1) // 2, p) == p - 1):
+            return set()
+
+    choices_by_prime: list[list[Ideal]] = []
+    for p, k in factors.items():
+        if k <= 0:
+            continue
+
+        # The uncached _prime_ideals_data_over, since a long run over many n would otherwise keep every prime it meets
+        prime_ideals = [data.ideal for data in ring._prime_ideals_data_over(p)]
+        if len(prime_ideals) == 2:
+            P, P_bar = prime_ideals
+            choices_by_prime.append([P**i * P_bar ** (k - i) for i in range(k + 1)])
+        elif prime_ideals[0].norm == p:
+            choices_by_prime.append([prime_ideals[0] ** k])
+        else:
+            choices_by_prime.append([ring.ideal(p ** (k // 2))])  # inert, so k is even (see above)
+
+    # Each of these ideals gives at most one solution, since its generator is only unique up to sign (d > 3 here)
+    if check_count and math.prod(len(choices) for choices in choices_by_prime) < check_count:
+        return set()
+
+    ideals = [ring.unit_ideal()]
+    for choices in choices_by_prime:
+        ideals = [ideal * choice for ideal in ideals for choice in choices]
+
+    found: set[tuple[int, int]] = set()
+    for ideal in ideals:
+        generator = ideal._generator()  # uncached, for the same reason as above
+        if generator is not None:
+            found |= _orbit(generator, no_trivial_solutions=no_trivial_solutions)
+
+    return found
+
+
 def decompose_number(
     n: dict[int, int] | int,
     d: int = 1,
@@ -234,20 +295,17 @@ def decompose_number(
     *,
     limited_checks: bool = False,
     no_trivial_solutions: bool = True,
-    warn: bool = True,
+    warn: bool = True,  # ruff: ignore[unused-function-argument]
 ) -> set[tuple[int, int]]:
     """
     Decompose any number into all possible integer (x, y) solutions to:
 
         x^2 + d*y^2 = n
 
-    Notes on correctness/completeness:
-      - This function only produces TRUE solutions (no false positives) as long as it only
-        multiplies ring elements whose norms match the intended prime powers.
-      - Completeness (“enumerate all solutions”) is guaranteed only in the nicest cases
-        (roughly: when the relevant quadratic integer ring is a UFD and prime decomposition
-        exists for the necessary primes). Otherwise, it is still a good heuristic and often works,
-        but can miss solutions.
+    Every solution is found, for every d. When QuadraticRing(-d) has class number one (d is 1, 2, 3, 7, 11, 19, 43, 67
+        or 163, once square factors are taken out of d), each solution is a product of elements with prime norms,
+        which this multiplies out directly from the factorization of n. Any other d goes through the ideals of norm n
+        instead, since some of its primes have no element of that norm (see _decompose_by_ideals), which is slower.
 
     Args:
         n (int, dict): The number to decompose. Can be an integer which will be factored,
@@ -260,7 +318,7 @@ def decompose_number(
         no_trivial_solutions (bool): Exclude trivial solutions? Defined as any symmetrical solution, or any
             solution with 0. Essentially excludes perfect squares and doubles of perfect squares.
             Note that a value of False will make the algorithm quite a bit slower.
-        warn: if True, emits a warning about when the enumeration is exact vs heuristic.
+        warn: Ignored, and only kept so existing calls still work. It used to warn that a d could miss solutions.
 
     Returns:
         set<tuple<int, int>>: All unique solutions (x, y)
@@ -290,7 +348,6 @@ def decompose_number(
             check_count=None,
             limited_checks=limited_checks,
             no_trivial_solutions=False,
-            warn=warn,
         )
 
         out: set[tuple[int, int]] = set()
@@ -323,20 +380,6 @@ def decompose_number(
 
         return out
 
-    if warn and d not in _EUCLIDEAN_HEEGNER_D:
-        if d not in _HEEGNER_D:
-            warnings.warn(
-                "decompose_number: d is NOT a Heegner (class number 1) value. Completeness is not guarenteed.",
-                UserWarning,
-                stacklevel=2,
-            )
-        else:
-            warnings.warn(
-                "decompose_number: d is not a Euclidean quadratic field. Completeness is not guarenteed.",
-                UserWarning,
-                stacklevel=2,
-            )
-
     Q = QuadraticRing(-d)
     den = Q.den
 
@@ -368,6 +411,10 @@ def decompose_number(
             no_trivial_solutions=no_trivial_solutions,
         )
         return {sol} if sol else set()
+
+    # The rest takes every prime without an element of its norm to be inert, which only holds with class number one
+    if d not in _HEEGNER_D:
+        return _decompose_by_ideals(Q, factors, check_count, no_trivial_solutions=no_trivial_solutions)
 
     # Split factors into:
     #   - representable primes (we can get (a,b) with a^2 + d b^2 = p)

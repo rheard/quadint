@@ -320,7 +320,7 @@ Useful options:
 * `no_trivial_solutions=True` by default; set it to `False` to include solutions with a zero coordinate and symmetric `d=1` solutions such as `(0, 2)` for `n=4`.
 * `check_count=N` returns an empty set early when the predicted number of solutions is below `N`.
 
-Completeness is best-supported for the class-number-one Heegner values used by the package: `d in {1, 2, 3, 7, 11, 19, 43, 67, 163}`. Other `d` values may work, and results are still validated as true solutions, but completeness is not guaranteed.
+Every solution is found, for every `d`. With the class-number-one values `d in {1, 2, 3, 7, 11, 19, 43, 67, 163}` (and their multiples by squares), each solution is multiplied out of elements with prime norms, one for each prime factor of `n`. Any other `d` has primes with no element of that norm: neither `3` nor `7` is `x^2 + 5*y^2`, but `21 == 4^2 + 5*1^2 == 1^2 + 5*2^2`. Those go through the ideals of norm `n` instead, which is slower.
 
 ### Eisenstein norm decompositions: `quadint.sums.eisenstein`
 

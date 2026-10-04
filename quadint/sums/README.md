@@ -8,7 +8,7 @@ x^2 + d*y^2 = n
 
 For `d=1`, this is the classic sum-of-two-squares problem. For other supported values of `d`, the same public API can be used for related quadratic forms.
 
-Completeness is best-supported for the class-number-one Heegner values used by the package: `d in {1, 2, 3, 7, 11, 19, 43, 67, 163}`. Other `d` values may work, and results are still checked before they are returned, but completeness is not guaranteed.
+Every solution is found, for every `d`. The algorithm below is the one for the class-number-one values `d in {1, 2, 3, 7, 11, 19, 43, 67, 163}`, where every prime that is a norm at all is the norm of some element. With any other `d`, some primes are not: neither `3` nor `7` is `x^2 + 5*y^2`, but `21 == 4^2 + 5*1^2`. There, the same combinatorics run on the ideals of norm `n` instead of elements, and only the principal ones (the ones with a generator) give solutions.
 
 ## Algorithm
 
