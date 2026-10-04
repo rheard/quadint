@@ -1,6 +1,10 @@
+import random
+
 import pytest
 
-from quadint.utils import _is_squarefree  # ruff: ignore[import-private-name]
+from sympy import nextprime, primerange
+
+from quadint.utils import _is_squarefree, _sqrt_mod_prime  # ruff: ignore[import-private-name]
 
 
 @pytest.mark.parametrize(
@@ -47,3 +51,33 @@ from quadint.utils import _is_squarefree  # ruff: ignore[import-private-name]
 def test_squarefree(n: int, *, expected: bool):
     """Verify the squarefree helper handles signs and repeated prime factors correctly."""
     assert _is_squarefree(n) is expected
+
+
+def test_sqrt_mod_prime_small_primes():
+    """Every residue modulo every prime below 400 should get a square root exactly when it is a square."""
+    for p in primerange(2, 400):
+        squares = {x * x % p for x in range(p)}
+        for a in range(-p, 2 * p):
+            r = _sqrt_mod_prime(a, p)
+            if a % p in squares:
+                assert r is not None
+                assert r * r % p == a % p, f"{r}**2 is not {a} mod {p}"
+            else:
+                assert r is None, f"{a} is not a square mod {p}, but got {r}"
+
+
+def test_sqrt_mod_prime_large_primes():
+    """Big primes too, including ones with many factors of 2 in p - 1, which take the most Tonelli-Shanks steps."""
+    rng = random.Random(0)
+    primes = [nextprime(rng.randrange(10**12, 10**40)) for _ in range(200)]
+    primes += [2**127 - 1, 2**64 - 59, 3 * 2**30 + 1, 7 * 2**26 + 1, 119 * 2**23 + 1]
+
+    for p in primes:
+        for _ in range(10):
+            x = rng.randrange(1, p)
+            r = _sqrt_mod_prime(x * x, p)
+            assert r in (x, p - x)
+
+            # Exactly half of the nonzero residues are squares, and Euler's criterion tells them apart
+            a = rng.randrange(1, p)
+            assert (_sqrt_mod_prime(a, p) is None) is (pow(a, (p - 1) // 2, p) == p - 1)

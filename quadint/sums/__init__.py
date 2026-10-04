@@ -5,9 +5,10 @@ import math
 from itertools import product
 from typing import TYPE_CHECKING
 
-from sympy import factorint, sqrt_mod
+from sympy import factorint
 
 from quadint.quad.rings.base import QuadraticRing
+from quadint.utils import _sqrt_mod_prime
 
 if TYPE_CHECKING:
     from quadint import QuadInt
@@ -122,7 +123,7 @@ def _decompose_prime_den1(p: int, d: int = 1) -> tuple[int, int]:
         raise ValueError(f"Could not decompose {p!r} with d={d!r}")
 
     # If sqrt(-d) mod p doesn't exist, no solution for this prime
-    t = sqrt_mod(-d, p, all_roots=False)
+    t = _sqrt_mod_prime(-d, p)
     if t is None:
         raise ValueError(f"Could not decompose {p!r} with d={d!r}")
 
@@ -180,7 +181,7 @@ def _decompose_prime_den2(p: int, d: int = 1) -> tuple[int, int]:
     #   Number Theory", Algorithm 1.5.3): take the square root of -d mod p with the same parity as d, and run Euclid
     #   on (2p, root) until the remainder is at most 2*sqrt(p). If there is a solution, that remainder is its A.
     #   (Euclid on (p, root) finds most of them, but not all: 4*179 == 21^2 + 11*5^2 is missed that way.)
-    root = sqrt_mod(-d, p, all_roots=False)
+    root = _sqrt_mod_prime(-d, p)
     if root is None:
         raise ValueError(f"Could not decompose {p!r} with d={d!r}, den={den!r}")
 
