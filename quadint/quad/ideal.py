@@ -284,7 +284,10 @@ class Ideal:
 
         ring = self.ring
         D = ring.D
-        if D > 0:
+
+        # The dual numbers (D == 0) go there too, to be refused like every other square D, since their norm a**2 is not
+        #   positive definite, which the reduction below needs
+        if D >= 0:
             return self._principal_generator_real()
 
         # For D < 0 the norm is positive definite, so this ideal is a lattice with a shortest nonzero vector.

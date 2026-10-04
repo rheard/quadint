@@ -392,6 +392,21 @@ class TestPrincipal:
         assert ideal.principal_generator() is None
         assert not ideal.is_principal
 
+    def test_dual_refused(self):
+        """
+        Dual-number ideals get NotImplementedError like the other square D, since their norm a**2 is not definite.
+
+        That includes principal ones, like (2 + ε). They used to go through the imaginary lattice reduction, which
+            divided by zero.
+        """
+        ring = QuadraticRing(0)
+        for ideal in (ring.ideal(2, ring(0, 1)), ring.ideal(ring(2, 1)), ring.ideal(3, ring(0, 2))):
+            with pytest.raises(NotImplementedError, match="nonsquare D"):
+                ideal.principal_generator()
+
+            with pytest.raises(NotImplementedError, match="nonsquare D"):
+                _ = ideal.is_principal
+
 
 class TestOperations:
     """Tests for ideal arithmetic."""
