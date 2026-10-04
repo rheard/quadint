@@ -160,7 +160,7 @@ print(z * w)          # 0j   (zero divisor behavior)
   * the maximal orders for `D=-7,-11,-19,-43,-67,-163`,
   * and the real ones: every real Euclidean ring above, and any other real maximal order with class number one. A prime there has infinitely many associates (times any power of the fundamental unit), so each prime comes out as its most compact one, and the unit takes the rest: `QuadraticRing(2)(7).factor_detail()` has the unit `-1` and the primes `1 + 2√2` and `1 - 2√2`.
 
-  Other rings raise `NotImplementedError`.
+  Every prime comes out normalized the way a gcd is (a positive leading coefficient, the first quadrant in the Gaussian integers, the first sextant in the Eisenstein integers), so `complexint(5).factor_detail()` has the unit `-1j` and the primes `1 + 2j` and `2 + 1j`. Other rings raise `NotImplementedError`.
 * Floats and Python `complex` are accepted in some operations but are converted via `int(...)`, which truncates toward zero. If you care about rationals, avoid mixing in `float`.
   * Equality is the exception, and is exact: `complexint(1) == 1.9` is `False`. A value that equals a Python number also hashes like it, so `complexint(1)` and `1` are the same dict key (as `1` and `1.0` are), and likewise `complexint(1, 2)` and `1+2j`.
 

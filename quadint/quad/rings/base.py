@@ -1166,9 +1166,9 @@ class QuadraticRing:
             generators of the prime ideals over the rational primes p of N(x): two when p splits, one when it ramifies,
             and (p) itself when it is inert. Dividing x by each of those generators as often as it goes leaves the unit.
 
-        Each prime comes out as its canonical associate (see QuadInt._canonical_associate). In a real ring, where every
-            prime has infinitely many associates, that is the most compact one, and the unit carries the difference.
-            (The imaginary PIDs have their own factor_detail, in CornacchiaRing.)
+        Each prime comes out as its canonical associate (see QuadInt._canonical_associate): the one with a positive
+            leading coefficient, or in Z[i] the one in the first quadrant, and in Z[w] the first sextant. In a real
+            ring, where every prime has infinitely many associates, it is the most compact one. The unit takes the rest.
 
         Returns:
             Factorization: The unit, and the primes with their exponents.

@@ -9,27 +9,7 @@ if TYPE_CHECKING:
 
 
 class HeegnerDen2Ring(CornacchiaRing):
-    """Shared split-prime factorization helper for D=-7 and D=-11 (den=2)."""
-
-    # An odd p other than the ramified prime -D splits when D is a square mod p, and is inert otherwise. Euler's
-    #   criterion tells which with one pow: D**((p - 1)/2) is 1 for a square mod p, and -1 otherwise.
-    def _is_split_prime(self, p: int) -> bool:
-        if p == self._ramified_prime():
-            return False
-        if p == 2:
-            return self.D % 8 == 1
-        return pow(self.D, (p - 1) // 2, p) == 1
-
-    def _is_inert_prime(self, p: int) -> bool:
-        if p == self._ramified_prime():
-            return False
-        if p == 2:
-            return self.D % 8 == 5
-        return pow(self.D, (p - 1) // 2, p) == p - 1
-
-    def _ramified_generator(self, x: QuadInt) -> QuadInt:
-        # sqrt(D) = (0 + 2*sqrt(D)) / 2
-        return x._make(0, self.den)
+    """The imaginary PIDs with den=2 other than Z[w]: D=-7 and D=-11, and the ones that aren't Euclidean."""
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
@@ -39,9 +19,7 @@ class HeegnerDen2Ring(CornacchiaRing):
 
 
 class HeegnerSevenRing(HeegnerDen2Ring):
-    """Specialized factorization strategy for the maximal order with D=-7."""
-
-    RAMIFIED_PRIME = 7
+    """The maximal order with D=-7."""
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
@@ -50,9 +28,7 @@ class HeegnerSevenRing(HeegnerDen2Ring):
 
 
 class HeegnerElevenRing(HeegnerDen2Ring):
-    """Specialized factorization strategy for the maximal order with D=-11."""
-
-    RAMIFIED_PRIME = 11
+    """The maximal order with D=-11."""
 
     @classmethod
     def accept_override(cls, D: int, den: int, default_den: int) -> bool:  # ruff: ignore[unused-class-method-argument]
@@ -62,17 +38,13 @@ class HeegnerElevenRing(HeegnerDen2Ring):
 
 class HeegnerNonEuclidUfdRing(HeegnerDen2Ring):
     """
-    Factorization for imaginary quadratic maximal orders with class number 1 but *not* Euclidean.
+    The imaginary quadratic maximal orders with class number 1 that are *not* Euclidean.
 
     This covers the remaining Heegner (class number 1) fields beyond the norm-Euclidean ones:
         D in {-19, -43, -67, -163}   (all have default den=2)
 
-    Key point:
-      - We do NOT rely on divmod()/Euclidean division.
-      - We generate split prime elements π with N(π)=p using Cornacchia-style integer work.
-      - Then we strip valuations using exact_div (fast, and works even when supports_division()==False).
-      - These are still PIDs, so gcd, xgcd, inv_mod and pow(x, e, m) work, from a generator of the ideal (a, b)
-        (see QuadraticRing.xgcd).
+    There is no divmod here. But these are still PIDs, so they factor with QuadraticRing.factor_detail, and gcd, xgcd,
+        inv_mod and pow(x, e, m) work from a generator of the ideal (a, b) (see QuadraticRing.xgcd).
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
@@ -88,7 +60,3 @@ class HeegnerNonEuclidUfdRing(HeegnerDen2Ring):
     def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
         """This ring is not Euclidean; divmod is intentionally unavailable."""
         raise NotImplementedError("HeegnerNonEuclidUfdRing does not support Euclidean division")
-
-    def _ramified_prime(self) -> int:
-        # For these D, the discriminant is D itself (odd prime), so the unique ramified prime is |D|.
-        return -self.D
