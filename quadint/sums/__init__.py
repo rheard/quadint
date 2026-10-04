@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 
-from itertools import product
 from typing import TYPE_CHECKING
 
 from sympy import factorint
@@ -489,13 +488,13 @@ def decompose_number(
         else:
             choices_by_prime.append([pi**i * pi_bar ** (k - i) for i in range(k + 1)])
 
+    # Extend the products one prime at a time, so each partial product is only multiplied out once
+    totals = [base_quad]
+    for choices in choices_by_prime:
+        totals = [total * choice for total in totals for choice in choices]
+
     found: set[tuple[int, int]] = set()
-
-    for choices in product(*choices_by_prime):
-        total = base_quad
-        for choice in choices:
-            total *= choice
-
+    for total in totals:
         found |= _orbit(total, no_trivial_solutions=no_trivial_solutions)
 
     return found
