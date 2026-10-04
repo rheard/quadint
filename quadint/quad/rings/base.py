@@ -18,6 +18,10 @@ from quadint.utils import _sqrt_mod_prime
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+# The d where QuadraticRing(-d) has class number one, which Baker, Heegner and Stark showed are the only ones. So these
+#   are the imaginary PIDs, known without working out any class group.
+_HEEGNER_D = {1, 2, 3, 7, 11, 19, 43, 67, 163}
+
 
 @dataclass(frozen=True, slots=True)
 class Factorization:
@@ -879,14 +883,19 @@ class QuadraticRing:
         Return whether this ring is a principal ideal domain, which gcd, xgcd, inv_mod, modular pow and factoring need.
 
         Those are the maximal orders with class number one, including every Euclidean ring. (No other order is a PID,
-            since a PID is integrally closed.) The class group is only worked out once per ring, but checking for it
-            factors D, so the answer is cached too.
+            since a PID is integrally closed.) The imaginary ones are known (see _HEEGNER_D), which matters since their
+            class groups take time in proportion to |D|. A real ring takes ClassGroup.is_trivial, which stops at the
+            first ideal without a generator, but goes through every prime up to the Minkowski bound when there is none,
+            so the answer is cached.
 
         Returns:
             bool: Whether every ideal of this ring is principal.
         """
+        if self.D < 0:
+            return -self.D in _HEEGNER_D and self.den == (2 if self.D % 4 == 1 else 1)
+
         try:
-            return self.class_number == 1
+            return self.class_group.is_trivial
         except NotImplementedError:
             return False  # no class group, so not a quadratic field's maximal order (like the dual and split integers)
 

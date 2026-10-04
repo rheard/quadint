@@ -6,16 +6,12 @@ from typing import TYPE_CHECKING
 
 from sympy import factorint
 
-from quadint.quad.rings.base import QuadraticRing
+from quadint.quad.rings.base import _HEEGNER_D, QuadraticRing
 from quadint.utils import _sqrt_mod_prime
 
 if TYPE_CHECKING:
     from quadint import QuadInt
     from quadint.quad.ideal import Ideal
-
-# The d where QuadraticRing(-d) has class number one (Heegner, Stark): every prime ideal there has a generator, so the
-#   elements of norm p for the primes p of n multiply out to every solution. Any other d goes through ideals instead.
-_HEEGNER_D = {1, 2, 3, 7, 11, 19, 43, 67, 163}
 
 
 def _factor_input(n: dict[int, int] | int) -> tuple[int, dict[int, int]]:

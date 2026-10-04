@@ -303,6 +303,44 @@ class TestRingCapabilities:
         with pytest.raises(NotImplementedError):
             _ = unsupported(5, 2).factor_detail()
 
+    def test_pid_matches_class_number(self):
+        """
+        _is_pid has to agree with the class number, which it no longer works out.
+
+        Imaginary rings take the list of the nine with class number one instead, and real ones stop at the first ideal
+            without a generator. Every other order, like the dual and split integers, is never a PID.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)  # HarperRing's, about each D that is not squarefree
+
+            for D in range(-300, 300):
+                for den in (1, 2):
+                    if den == 2 and D % 4 != 1:
+                        continue
+
+                    ring = QuadraticRing(D, den)
+                    is_pid = ring._is_pid()  # before the class number, so it can't just look at the classes
+                    try:
+                        expected = ring.class_number == 1
+                    except NotImplementedError:
+                        expected = False
+
+                    assert is_pid is expected, f"Wrong for D={D}, den={den}"
+
+    @pytest.mark.usefixtures("hang_guard")
+    def test_pid_check_skips_class_groups(self):
+        """
+        Telling that a ring is not a PID doesn't take its class group, which here would take practically forever.
+
+        An imaginary class group takes time in proportion to |D|, and this real one has a class number that genus theory
+            makes a multiple of 128, but building these rings and giving up on gcd has to be instant.
+        """
+        for ring in (QuadraticRing(-(10**12 + 39)), QuadraticRing(2 * 3 * 5 * 7 * 11 * 13 * 17 * 19 * 23)):
+            assert type(ring) is QuadraticRing
+            assert ring.supports_factorization() is False
+            with pytest.raises(NotImplementedError, match="principal ideal domain"):
+                ring.one.gcd(ring.one * 2)
+
 
 class TestIdentityChecksWithQuadInt(RingTests):
     """Tests that rely on QuadInt.assert_same_ring using identity"""

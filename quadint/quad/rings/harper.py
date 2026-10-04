@@ -186,8 +186,8 @@ class HarperRing(RealNormEuclidRing):
         temp_ring: QuadraticRing = cls(D, den)
         disc = temp_ring.discriminant()
 
-        # Must be a PID
-        if temp_ring.class_number != 1:
+        # Must be a PID (which doesn't take the whole class group, see _is_pid)
+        if not temp_ring._is_pid():
             return False
 
         # Murty-Srinivas-Subramani state that Harper's thesis established

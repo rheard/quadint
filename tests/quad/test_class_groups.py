@@ -145,6 +145,24 @@ class TestTrivialGroups:
         assert group.classes == (IdealClass(ring.unit_ideal()),)
         assert group.generators == ()
 
+    def test_is_trivial_matches_order(self):
+        """is_trivial has to agree with the class number, which it gets to without finding every class."""
+        for D in [*range(-300, 0), *range(2, 300)]:
+            if D != -1 and not _is_squarefree(D):
+                continue
+
+            ring = QuadraticRing(D)
+            key = (type(ring), ring.D, ring.den)
+            cached = ClassGroup._CACHE.pop(key, None)  # a fresh group, so is_trivial can't just count its classes
+            try:
+                group = ClassGroup(ring)
+                trivial = group.is_trivial
+                assert trivial is (group.order == 1), f"Wrong for D={D}"
+                assert group.is_trivial is trivial  # and again, from the classes it has now
+            finally:
+                if cached is not None:
+                    ClassGroup._CACHE[key] = cached
+
     def test_gaussian_prime_ideals_are_principal(self):
         """In Z[i], the prime ideals over 5 should not create nontrivial ideal classes."""
         group = ClassGroup(ZI)

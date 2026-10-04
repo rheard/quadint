@@ -958,6 +958,29 @@ class ClassGroup:
         """Return the class number of the underlying quadratic order."""
         return len(self.classes)
 
+    @property
+    def is_trivial(self) -> bool:
+        """
+        Is this the trivial group, so the class number is one and every ideal is principal?
+
+        The classes of the prime ideals up to the Minkowski bound generate the group (see generators), so it is trivial
+            exactly when those are all principal. This stops at the first one that is not, instead of finding every
+            class like order does, so it takes next to no time for most rings with a bigger class group.
+
+        Returns:
+            bool: Whether the class number is one.
+        """
+        if self._classes is not None:
+            return len(self._classes) == 1
+
+        mb = self.minkowski_bound
+        for p in primerange(2, mb + 1):
+            for ideal in self.ring.prime_ideals_over(p):
+                if ideal.norm <= mb and not IdealClass(ideal).is_trivial:
+                    return False
+
+        return True
+
     def class_number(self) -> int:
         """Return the class number of the underlying quadratic order."""
         return self.order
