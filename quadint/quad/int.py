@@ -481,16 +481,15 @@ class QuadInt:
 
     # endregion
 
+    @property
     def is_unit(self) -> bool:
-        """Return True iff this element is a unit (invertible) in its ring."""
+        """Is this a unit, an element with an inverse in its ring?"""
         return abs(abs(self)) == 1
 
+    @property
     def is_irreducible(self) -> bool:
         """
-        Return True iff this element is irreducible in its quadratic order.
-
-        An element is irreducible if it is nonzero, not a unit,
-            and every factorization `self = a*b` has either `a` or `b` a unit.
+        Is this irreducible in its quadratic order? That is, not 0 or a unit, and not a product of two non-units.
 
         For rings with explicit factorization support, this delegates to `factor_detail()`
             and checks whether the factorization contains exactly one irreducible factor.

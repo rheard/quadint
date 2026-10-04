@@ -380,7 +380,7 @@ print(decompose_number(91, no_trivial_solutions=False))
 * `x.conjugate()`
 * `abs(x)` (norm)
 * `x.units` (finite torsion unit subgroup exposed as a tuple)
-* `x.is_unit()`, `x.is_irreducible()`
+* `x.is_unit`, `x.is_irreducible`
 * `x.content()`
 * `x.factor_detail()` (returns `Factorization(unit, primes)`)
 * `x.factor()` (returns plain `dict[QuadInt, int]`)

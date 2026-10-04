@@ -2308,14 +2308,14 @@ class TestRealFactorDetail(QuadIntTests):
             f = x.factor_detail()
             self.assert_factoring(x, f)
             self.assert_factoring(x, x.factor())
-            assert f.unit.is_unit()
+            assert f.unit.is_unit
             assert all(p == p._canonical_associate() for p in f.primes)
 
             ideals = [Q.ideal(p).hnf for p, k in f.primes.items() for _ in range(k)]
             assert sorted(ideals) == sorted(P.hnf for P in Q.ideal(x).factor())
 
-            if not x.is_unit():
-                assert x.is_irreducible() == (sum(f.primes.values()) == 1)
+            if not x.is_unit:
+                assert x.is_irreducible == (sum(f.primes.values()) == 1)
 
 
 class TestFactor(QuadIntTests):

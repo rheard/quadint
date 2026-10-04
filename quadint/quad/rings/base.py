@@ -831,7 +831,7 @@ class QuadraticRing:
             next_q = a * curr_q + prev_q
 
             candidate = unit_candidate(next_p, next_q)
-            if candidate.is_unit():
+            if candidate.is_unit:
                 return candidate
 
             prev_p, curr_p = curr_p, next_p

@@ -393,7 +393,7 @@ class TestGcd(SplitIntTests):
         a = splitint(3, 2)  # split coords: (5, 1)
         b = splitint(2, 1)  # split coords: (3, 1)
         g = a.gcd(b)
-        assert g.is_unit()
+        assert g.is_unit
 
     def test_gcd_common_factor(self):
         """GCD should find common factors."""
