@@ -122,6 +122,13 @@ class RealNormEuclidRing(QuadraticRing):
 
         A0 = _round_div_ties_away_from_zero(num_a, y_norm)
         B0 = _round_div_ties_away_from_zero(num_b, y_norm)
+        if self.D < 0 and (self.den == 1 or not (A0 ^ B0) & 1):
+            # An imaginary norm adds up the two coordinates' (weighted) squared errors, so rounding each one gives the
+            #   quotient with the smallest remainder whenever that is in the ring (always when den=1). The search below
+            #   would pick it too: no candidate beats its remainder, and it wins ties on distance, being (A0, B0).
+            q = x._make(A0, B0)
+            return q, x - q * y
+
         dd = self.den**2
 
         # A candidate quotient q leaves the remainder r = x - q*y, and w = q*N(y) - x*conj(y) is -r*conj(y).
