@@ -561,40 +561,7 @@ class QuadraticRing:
         if not isprime(p):
             raise ValueError(f"p must be prime, got {p!r}")
 
-        cls = self.DEFAULT_KLASS
-
-        if self.den == 1:
-            # O = Z[sqrt(D)]
-            #
-            # The defining polynomial is:
-            #     f(x) = x**2 - D
-            #
-            # A root r modulo p gives the prime ideal:
-            #     P = (p, sqrt(D) - r)
-            w = cls(0, 1, self, skip_basis=True)
-            s = _sqrt_mod_prime(self.D, p)
-            roots = [] if s is None else [s, -s % p]  # the same root twice when s == 0, or when p == 2
-
-        else:
-            # O = Z[w], where w = (1 + sqrt(D)) / 2
-            #
-            # The defining polynomial is:
-            #     f(x) = x**2 - x + (1-D)//4
-            #
-            # For odd p, we can find roots by first finding sqrt(D) mod p:
-            #     w = (1 + sqrt(D)) / 2
-            w = cls(1, 1, self, skip_basis=True)
-
-            if p == 2:
-                c = (1 - self.D) // 4
-                roots = [r for r in range(2) if (r * r - r + c) % 2 == 0]
-            else:
-                # The roots are (1 +/- s) / 2 for the square roots +/-s of D mod p
-                s = _sqrt_mod_prime(self.D, p)
-                inv2 = pow(2, -1, p)
-                roots = [] if s is None else [(1 + s) * inv2 % p, (1 - s) * inv2 % p]
-
-        roots = sorted(set(roots))
+        roots = self._ideal_roots(p)
 
         # No roots means p is inert, so (p) itself is prime.
         if not roots:
@@ -603,10 +570,13 @@ class QuadraticRing:
                     ring=self,
                     p=p,
                     index=1,
-                    ideal=self.ideal(p),
+                    ideal=self.ideal(_hnf=(p, 0, p)),
                 ),
             )
 
+        # The integer combinations of p and w - root are already the whole ideal (p, w - root), since times w, w - root
+        #   becomes a multiple of itself minus f(root), which p divides. In the basis (1, w), those two are (p, 0) and
+        #   (-root, 1), which is the HNF, so there are no generators to reduce.
         out = []
         for index, root in enumerate(roots, start=1):
             out.append(
@@ -614,12 +584,37 @@ class QuadraticRing:
                     ring=self,
                     p=p,
                     index=index,
-                    ideal=self.ideal(p, w - root),
+                    ideal=self.ideal(_hnf=(p, -root % p, 1)),
                     root=root,
                 ),
             )
 
         return tuple(out)
+
+    def _ideal_roots(self, p: int) -> list[int]:
+        """
+        Return the roots mod the prime p of the polynomial f of w, which make the prime ideals (p, w - root) over p.
+
+        w is the integral-basis generator: sqrt(D), a root of f(x) = x**2 - D, when den == 1, and (1 + sqrt(D))/2, a
+            root of f(x) = x**2 - x + (1 - D)/4, when den == 2. Two roots mean p splits, and one means it ramifies.
+            No roots means p is inert, so (p) itself is prime.
+
+        Returns:
+            list[int]: The roots, in increasing order.
+        """
+        if self.den == 1:
+            s = _sqrt_mod_prime(self.D, p)
+            roots = [] if s is None else [s, -s % p]  # the same root twice when s == 0, or when p == 2
+        elif p == 2:
+            c = (1 - self.D) // 4
+            roots = [r for r in range(2) if (r * r - r + c) % 2 == 0]
+        else:
+            # The roots are (1 +/- s) / 2 for the square roots +/-s of D mod p
+            s = _sqrt_mod_prime(self.D, p)
+            inv2 = pow(2, -1, p)
+            roots = [] if s is None else [(1 + s) * inv2 % p, (1 - s) * inv2 % p]
+
+        return sorted(set(roots))
 
     def prime_ideals_over(self, p: int) -> tuple[Ideal, ...]:
         """Return the prime ideals lying over the rational prime p."""
