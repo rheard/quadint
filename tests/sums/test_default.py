@@ -501,7 +501,7 @@ class TestNumberDecomposition:
 
             assert got == expect, f"Mismatch for n={n}, d={d}: missing={expect - got}, extra={got - expect}"
 
-    @mark.parametrize("d", [1, 5, 19, 20, 23], ids=str)
+    @mark.parametrize("d", [1, 3, 5, 12, 19, 20, 23], ids=str)
     def test_check_count_only_skips_numbers_with_fewer_solutions(self, d: int):
         """check_count may give an empty set, but only when there really are fewer solutions than it asks for."""
         for n in range(1, 801):
@@ -512,6 +512,17 @@ class TestNumberDecomposition:
                     assert got == expect, f"n={n}, d={d}, check_count={check_count} skipped {expect}"
                 else:
                     assert got in (expect, set())
+
+    def test_check_count_eisenstein_orbits(self):
+        """
+        For d=3, one product can give three solutions, which check_count used to count as one, and so skip.
+
+        28 == 5**2 + 3*1**2 == 4**2 + 3*2**2 == 1**2 + 3*3**2 all come from 2 * (2 + sqrt(-3)), times units of Z[ω].
+        """
+        expected = {(1, 3), (4, 2), (5, 1)}
+        assert decompose_number(28, 3) == expected
+        assert decompose_number(28, 3, check_count=3) == expected
+        assert decompose_number(4, 3, check_count=2, no_trivial_solutions=False) == {(1, 1), (2, 0)}
 
     def test_nothing_warns(self):
         """No d can miss solutions anymore, so there is nothing left to warn about (warn is still accepted)."""

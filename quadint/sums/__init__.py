@@ -445,6 +445,12 @@ def decompose_number(
     # product over representable primes of (k+1)
     if check_count:
         predicted = math.prod(k + 1 for k in representable.values())
+        if d == 3 and 2 in inert_even_scale:
+            # Each total below then gives up to three solutions instead of one: 2 divides it, so all three of its
+            #   associates that _orbit tries (up to sign) are in Z[sqrt(-3)]. 28 == 5**2 + 3*1**2 == 4**2 + 3*2**2
+            #   == 1**2 + 3*3**2 all come from 2 * (2 + sqrt(-3)), for example.
+            predicted *= 3
+
         if predicted < check_count:
             return set()
 
