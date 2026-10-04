@@ -166,25 +166,25 @@ class QuadInt:
 
             return min((best, -best, tied, -tied), key=_compact_key)
 
-        # Otherwise exactly one torsion-unit multiple of a nonzero element is in the region described above
-        gaussian = D == -1 and self.ring.den == 1
-        eisenstein = D == -3 and self.ring.den == 2
-        for u in self.units:
-            w = self * u
-            a, b = w.a, w.b
-            if gaussian:
-                in_region = a > 0 and b >= 0
-            elif eisenstein:
-                in_region = 0 <= b < a
-            elif D == 1:
-                in_region = a > 0 and abs(b) <= a
-            else:
-                in_region = a > 0 or (a == 0 and b > 0)
+        # Otherwise exactly one torsion-unit multiple of a nonzero element is in the region described above. Multiplying
+        #   by a unit only moves the numerators around, so this moves them until they land there.
+        if not self:
+            return self  # zero, whose only associate is itself
 
-            if in_region:
-                return w
+        a, b = self.a, self.b
+        if D == -1 and self.ring.den == 1:
+            while not (a > 0 and b >= 0):
+                a, b = -b, a  # times i, a quarter turn
+        elif D == -3 and self.ring.den == 2:
+            while not 0 <= b < a:
+                a, b = (a - 3 * b) // 2, (a + b) // 2  # times (1 + sqrt(-3))/2, a sixth of a turn
+        else:
+            if D == 1 and abs(b) > abs(a):
+                a, b = b, a  # times j, in the split-complex integers
+            if a < 0 or (a == 0 and b < 0):
+                a, b = -a, -b  # times -1
 
-        return self  # zero, whose only associate is itself
+        return self._make(a, b)
 
     def _from_obj(self, n: complex | int | float | QuadInt):
         """Make a QuadInt on the current ring from a given object"""
