@@ -479,12 +479,13 @@ def decompose_number(
     # Each of a prime's k remaining factors is pi or conj(pi), and since multiplication commutes, their product only
     #   depends on how many of them are pi. So the 2**k ways to choose give exactly the same products as the k + 1
     #   powers pi**i * conj(pi)**(k - i), each just repeated many times over.
-    #   When conj(pi) is a unit times pi (a ramified prime), those are all unit multiples of pi**k, and unit multiples
-    #   of a total give the same solutions (see _orbit), so pi**k alone does too.
+    #   When p ramifies (it divides the discriminant), conj(pi) is a unit times pi, so those are all unit multiples of
+    #   pi**k, and unit multiples of a total give the same solutions (see _orbit), so pi**k alone does too.
+    disc = Q.discriminant()
     choices_by_prime: list[list[QuadInt]] = []
     for p, k in representable.items():
         pi, pi_bar = p_ring_pairs[p]
-        if any(pi_bar == pi * u for u in pi.units):
+        if disc % p == 0:
             choices_by_prime.append([pi**k])
         else:
             choices_by_prime.append([pi**i * pi_bar ** (k - i) for i in range(k + 1)])
