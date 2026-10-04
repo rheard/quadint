@@ -563,7 +563,17 @@ class Ideal:
             if self.ring is not other.ring:
                 raise TypeError("Cannot multiply ideals from different rings")
 
-            return Ideal(self.ring, *(x * y for x, y in product(self.basis, other.basis)))
+            # The unit ideal is the only one with norm 1
+            if self.norm == 1:
+                return other
+
+            if other.norm == 1:
+                return self
+
+            # Each element of I*J is a sum of products x*y with x in I and y in J, and each x*y is an integer
+            #   combination of the products of their basis elements. So those four span I*J as a lattice already,
+            #   without also multiplying them by w the way generators of an ideal need.
+            return Ideal(self.ring, _hnf=_lattice_hnf([_coords(x * y) for x, y in product(self.basis, other.basis)]))
 
         if isinstance(other, _IDEAL_OP_TYPES):
             scalar = _coerce(self.ring, other)
