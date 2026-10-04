@@ -117,6 +117,15 @@ print(z * w)        # (2+1ε)
 
 Use `real` and `dual` (or `epsilon`) to access the ε-basis components.
 
+`ε` is a zero divisor (`ε * ε == 0`), so its multiples have no real part, and there is no remainder to make small: `divmod` by a multiple of `ε` raises `ZeroDivisionError`. Exact division still works, though:
+
+```python
+from quadint import dualint
+
+print(dualint(0, 6).exact_div(dualint(0, 2)))   # (3+0ε)  (any 3 + kε would do, since 2ε * kε == 0)
+print(dualint(0, 1).divides(dualint(5, 7)))     # False  (5 + 7ε has a real part)
+```
+
 ---
  
 ## Split-complex integers: `splitint`

@@ -241,6 +241,59 @@ class TestDiv(DualIntTests):
 
         self.assert_dual_equal((self.a_int.real, self.a_int.dual), res_int)
 
+    def test_divmod_by_epsilon_raises(self):
+        """A multiple of ε only has multiples with no real part, so there is no remainder to shrink."""
+        with pytest.raises(ZeroDivisionError, match="zero divisor"):
+            _ = divmod(dualint(3, 2), dualint(0, 1))
+
+
+class TestExactDiv(DualIntTests):
+    """Tests for exact_div and divides"""
+
+    def test_exact_div(self):
+        """Exact quotients should come back, and inexact ones should give None."""
+        res_int = (self.a_int * self.b_int).exact_div(self.a_int)
+
+        assert res_int is not None
+        self.assert_dual_equal((self.b_int.real, self.b_int.dual), res_int)
+        assert self.a_int.exact_div(self.b_int) is None
+
+    def test_exact_div_by_epsilon(self):
+        """
+        A multiple of ε divides the multiples of ε whose ε part it divides, even though ε is a zero divisor.
+
+        The ε part of the quotient could be anything then (6ε == (3 + kε) * 2ε for every k), so it is 0.
+        """
+        eps = dualint(0, 1)
+        assert abs(eps) == 0
+
+        res_int = dualint(0, 6).exact_div(dualint(0, 2))
+        assert res_int is not None
+        self.assert_dual_equal((3, 0), res_int)
+        assert eps.divides(dualint(0, 7)) is True
+
+        assert dualint(5, 7).exact_div(eps) is None  # every multiple of ε has no real part
+        assert dualint(0, 7).exact_div(dualint(0, 2)) is None
+        assert dualint(0, 2).divides(dualint(0, 7)) is False
+
+    def test_divides_matches_brute_force(self):
+        """y.divides(x) should hold exactly when some q has q*y == x, for zero divisors like ε too."""
+        small = [dualint(a, b) for a in range(-4, 5) for b in range(-4, 5)]
+        # Every quotient between two small elements, when there is one, has a representative in this range
+        wide = range(-20, 21)
+        quotients = [dualint(a, b) for a in wide for b in wide]
+
+        for y in small:
+            if not y:
+                continue
+
+            multiples = {q * y for q in quotients}
+            for x in small:
+                q = x.exact_div(y)
+                assert y.divides(x) is (x in multiples)
+                assert (q is not None) is (x in multiples)
+                assert q is None or q * y == x
+
 
 class TestConjugate(DualIntTests):
     """Tests for conjugate"""

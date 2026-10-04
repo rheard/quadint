@@ -915,14 +915,15 @@ class QuadraticRing:
 
         Raises:
             ZeroDivisionError: If y is 0.
-            NotImplementedError: If y is some other element of norm 0 (a zero divisor, as in the dual ring).
+            NotImplementedError: If y is some other element of norm 0 (a zero divisor, like 2 - sqrt(4) when D == 4).
         """
         if not y:
             raise ZeroDivisionError("division by zero")
 
         N = abs(y)  # signed norm
         if N == 0:
-            # A nonzero zero divisor: the dual ring (D=0) and square D have these. (SplitRing has its own exact_div.)
+            # A nonzero zero divisor. Only a square D > 1 still gets here, since DualRing and SplitRing have their own
+            #   exact_div.
             # TODO: Divisibility is still meaningful there, but needs a different solver.
             raise NotImplementedError
 

@@ -1582,14 +1582,15 @@ class TestExactDivAndDivides(QuadIntTests):
 
         pytest.skip("No den=2 parity-mismatch witness found in the search window (unexpected).")
 
+    @pytest.mark.filterwarnings("ignore:D is not squarefree")
     def test_exact_div_zero_norm_divisor_not_supported(self):
-        """In the dual ring, exact_div still rejects a nonzero divisor of norm 0 like epsilon (not implemented yet)."""
-        Q0 = QuadraticRing(0)
-        x0 = Q0(5, 7)
-        eps = Q0(0, 1)
-        assert abs(eps) == 0
+        """A square D > 1 still rejects nonzero divisors of norm 0 like 2 - sqrt(4) (the dual and split rings don't)."""
+        Q4 = QuadraticRing(4)
+        y = Q4(2, -1)
+        assert y
+        assert abs(y) == 0
         with pytest.raises(NotImplementedError):
-            _ = x0.exact_div(eps)
+            _ = Q4(5, 7).exact_div(y)
 
     @pytest.mark.parametrize("Q", [ZI, ZE, ZN5, Z2, QuadraticRing(0), Z1, QuadraticRing(1, 1)], ids=str)
     def test_division_by_zero(self, Q: QuadraticRing):

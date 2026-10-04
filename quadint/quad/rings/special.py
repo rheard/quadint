@@ -41,7 +41,8 @@ class DualRing(QuadraticRing):
         num = x
 
         if n == 0:
-            raise ZeroDivisionError
+            # A multiple of ε only has multiples with no real part, so there is no remainder to make small
+            raise ZeroDivisionError("division by a multiple of ε, which is a zero divisor (exact_div still works)")
 
         A0 = _round_div_ties_away_from_zero(num.a, n)
 
@@ -66,6 +67,24 @@ class DualRing(QuadraticRing):
         q = x._make(best_a, best_b)
         r = x - q * y
         return q, r
+
+    def exact_div(self, x: QuadInt, y: QuadInt) -> QuadInt | None:
+        """
+        Exact division, where a multiple of ε (a zero divisor, since ε**2 == 0) can divide too.
+
+        (e + f*ε) * (q0 + q1*ε) == e*q0 + (e*q1 + f*q0)*ε, so when e != 0 there is at most one quotient, which the
+            general formula finds. But f*ε only has the multiples f*q0*ε: it divides x when x has no real part and
+            f divides x's ε part, and then q1 could be anything, so this picks 0, which makes q the plain integer x/y
+            (like 6ε / 2ε == 3).
+
+        Returns:
+            QuadInt | None: A quotient q with x == q*y, or None if there is none.
+        """
+        if y.a or not y.b:
+            return super().exact_div(x, y)  # which also raises ZeroDivisionError for y == 0
+
+        q, r = divmod(x.b, y.b)
+        return x._make(q, 0) if x.a == 0 and r == 0 else None
 
 
 class SplitRing(QuadraticRing):
