@@ -900,7 +900,7 @@ class QuadraticRing:
 
     def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
         """An override for defining division algorithms in subclasses for different D values"""
-        raise NotImplementedError
+        raise NotImplementedError(f"{self!r} has no Euclidean division")
 
     def exact_div(self, x: QuadInt, y: QuadInt) -> QuadInt | None:
         """

@@ -15,7 +15,7 @@ from quadint import (
     QuadraticRing,
     complexint as complexi,
 )
-from quadint.quad.rings import GaussianRing
+from quadint.quad.rings import RealNormEuclidRing
 from tests.quad.test_int import QuadIntTests
 from tests.quad.test_rings import norm_multiset
 
@@ -28,9 +28,9 @@ def test_compiled_tests():
 
 
 def test_gaussian_ring_type():
-    """QuadraticRing(-1) should dispatch to GaussianRing."""
+    """QuadraticRing(-1) should dispatch to RealNormEuclidRing, since the Gaussian integers are norm-Euclidean."""
     ring = QuadraticRing(-1)
-    assert isinstance(ring, GaussianRing)
+    assert type(ring) is RealNormEuclidRing
 
 
 def test_precision():

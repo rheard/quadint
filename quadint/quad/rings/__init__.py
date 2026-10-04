@@ -9,21 +9,9 @@ from quadint.quad.rings.base import (
     _round_div_ties_away_from_zero as _round_div_ties_away_from_zero,
     _split_uv as _split_uv,
 )
-from quadint.quad.rings.cornacchia import (
-    CornacchiaRing as CornacchiaRing,
-    EisensteinRing as EisensteinRing,
-    GaussianRing as GaussianRing,
-    SqrtMinusTwoRing as SqrtMinusTwoRing,
-)
 from quadint.quad.rings.harper import (
     Clark69Ring as Clark69Ring,
     HarperRing as HarperRing,
-)
-from quadint.quad.rings.heegner import (
-    HeegnerDen2Ring as HeegnerDen2Ring,
-    HeegnerElevenRing as HeegnerElevenRing,
-    HeegnerNonEuclidUfdRing as HeegnerNonEuclidUfdRing,
-    HeegnerSevenRing as HeegnerSevenRing,
 )
 from quadint.quad.rings.norm_euclid import (
     NORM_EUCLID_D as NORM_EUCLID_D,
