@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, ClassVar
 from sympy import factorint, isprime
 from sympy.solvers.diophantine.diophantine import diop_DN
 
-from quadint.quad.ideal import ClassGroup, Ideal, _bezout_coefficients
+from quadint.quad.ideal import ClassGroup, Ideal, _bezout_coefficients, _coords
 from quadint.quad.int import QuadInt
 from quadint.utils import _sqrt_mod_prime
 
@@ -549,7 +549,7 @@ class QuadraticRing:
 
     def _prime_ideals_data_over(self, p: int) -> tuple[PrimeIdealData, ...]:
         """
-        Return prime_ideals_data_over without its cache, for factor_detail, which would keep every prime it ever meets.
+        Return prime_ideals_data_over without its cache, for decompose_number, which would keep every prime it meets.
 
         Returns:
             tuple[PrimeIdealData, ...]: The prime ideals over p, in order of their roots.
@@ -1187,10 +1187,22 @@ class QuadraticRing:
         rem = x
         primes: dict[QuadInt, int] = {}
         for p in sorted(factorint(abs(abs(x)))):
-            for data in self._prime_ideals_data_over(p):
-                generator = data.ideal._generator()
+            # The prime ideals over p are (p, w - root) for its roots, or (p) itself if it has none (see _ideal_roots),
+            #   whose HNFs are (p, -root % p, 1) and (p, 0, p). rem == c0 + c1*w is in (p, w - root) exactly when
+            #   c0 + c1*root == 0 (mod p). When p splits, rem is usually in only one of the two, and checking that
+            #   costs far less than finding a generator for the other one.
+            roots = self._ideal_roots(p)
+            if roots:
+                c0, c1 = _coords(rem)
+                hnfs = [(p, -root % p, 1) for root in roots if (c0 + c1 * root) % p == 0]
+            else:
+                hnfs = [(p, 0, p)]
+
+            for hnf in hnfs:
+                ideal = self.ideal(_hnf=hnf)
+                generator = ideal._generator()
                 if generator is None:
-                    raise ArithmeticError(f"{data.ideal} is not a principal ideal, so this ring is not a PID")
+                    raise ArithmeticError(f"{ideal} is not a principal ideal, so this ring is not a PID")
 
                 prime = x._make(generator.a, generator.b)
                 k = 0
