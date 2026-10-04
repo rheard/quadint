@@ -1,23 +1,30 @@
 from __future__ import annotations
 
 from quadint.quad.rings.base import (
-    Factorization as Factorization,
-    QuadraticRing as QuadraticRing,
-    _check_den as _check_den,
-    _choose_best_in_neighborhood as _choose_best_in_neighborhood,
-    _NeighborhoodSearch as _NeighborhoodSearch,
-    _round_div_ties_away_from_zero as _round_div_ties_away_from_zero,
-    _split_uv as _split_uv,
+    Factorization,
+    QuadraticRing,
 )
 from quadint.quad.rings.harper import (
-    Clark69Ring as Clark69Ring,
-    HarperRing as HarperRing,
+    Clark69Ring,
+    HarperRing,
 )
 from quadint.quad.rings.norm_euclid import (
-    NORM_EUCLID_D as NORM_EUCLID_D,
-    RealNormEuclidRing as RealNormEuclidRing,
+    NORM_EUCLID_D,
+    RealNormEuclidRing,
 )
 from quadint.quad.rings.special import (
-    DualRing as DualRing,
-    SplitRing as SplitRing,
+    DualRing,
+    SplitRing,
 )
+
+# The exports are listed here, rather than imported `as` themselves, since stubgen drops those imports from the stubs
+__all__ = [
+    "NORM_EUCLID_D",
+    "Clark69Ring",
+    "DualRing",
+    "Factorization",
+    "HarperRing",
+    "QuadraticRing",
+    "RealNormEuclidRing",
+    "SplitRing",
+]

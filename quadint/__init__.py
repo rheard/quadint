@@ -1,11 +1,24 @@
-from quadint.complex import complexint as complexint
-from quadint.dual import dualint as dualint
-from quadint.eisenstein import eisensteinint as eisensteinint
+from quadint.complex import complexint
+from quadint.dual import dualint
+from quadint.eisenstein import eisensteinint
 from quadint.quad import (
-    Factorization as Factorization,
-    Ideal as Ideal,
-    IdealClass as IdealClass,
-    QuadInt as QuadInt,
-    QuadraticRing as QuadraticRing,
+    Factorization,
+    Ideal,
+    IdealClass,
+    QuadInt,
+    QuadraticRing,
 )
-from quadint.split import splitint as splitint
+from quadint.split import splitint
+
+# The exports are listed here, rather than imported `as` themselves, since stubgen drops those imports from the stubs
+__all__ = [
+    "Factorization",
+    "Ideal",
+    "IdealClass",
+    "QuadInt",
+    "QuadraticRing",
+    "complexint",
+    "dualint",
+    "eisensteinint",
+    "splitint",
+]
