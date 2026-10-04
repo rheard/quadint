@@ -52,12 +52,14 @@ def _canonical_pair(
 
 def _orbit(z: QuadInt, *, no_trivial_solutions: bool = True) -> set[tuple[int, int]]:
     """
-    Convert the torsion-unit orbit of a quadratic integer into integer-form solutions.
+    Convert the unit multiples of a quadratic integer into integer-form solutions.
 
     The input `z` is an element of `QuadraticRing(-d)` whose norm represents a
-    candidate value of `x^2 + d*y^2`. Because different unit multiples can produce
-    distinct nonnegative integer-coordinate solutions, especially in the Eisenstein
-    case `d == 3`, this helper tries every torsion-unit multiple of `z`.
+    candidate value of `x^2 + d*y^2`. Its unit multiples have the same norm, and in the
+    Eisenstein case `d == 3` they can give different solutions (or be in Z[sqrt(-3)] when z
+    is not), so there this tries all six. For any other d, the unit multiples of
+    a + b*sqrt(-d) are just +/-(a + b*sqrt(-d)), and for d == 1 also +/-(-b + a*i), which
+    all give the same solution, so z alone is enough.
 
     Args:
         z: A quadratic integer whose unit orbit should be converted to solutions.
@@ -72,8 +74,7 @@ def _orbit(z: QuadInt, *, no_trivial_solutions: bool = True) -> set[tuple[int, i
     den = z.ring.den
     out: set[tuple[int, int]] = set()
 
-    for u in z.units:
-        w = z * u
+    for w in [z * u for u in z.units] if d == 3 else [z]:
         sol = _canonical_pair(
             w.a,
             w.b,
@@ -478,8 +479,8 @@ def decompose_number(
     # Each of a prime's k remaining factors is pi or conj(pi), and since multiplication commutes, their product only
     #   depends on how many of them are pi. So the 2**k ways to choose give exactly the same products as the k + 1
     #   powers pi**i * conj(pi)**(k - i), each just repeated many times over.
-    #   When conj(pi) is a unit times pi (a ramified prime), those are all unit multiples of pi**k, and _orbit already
-    #   tries every unit multiple of the total, so pi**k alone gives the same solutions.
+    #   When conj(pi) is a unit times pi (a ramified prime), those are all unit multiples of pi**k, and unit multiples
+    #   of a total give the same solutions (see _orbit), so pi**k alone does too.
     choices_by_prime: list[list[QuadInt]] = []
     for p, k in representable.items():
         pi, pi_bar = p_ring_pairs[p]
