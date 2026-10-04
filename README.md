@@ -67,7 +67,7 @@ print(x * y)           # "(-21+12*sqrt(-2))"
 print(abs(x))          # norm: 1^2 - (-2)*2^2 = 9
 ```
 
-Common operations include `+`, `-`, `*`, `**` (non-negative powers, or negative ones with a modulus, as in `pow(x, -1, m)`), `conjugate()`, and `abs()` (the norm).
+Common operations include `+`, `-`, `*`, `**` (non-negative powers, negative ones of units, whose inverse `~x` is in the ring, or negative ones of anything with a modulus, as in `pow(x, -1, m)`), `conjugate()`, and `abs()` (the norm).
 
 The two arguments are the numerators of $(a + b\sqrt{D}) / \mathrm{den}$. That only matters when `den == 2` (the default when `D % 4 == 1`), where `a` and `b` must have the same parity:
 

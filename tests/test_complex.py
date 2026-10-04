@@ -390,16 +390,17 @@ class TestPow(ComplexIntTests):
     #
     #     self.assertComplexEqual(res, res_int)
 
-    # TODO:
-    # This is kinda pointless as for anything other than (-1+0j) and (0-1j)
-    #   it doesn't mean much to do this with integers, as that basically means to create a fraction,
-    #   and this is for discrete maths!
-    # def test_power_int_negative(self):
-    #     """Test complexint ** -int"""
-    #     res = complex(0, -1) ** -5
-    #     res_int = complexi(0, -1) ** -5
-    #
-    #     self.assert_complex_equal(res, res_int)
+    def test_power_int_negative(self):
+        """Test complexint ** -int, which stays an integer for the units 1, -1, 1j and -1j (anything else raises)"""
+        for unit in (complex(1, 0), complex(-1, 0), complex(0, 1), complex(0, -1)):
+            for i in range(1, 20):
+                res = unit**-i
+                res_int = complexi(int(unit.real), int(unit.imag)) ** -i
+
+                self.assert_complex_equal(res, res_int)
+
+        with pytest.raises(ValueError, match="non-unit"):
+            _ = self.b_int**-1
 
     # TODO:
     #   This seems about as pointless as negative number powers

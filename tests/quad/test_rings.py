@@ -1990,13 +1990,35 @@ class TestInvModAndNegativePow(QuadIntTests):
             assert left == right
 
     def test_pow_negative_without_mod_raises(self):
-        """Negative exponent without a modulus should still be rejected."""
+        """A negative exponent without a modulus is still rejected for a non-unit, whose inverse is a fraction."""
         a = ZI(3, 2)
-        error_msg = r"Negative powers not supported.* without a modulus"
+        error_msg = r"Negative powers of a non-unit need a modulus"
         with pytest.raises(ValueError, match=error_msg):
             _ = a**-1
         with pytest.raises(ValueError, match=error_msg):
             _ = pow(a, -7)
+        with pytest.raises(ValueError, match=error_msg):
+            _ = ZI.zero**-1
+
+    @pytest.mark.parametrize(
+        "Q",
+        [ZI, ZE, ZN19, Z2, Z5, Z15, Z69, QuadraticRing(0), Z1, QuadraticRing(1, 1)],
+        ids=str,
+    )
+    def test_pow_negative_units(self, Q: QuadraticRing):
+        """A unit's negative powers are the powers of its inverse ~u, which is in the ring (like quatint's units)."""
+        units = list(Q.one.units)
+        if Q.D > 1:
+            units.append(Q.fundamental_unit())  # infinite order, and its norm is -1 in Z[sqrt(2)] and Z[(1+sqrt(5))/2]
+        if Q.D == 0:
+            units.append(Q(1, 3))  # 1 + 3ε, whose inverse is 1 - 3ε
+
+        for u in units:
+            assert u.is_unit
+            for k in range(1, 9):
+                assert u**-k == (~u) ** k
+                assert u**-k * u**k == Q.one
+                assert pow(u, -k) == u**-k
 
     @pytest.mark.parametrize("Q", [ZI, ZE, Z2, Z5, Z69], ids=str)
     def test_inv_mod_noninvertible_raises(self, Q: QuadraticRing):

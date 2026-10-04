@@ -365,13 +365,18 @@ class QuadInt:
         e = int(exp)
         ring = self.ring  # modular reductions go through ring._residue, which cannot fail where divmod gives up
 
-        # Allow negative powers only in the modular case (like Python's pow()).
         if e < 0:
             if mod is None:
-                raise ValueError("Negative powers not supported in quadratic integer rings without a modulus")
+                # x**-n is (x**-1)**n, which is only in the ring when x is a unit (then x**-1 is ~x). Anything else has
+                #   x**-1 == conj(x) / N(x), a fraction, so it needs a modulus to work in instead, like Python's pow().
+                if not self.is_unit:
+                    raise ValueError("Negative powers of a non-unit need a modulus (its inverse isn't in the ring)")
 
-            # x^(-e) mod m == (x^{-1} mod m)^e mod m
-            base = ring._residue(self.inv_mod(mod), mod)
+                base = ~self
+            else:
+                # x^(-e) mod m == (x^{-1} mod m)^e mod m
+                base = ring._residue(self.inv_mod(mod), mod)
+
             e = -e
         else:
             base = ring._residue(self, mod) if mod is not None else self
