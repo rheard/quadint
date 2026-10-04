@@ -273,20 +273,26 @@ class TestRingCapabilities:
             (QuadraticRing(-7), True),
             (QuadraticRing(-11), True),
             (QuadraticRing(-19), True),
-            (QuadraticRing(2), False),
+            (QuadraticRing(2), True),
+            (QuadraticRing(14), True),  # Harper
+            (QuadraticRing(69), True),  # Clark
+            (QuadraticRing(10), False),  # class number 2
+            (QuadraticRing(5, 1), False),  # not maximal
             (QuadraticRing(-3, 1), False),
             (QuadraticRing(-17), False),
+            (QuadraticRing(0), False),
+            (QuadraticRing(1), False),
         ],
         ids=str,
     )
     def test_supports_factorization(self, ring: QuadraticRing, *, expected: bool):
-        """supports_factorization should mirror whether this ring has factorization support."""
+        """supports_factorization should say whether the ring is a PID, the rings where factoring is unique."""
         assert ring.supports_factorization() is expected
 
     def test_supports_factorization_matches_runtime_behavior(self):
         """Unsupported rings should raise NotImplementedError from factorization operations."""
         supported = QuadraticRing(-1)
-        unsupported = QuadraticRing(2)
+        unsupported = QuadraticRing(10)
 
         assert supported.supports_factorization() is True
         assert unsupported.supports_factorization() is False
@@ -2211,11 +2217,13 @@ class TestFactorDetail(QuadIntTests):
         f = x.factor_detail()
         self.assert_factoring(x, f)
 
-    def test_notimplemented_for_positive_D(self):
-        """Factorization not implemented for positive D (except D=1)."""
-        x = Z2(5, 2)
-        with pytest.raises(NotImplementedError):
-            _ = x.factor_detail()
+    def test_notimplemented_for_real_non_pid(self):
+        """Real rings only factor when they are PIDs, unlike Z[sqrt(10)], where 2*3 == (4 + sqrt(10))(4 - sqrt(10))."""
+        Z10 = QuadraticRing(10)
+        assert Z10(2) * Z10(3) == Z10(4, 1) * Z10(4, -1)
+
+        with pytest.raises(NotImplementedError, match="principal ideal domain"):
+            _ = Z10(5, 2).factor_detail()
 
     def test_notimplemented_for_non_norm_euclid_ring(self):
         """Non-UFD / non-supported imaginary rings should still reject factorization."""
@@ -2260,6 +2268,53 @@ class TestFactorDetail(QuadIntTests):
             fy = y.factor_detail()
             assert fy.prod() == y
             assert norm_multiset(fy.primes) == base_norms
+
+
+class TestRealFactorDetail(QuadIntTests):
+    """Tests for factor_detail in the real PIDs, where every prime has infinitely many associates."""
+
+    def test_examples(self):
+        """In Z[sqrt(2)], 7 splits, 2 ramifies and 3 stays prime, and each prime is its most compact associate."""
+        f = Z2(7).factor_detail()
+        assert f.unit == -1
+        assert f.primes == {Z2(1, -2): 1, Z2(1, 2): 1}
+
+        f = Z2(6).factor_detail()
+        assert f.unit == 1
+        assert f.primes == {Z2(0, 1): 2, Z2(3): 1}
+
+        # Multiplying by a unit only changes the unit
+        u = Z2.fundamental_unit() ** 9
+        f = (Z2(7) * u).factor_detail()
+        assert f.unit == -u
+        assert f.primes == {Z2(1, -2): 1, Z2(1, 2): 1}
+
+    @pytest.mark.parametrize("D", [2, 3, 5, 13, 14, 23, 57, 69, 71, 73, 103], ids=str)
+    def test_random_products(self, D: int):
+        """Factorizations multiply back exactly, into canonical primes, with the prime ideals Ideal.factor finds."""
+        Q = QuadraticRing(D)
+        assert Q.supports_factorization() is True
+        rng = random.Random(77_000 + D)
+        unit = Q.fundamental_unit()
+
+        for _ in range(15):
+            # Powers of small elements, so primes repeat and are shared, times a power of the fundamental unit
+            powers = [_rand_elem(rng, Q, 6) ** rng.randint(1, 3) for _ in range(rng.randint(1, 3))]
+            x = prod(powers, start=unit ** rng.randint(0, 6))
+            if not x:
+                continue
+
+            f = x.factor_detail()
+            self.assert_factoring(x, f)
+            self.assert_factoring(x, x.factor())
+            assert f.unit.is_unit()
+            assert all(p == p._canonical_associate() for p in f.primes)
+
+            ideals = [Q.ideal(p).hnf for p, k in f.primes.items() for _ in range(k)]
+            assert sorted(ideals) == sorted(P.hnf for P in Q.ideal(x).factor())
+
+            if not x.is_unit():
+                assert x.is_irreducible() == (sum(f.primes.values()) == 1)
 
 
 class TestFactor(QuadIntTests):

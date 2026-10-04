@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 class CornacchiaRing(RealNormEuclidRing):
     """Shared split-prime factorization flow for rings with norm form x**2 + k*y**2."""
 
-    SUPPORTS_FACTORIZATION: ClassVar[bool] = True
-
     RAMIFIED_PRIME: ClassVar[int]
 
     @classmethod

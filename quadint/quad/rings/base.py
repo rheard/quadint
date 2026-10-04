@@ -8,7 +8,7 @@ from itertools import count
 from math import isqrt, prod
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import isprime, sqrt_mod
+from sympy import factorint, isprime, sqrt_mod
 from sympy.solvers.diophantine.diophantine import diop_DN
 
 from quadint.quad.ideal import ClassGroup, Ideal, _bezout_coefficients
@@ -393,7 +393,6 @@ class QuadraticRing:
     __slots__ = ("D", "den", "DEFAULT_KLASS")
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
-    SUPPORTS_FACTORIZATION: ClassVar[bool] = False
     # Have xgcd skip Euclid, and take the gcd from a generator of the ideal (a, b). Only worth it where Euclid is slow.
     _XGCD_FROM_IDEAL: ClassVar[bool] = False
     _CACHE: ClassVar[dict[tuple[int, int], QuadraticRing]] = {}
@@ -545,6 +544,18 @@ class QuadraticRing:
     @functools.cache
     def prime_ideals_data_over(self, p: int) -> tuple[PrimeIdealData, ...]:
         """Return prime ideals over p together with their defining root data."""
+        return self._prime_ideals_data_over(p)
+
+    def _prime_ideals_data_over(self, p: int) -> tuple[PrimeIdealData, ...]:
+        """
+        Return prime_ideals_data_over without its cache, for factor_detail, which would keep every prime it ever meets.
+
+        Returns:
+            tuple[PrimeIdealData, ...]: The prime ideals over p, in order of their roots.
+
+        Raises:
+            ValueError: If p is not prime.
+        """
         p = int(p)
         if not isprime(p):
             raise ValueError(f"p must be prime, got {p!r}")
@@ -856,17 +867,17 @@ class QuadraticRing:
 
     def supports_factorization(self) -> bool:
         """
-        Return whether this ring advertises prime-factorization support.
+        Return whether this ring can factor its elements into primes, which takes a PID (see _is_pid).
 
         Returns:
-            bool: Whether this ring class sets `SUPPORTS_FACTORIZATION`.
+            bool: Whether factor and factor_detail work in this ring.
         """
-        return self.SUPPORTS_FACTORIZATION
+        return self._is_pid()
 
     @functools.cache
     def _is_pid(self) -> bool:
         """
-        Return whether this ring is a principal ideal domain, which is what gcd, xgcd, inv_mod and modular pow need.
+        Return whether this ring is a principal ideal domain, which gcd, xgcd, inv_mod, modular pow and factoring need.
 
         Those are the maximal orders with class number one, including every Euclidean ring. (No other order is a PID,
             since a PID is integrally closed.) The class group is only worked out once per ring, but checking for it
@@ -1148,8 +1159,50 @@ class QuadraticRing:
         return self._residue(s * ~g, m)
 
     def factor_detail(self, x: QuadInt) -> Factorization:
-        """Factor `x` and return structured details when supported by this ring."""
-        raise NotImplementedError("Factorization is not implemented for this ring")
+        """
+        Factor x into primes, as x == unit * prod(p**k for p, k in primes.items()), in a PID (see _is_pid).
+
+        In a PID every prime element generates a prime ideal, and the other way around, so the primes dividing x are
+            generators of the prime ideals over the rational primes p of N(x): two when p splits, one when it ramifies,
+            and (p) itself when it is inert. Dividing x by each of those generators as often as it goes leaves the unit.
+
+        Each prime comes out as its canonical associate (see QuadInt._canonical_associate). In a real ring, where every
+            prime has infinitely many associates, that is the most compact one, and the unit carries the difference.
+            (The imaginary PIDs have their own factor_detail, in CornacchiaRing.)
+
+        Returns:
+            Factorization: The unit, and the primes with their exponents.
+
+        Raises:
+            NotImplementedError: If this ring is not a PID, where factoring into irreducibles need not be unique.
+            ValueError: If x is zero.
+            ArithmeticError: If a prime ideal turned out not to be principal, so this ring is not really a PID.
+        """
+        if not self._is_pid():
+            raise NotImplementedError("factoring needs a principal ideal domain, a maximal order with class number one")
+
+        if not x:
+            raise ValueError("0 does not have a finite factorization")
+
+        rem = x
+        primes: dict[QuadInt, int] = {}
+        for p in sorted(factorint(abs(abs(x)))):
+            for data in self._prime_ideals_data_over(p):
+                generator = data.ideal._generator()
+                if generator is None:
+                    raise ArithmeticError(f"{data.ideal} is not a principal ideal, so this ring is not a PID")
+
+                prime = x._make(generator.a, generator.b)
+                k = 0
+                q = self.exact_div(rem, prime)
+                while q is not None:
+                    rem, k = q, k + 1
+                    q = self.exact_div(rem, prime)
+
+                if k:
+                    primes[prime] = k
+
+        return Factorization(unit=rem, primes=primes)
 
     def factor(self, x: QuadInt) -> dict[QuadInt, int]:
         """

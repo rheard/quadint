@@ -731,6 +731,14 @@ class TestIrreducible:
         assert not ZN5.has_element_with_norm(-3)
         assert three.is_irreducible()
 
+    def test_real_pids_answer_from_their_factorizations(self):
+        """Real PIDs factor, so composite norms get an answer: 7 == -(1 + 2*sqrt(2))*(1 - 2*sqrt(2)) used to raise."""
+        assert not Z2(7, 0).is_irreducible()
+        assert not Z2(6, 0).is_irreducible()
+        assert Z2(3, 0).is_irreducible()  # 3 stays prime in Z[sqrt(2)]
+        assert Z2(1, 2).is_irreducible()  # norm -7
+        assert not (Z2(1, 2) * Z2.fundamental_unit() ** 4 * Z2(3, 0)).is_irreducible()
+
     @pytest.mark.filterwarnings("ignore:D is not squarefree")
     def test_irreducible_in_non_squarefree_orders(self):
         """The norm certificates work in non-maximal orders like Z[2i] and Z[sqrt(8)], which used to raise."""

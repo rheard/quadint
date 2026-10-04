@@ -76,7 +76,6 @@ class HeegnerNonEuclidUfdRing(HeegnerDen2Ring):
     """
 
     SUPPORTS_DIVISION: ClassVar[bool] = False
-    SUPPORTS_FACTORIZATION: ClassVar[bool] = True
 
     HEEGNER_NON_EUCLID_D: ClassVar[set[int]] = {-19, -43, -67, -163}
 
