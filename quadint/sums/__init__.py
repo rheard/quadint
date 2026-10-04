@@ -211,11 +211,14 @@ def decompose_prime(p: int, d: int = 1, den: int = 1) -> tuple[int, int]:
     This is based on the algorithm described by Stan Wagon (1990),
         based on work by Serret and Hermite (1848), and Cornacchia (1908)
 
+    p is not checked for primality, which can cost more than the decomposition itself (and decompose_number only ever
+        has primes to pass in). A composite p still gets an answer: ValueError, or one of the decompositions it has.
+
     Returns:
         tuple<int, int>: a and b
 
     Raises:
-        ValueError: If p cannot be decomposed because it is 3 mod 4
+        ValueError: If p cannot be decomposed, like a prime that is 3 mod 4 when d == 1
     """
     if d < 1:
         raise ValueError(f"d must be >= 1, got {d!r}")
@@ -309,7 +312,9 @@ def decompose_number(
 
     Args:
         n (int, dict): The number to decompose. Can be an integer which will be factored,
-            or the already factored number.
+            or the already factored number, as {prime: exponent}. The keys are trusted to be prime, since checking them
+            could take longer than the decomposition. A composite key can lose solutions (every pair returned is still
+            one), or raise ValueError.
         d: coefficient in x^2 + d*y^2 (d >= 1).
         check_count (int): If provided, and it is predicted that a number will have fewer than this many solutions,
             that number is skipped and an empty list is returned instead.

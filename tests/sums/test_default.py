@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from pytest import mark, raises
-from sympy import factorint, legendre_symbol, primerange
+from sympy import factorint, isprime, legendre_symbol, primerange
 
 import quadint.sums
 
@@ -232,6 +232,26 @@ class TestPrimeDecomposition:
         with raises(ValueError, match="den must be 1 or 2"):
             decompose_prime(5, 1, 3)
 
+    @pytest.mark.usefixtures("hang_guard")
+    @mark.parametrize("d", [1, 2, 3, 5, 7, 11, 19], ids=str)
+    def test_composite_numbers_finish(self, d: int):
+        """
+        A composite p is not supported, but it still has to get an answer, which 9, 25 and 65 (and many more) never did.
+
+        That answer is ValueError, or a decomposition of the number it was given.
+        """
+        for n in range(4, 5_000):
+            if isprime(n):
+                continue
+
+            for den in (1, 2):
+                try:
+                    x, y = decompose_prime(n, d, den)
+                except ValueError:
+                    continue
+
+                assert x * x + d * y * y == den * den * n, f"Wrong decomposition of {n} with d={d}, den={den}"
+
 
 class TestNumberDecomposition:
     """Tests for decompose_number"""
@@ -298,6 +318,35 @@ class TestNumberDecomposition:
         # assert decompose_number(4, 2) == {(2, 0)}
         # assert decompose_number(4, 3) == {(2, 0), (1, 1)}
         # assert decompose_number(4, 4) == {(2, 0), (0, 1)}
+
+    def test_twenty_five(self):
+        """25 and its factorization {5: 2} give the same answer ({25: 1} is something else: it claims 25 is prime)."""
+        assert decompose_number(25) == decompose_number({5: 2}) == {(3, 4)}
+        assert decompose_number(25, no_trivial_solutions=False) == decompose_number({5: 2}, no_trivial_solutions=False)
+        assert decompose_number(25, no_trivial_solutions=False) == {(0, 5), (3, 4)}
+
+    @pytest.mark.usefixtures("hang_guard")
+    @mark.parametrize(
+        "factors",
+        [{9: 1}, {21: 1}, {25: 1}, {65: 1}, {1729: 1}, {3277: 1}, {25: 1, 13: 1}, {65: 3, 2: 1}, {21: 2, 5: 1}],
+        ids=str,
+    )
+    def test_composite_keys_finish(self, factors: dict[int, int]):
+        """
+        A dict with a composite key is not a factorization, but it still has to get an answer, which these never did.
+
+        The answer can miss solutions, or be ValueError, but every pair in it still has to be a solution.
+        """
+        n = math.prod(p**k for p, k in factors.items())
+        for d in (1, 2, 3, 4, 5, 7, 12):
+            for no_trivial_solutions in (True, False):
+                try:
+                    got = decompose_number(factors, d, no_trivial_solutions=no_trivial_solutions)
+                except ValueError:
+                    continue
+
+                expect = brute_force_quadratic_form(n, d, no_trivial_solutions=no_trivial_solutions)
+                assert got <= expect, f"Not solutions for {factors}, d={d}: {got - expect}"
 
     @mark.parametrize(
         "n",

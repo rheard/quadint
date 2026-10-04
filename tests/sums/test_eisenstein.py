@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from pytest import mark, raises
-from sympy import factorint, primerange
+from sympy import factorint, isprime, primerange
 
 import quadint.sums.eisenstein
 
@@ -143,6 +143,20 @@ class TestEisensteinPrimeDecomposition:
             assert eisenstein_norm(a, b) == p
             assert (a, b) == next(iter(brute_force_eisenstein(p, no_trivial_solutions=False)))
 
+    @pytest.mark.usefixtures("hang_guard")
+    def test_composite_numbers_finish(self):
+        """A composite p still has to get an answer (121 and 1729 never did): ValueError, or a decomposition of it."""
+        for n in range(4, 5_000):
+            if isprime(n):
+                continue
+
+            try:
+                a, b = decompose_eisenstein_prime(n)
+            except ValueError:
+                continue
+
+            assert eisenstein_norm(a, b) == n, f"Wrong decomposition of {n}"
+
 
 class TestEisensteinNumberDecomposition:
     """Tests for quadint.sums.eisenstein.decompose_number."""
@@ -192,6 +206,24 @@ class TestEisensteinNumberDecomposition:
             n,
             no_trivial_solutions=False,
         )
+
+    @pytest.mark.usefixtures("hang_guard")
+    @mark.parametrize("factors", [{121: 1}, {1729: 1}, {25: 1}, {49: 1, 3: 1}, {91: 2}, {2821: 1, 7: 1}], ids=str)
+    def test_composite_keys_finish(self, factors: dict[int, int]):
+        """
+        A dict with a composite key is not a factorization, but it still has to get an answer, which some never did.
+
+        The answer can miss solutions, or be ValueError, but every pair in it still has to be a solution.
+        """
+        n = math.prod(p**k for p, k in factors.items())
+        for no_trivial_solutions in (True, False):
+            try:
+                got = decompose_eisenstein_number(factors, no_trivial_solutions=no_trivial_solutions)
+            except ValueError:
+                continue
+
+            expect = brute_force_eisenstein(n, no_trivial_solutions=no_trivial_solutions)
+            assert got <= expect, f"Not solutions for {factors}: {got - expect}"
 
     def test_zero_and_negative(self):
         """The norm form is never negative, and it is only 0 at (0, 0), which is a trivial solution."""

@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from sympy import nextprime, primerange
+from sympy import isprime, nextprime, primerange
 
 from quadint.utils import _is_squarefree, _sqrt_mod_prime  # ruff: ignore[import-private-name]
 
@@ -64,6 +64,26 @@ def test_sqrt_mod_prime_small_primes():
                 assert r * r % p == a % p, f"{r}**2 is not {a} mod {p}"
             else:
                 assert r is None, f"{a} is not a square mod {p}, but got {r}"
+
+
+@pytest.mark.usefixtures("hang_guard")
+def test_sqrt_mod_prime_composite_moduli():
+    """
+    A composite modulus is not supported, but it has to get an answer: a root, or None, never a hang.
+
+    Tonelli-Shanks looks for a z with z**((p - 1)/2) == -1, which every odd prime has, but 25 and 65 (with a == -1) and
+        many other composites have none, and it used to look forever. 3277 with a == -7 got further, to a bad shift.
+    """
+    composites = [n for n in range(4, 400) if not isprime(n)]
+    cases = [(a, n) for n in composites for a in range(n)]
+
+    # Bigger ones with the a that decompose_prime asks about, including Carmichael numbers and strong pseudoprimes
+    composites = [n for n in range(400, 5_000) if not isprime(n)] + [3277, 8911, 41041, 825265, 3215031751]
+    cases += [(-d, n) for n in composites for d in (1, 2, 3, 7, 11, 19, 43, 67, 163)]
+
+    for a, n in cases:
+        r = _sqrt_mod_prime(a, n)
+        assert r is None or r * r % n == a % n, f"{r}**2 is not {a} mod {n}"
 
 
 def test_sqrt_mod_prime_large_primes():
