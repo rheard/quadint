@@ -8,11 +8,12 @@ from itertools import count
 from math import isqrt, prod
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import factorint, isprime, sqrt_mod
+from sympy import factorint, isprime
 from sympy.solvers.diophantine.diophantine import diop_DN
 
 from quadint.quad.ideal import ClassGroup, Ideal, _bezout_coefficients
 from quadint.quad.int import QuadInt
+from quadint.utils import _sqrt_mod_prime
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -571,7 +572,8 @@ class QuadraticRing:
             # A root r modulo p gives the prime ideal:
             #     P = (p, sqrt(D) - r)
             w = cls(0, 1, self, skip_basis=True)
-            roots = sqrt_mod(self.D % p, p, all_roots=True)
+            s = _sqrt_mod_prime(self.D, p)
+            roots = [] if s is None else [s, -s % p]  # the same root twice when s == 0, or when p == 2
 
         else:
             # O = Z[w], where w = (1 + sqrt(D)) / 2
@@ -587,10 +589,12 @@ class QuadraticRing:
                 c = (1 - self.D) // 4
                 roots = [r for r in range(2) if (r * r - r + c) % 2 == 0]
             else:
+                # The roots are (1 +/- s) / 2 for the square roots +/-s of D mod p
+                s = _sqrt_mod_prime(self.D, p)
                 inv2 = pow(2, -1, p)
-                roots = [((1 + int(s)) * inv2) % p for s in sqrt_mod(self.D % p, p, all_roots=True)]
+                roots = [] if s is None else [(1 + s) * inv2 % p, (1 - s) * inv2 % p]
 
-        roots = tuple(sorted({int(root) for root in roots}))
+        roots = sorted(set(roots))
 
         # No roots means p is inert, so (p) itself is prime.
         if not roots:

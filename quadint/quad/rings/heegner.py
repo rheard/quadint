@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from sympy import sqrt_mod
-
 from quadint.quad.rings.cornacchia import CornacchiaRing
 
 if TYPE_CHECKING:
@@ -13,19 +11,21 @@ if TYPE_CHECKING:
 class HeegnerDen2Ring(CornacchiaRing):
     """Shared split-prime factorization helper for D=-7 and D=-11 (den=2)."""
 
+    # An odd p other than the ramified prime -D splits when D is a square mod p, and is inert otherwise. Euler's
+    #   criterion tells which with one pow: D**((p - 1)/2) is 1 for a square mod p, and -1 otherwise.
     def _is_split_prime(self, p: int) -> bool:
         if p == self._ramified_prime():
             return False
         if p == 2:
             return self.D % 8 == 1
-        return sqrt_mod(self.D, p, all_roots=False) is not None
+        return pow(self.D, (p - 1) // 2, p) == 1
 
     def _is_inert_prime(self, p: int) -> bool:
         if p == self._ramified_prime():
             return False
         if p == 2:
             return self.D % 8 == 5
-        return sqrt_mod(self.D, p, all_roots=False) is None
+        return pow(self.D, (p - 1) // 2, p) == p - 1
 
     def _ramified_generator(self, x: QuadInt) -> QuadInt:
         # sqrt(D) = (0 + 2*sqrt(D)) / 2
