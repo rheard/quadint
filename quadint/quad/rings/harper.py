@@ -452,13 +452,11 @@ class HarperRing(RealNormEuclidRing):
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
             dist2 = (A - A0) * (A - A0) + (B - B0) * (B - B0)
 
-            # w = q*N(y) - x*conj(y) is -(x - q*y)*conj(y), so |N(w)| == |N(r)| * |N(y)| for the remainder r = x - q*y
+            # w = q*N(y) - x*conj(y) is -(x - q*y)*conj(y), so |N(w)| == |N(r)| * |N(y)| for the remainder r = x - q*y.
+            #   w is (da + db*sqrt(D))/den, which is always in the ring, so den**2 divides the numerator.
             da = A * y_norm - num_a
             db = B * y_norm - num_b
-            abs_nw_num = abs(da * da - self.D * db * db)
-            abs_nw, rem = divmod(abs_nw_num, dd)
-            if rem:
-                return 1, abs_nw_num, dist2
+            abs_nw = abs(da * da - self.D * db * db) // dd
 
             if witness is not None:
                 if abs_nw >= phi_y2:
