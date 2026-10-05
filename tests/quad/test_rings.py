@@ -20,7 +20,7 @@ from quadint import Ideal, QuadInt, complexint, eisensteinint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
 from quadint.quad.rings.base import _round_div  # ruff: ignore[import-private-name]
-from quadint.quad.rings.harper import _POST_HARDCODED  # ruff: ignore[import-private-name]
+from quadint.quad.rings.harper import _POST_HARDCODED, _replace_prime_factor  # ruff: ignore[import-private-name]
 from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # ruff: ignore[import-private-name]
 from tests.quad.test_int import QuadIntTests
 
@@ -576,6 +576,23 @@ class TestRoundDiv:
 
 class TestHarperHelpers:
     """Tests for the standalone helper functions used by HarperRing."""
+
+    @pytest.mark.parametrize(
+        ("n", "p", "p_new", "expected"),
+        [
+            (0, 23, 26, 0),
+            (1, 23, 26, 1),
+            (-23, 23, 26, 26),
+            (23**3 * 11, 23, 26, 26**3 * 11),
+            (5 * 43 * 43, 43, 44, 5 * 44 * 44),
+            (5 * 43 * 43, 5, 6, 6 * 43 * 43),
+            (6, 5, 6, 6),
+        ],
+        ids=str,
+    )
+    def test_replace_prime_factor(self, n: int, p: int, p_new: int, expected: int):
+        """Each factor p of |n| becomes p_new, like Clark's 23 -> 26 and Harper's p -> p + 1."""
+        assert _replace_prime_factor(n, p, p_new) == expected
 
     @pytest.mark.parametrize(
         ("D", "den", "expected_disc"),

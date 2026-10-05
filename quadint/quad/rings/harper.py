@@ -22,6 +22,26 @@ if TYPE_CHECKING:
     from quadint.quad.int import QuadInt
 
 
+def _replace_prime_factor(n: int, p: int, p_new: int) -> int:
+    """
+    Return |n| with each factor p replaced by p_new, which is how Clark's and Harper's Euclidean functions weigh p.
+
+    Returns:
+        int: |n| / p**e * p_new**e, where p**e is the largest power of p dividing n (and 0 for n == 0).
+    """
+    n = abs(n)
+    if not n:
+        return 0  # every power of p divides 0
+
+    e = 0
+    q, r = divmod(n, p)
+    while not r:
+        n, e = q, e + 1
+        q, r = divmod(n, p)
+
+    return n * p_new**e
+
+
 class Clark69Ring(RealNormEuclidRing):
     """
     Euclidean division for the maximal order of Q(sqrt(69)), i.e. Z[(1+sqrt(69))/2].
@@ -54,24 +74,7 @@ class Clark69Ring(RealNormEuclidRing):
 
     def _phi_from_abs_norm(self, abs_norm: int) -> int:
         """Compute Clark's adjusted Euclidean function value from the integer |N(x)|."""
-        n = int(abs_norm)
-        if n < 0:
-            n = -n
-        if n == 0:
-            return 0
-
-        p = self._BAD_P
-        e = 0
-        qn, rn = divmod(n, p)
-        while rn == 0:
-            n = qn
-            e += 1
-            qn, rn = divmod(n, p)
-
-        if e:
-            n *= pow(self._BAD_REPL, e)
-
-        return n
+        return _replace_prime_factor(abs_norm, self._BAD_P, self._BAD_REPL)
 
     def phi(self, x: QuadInt) -> int:
         """Return Clark's adjusted Euclidean function for the `D=69` maximal order."""
@@ -327,26 +330,8 @@ class HarperRing(RealNormEuclidRing):
         Returns:
             int: Phi
         """
-        n = int(abs_norm)
-        if n < 0:
-            n = -n
-        if n == 0:
-            return 0
-
         p1, _, p2, _ = witness
-        replacements = {p1: p1 + 1, p2: p2 + 1}
-
-        for p, p_new in replacements.items():
-            e = 0
-            qn, rn = divmod(n, p)
-            while rn == 0:
-                n = qn
-                e += 1
-                qn, rn = divmod(n, p)
-            if e:
-                n *= pow(p_new, e)
-
-        return n
+        return _replace_prime_factor(_replace_prime_factor(abs_norm, p1, p1 + 1), p2, p2 + 1)
 
     def phi(self, x: QuadInt) -> int:
         """Return Harper's weighted Euclidean size for `x`."""
