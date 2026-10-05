@@ -68,6 +68,13 @@ test-command=[
 ]
 environment-pass = ["CI", "GITHUB_ACTIONS"]
 
+[[tool.mypy.overrides]]
+# Importing sympy has mypy analyze its galois resolvent table too: generated lambdas whose sums nest over 500 deep.
+#   Where mypy has no compiled wheel (32-bit Windows, Intel macOS), walking those hits Python's recursion limit.
+#   quadint never touches the table, so skipping it leaves the generated C identical.
+module = "sympy.polys.numberfields.resolvent_lookup"
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 
