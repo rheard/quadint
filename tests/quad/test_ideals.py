@@ -3,6 +3,7 @@ from __future__ import annotations
 import operator
 import random
 
+from collections import Counter
 from functools import reduce
 from itertools import combinations, islice
 from math import gcd
@@ -450,6 +451,77 @@ class TestOperations:
                 operator.mul(other, ideal)
 
         assert ideal * WithRmul() == "rmul"
+
+    def test_add(self):
+        """I + J should be the ideal that I and J generate together, the smallest one holding both."""
+        left, right = ZN5.prime_ideals_over(3)
+        prime_two = ZN5.prime_ideals_over(2)[0]
+
+        assert ZN5.ideal(2) + ZN5.ideal(ZN5(1, 1)) == prime_two  # 2 and 1 + sqrt(-5) have this, but no gcd element
+        assert not prime_two.is_principal
+        assert left + right == right + left == ZN5.unit_ideal()
+        assert ZN5.ideal(6) + ZN5.ideal(4) == ZN5.ideal(2)
+        assert left + left == left
+        assert left + ZN5.zero_ideal() == left
+        assert ZN5.zero_ideal() + ZN5.zero_ideal() == ZN5.zero_ideal()
+
+        # Not only in maximal orders: in Z[sqrt(-3)], 2 and 1 + sqrt(-3) make the prime over 2 that isn't invertible
+        ring = QuadraticRing(-3, den=1)
+        assert ring.ideal(2) + ring.ideal(ring(1, 1)) == ring.ideal(2, ring(1, 1)) == ring.prime_ideals_over(2)[0]
+
+    def test_add_numbers(self):
+        """A number on either side of + should stand for its principal ideal, which also lets sum() add up ideals."""
+        left = ZN5.prime_ideals_over(3)[0]
+
+        assert ZN5.ideal(6) + 4 == 4 + ZN5.ideal(6) == ZN5.ideal(2)
+        assert left + ZN5(1, 1) == ZN5(1, 1) + left == left + ZN5.ideal(ZN5(1, 1))
+        assert left + 0 == 0 + left == left
+        assert left + 1 == ZN5.unit_ideal()
+        assert sum([ZN5.ideal(6), ZN5.ideal(10), ZN5.ideal(15)]) == ZN5.unit_ideal()
+        assert sum([ZN5.ideal(6), ZN5.ideal(10)]) == ZN5.ideal(2)
+        gaussian = ZI.ideal(5) + (1 + 2j)  # a Python complex number, in the Gaussian integers
+        assert gaussian == ZI.ideal(ZI(1, 2))
+
+    @pytest.mark.parametrize(
+        "ring",
+        [ZN5, ZN7, QuadraticRing(-23), ZI, Z2, QuadraticRing(10), QuadraticRing(79)],
+        ids=str,
+    )
+    def test_add_is_gcd(self, ring: QuadraticRing):
+        """In a maximal order, I + J should keep the smaller power of each prime ideal, like a gcd does."""
+        rng = random.Random(ring.D)
+        for _ in range(100):
+            left = ring.ideal(_rand_elem(rng, ring, 40))
+            right = ring.ideal(_rand_elem(rng, ring, 40), _rand_elem(rng, ring, 40))
+            if not left.norm or not right.norm:
+                continue
+
+            total = left + right
+            assert total == right + left == ring.ideal(*left.basis, *right.basis)
+            assert Counter(total.factor()) == Counter(left.factor()) & Counter(right.factor())
+
+    def test_unsupported_additions(self):
+        """+ with anything but an ideal or a ring element should raise TypeError in both builds, on either side."""
+
+        class WithRadd:
+            def __radd__(self, _: object) -> str:
+                return "radd"
+
+        ideal = ZN5.ideal(3, ZN5(1, 1))
+        for other in (None, "a", [2], IdealClass(ideal), ZN5.class_group):
+            with pytest.raises(TypeError):
+                operator.add(ideal, other)
+
+            with pytest.raises(TypeError):
+                operator.add(other, ideal)
+
+        with pytest.raises(TypeError, match="different rings"):
+            operator.add(ideal, ZI.ideal(2))
+
+        with pytest.raises(TypeError, match="different rings"):
+            operator.add(ideal, 1 + 2j)  # only the Gaussian integers take complex numbers
+
+        assert ideal + WithRadd() == "radd"
 
     def test_power(self):
         """Powers should use repeated ideal multiplication."""

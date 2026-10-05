@@ -195,7 +195,12 @@ print(I.is_prime, I.is_principal)             # True False
 print((I**2).principal_generator())           # (2-1*sqrt(-5)), so I**2 is the principal ideal (2 - √-5)
 print([P.norm for P in O.ideal(6).factor()])  # [2, 2, 3, 3]: (6) factors into four prime ideals
 print(O.class_number)                         # 2
+
+J = O.ideal(2) + O.ideal(O(1, 1))             # the ideal that 2 and 1 + √-5 generate together
+print(J.norm, J.is_principal)                 # 2 False
 ```
+
+`I + J` is the smallest ideal holding both, which in a maximal order is their gcd. So two elements with no gcd in the ring, like `2` and `1 + √-5` here, still have one as ideals. A number stands for its principal ideal (`I + x`, like `I * x`), so `sum()` works on ideals too.
 
 Principal generators come from lattice reduction in imaginary rings and continued fractions in real ones, so this stays fast for large ideals. Class groups (`O.class_group`, `O.class_number`) are available for maximal orders, real and imaginary. Non-maximal orders such as `QuadraticRing(-3, den=1)` raise `NotImplementedError`.
 
@@ -393,7 +398,7 @@ print(decompose_number(91, no_trivial_solutions=False))
 
 ### Ideals (`Ideal`)
 
-* `I.norm`, `x in I`, `I * J`, `I**k`, `I // J` (exact quotient), `I.divides(J)`, `I.conjugate()`
+* `I.norm`, `x in I`, `I + J` (their gcd, in a maximal order), `I * J`, `I**k`, `I // J` (exact quotient), `I.divides(J)`, `I.conjugate()`
 * `I.is_prime`, `I.factor()` (prime ideals, with repeats), `I.is_principal`, `I.principal_generator()`
 
 

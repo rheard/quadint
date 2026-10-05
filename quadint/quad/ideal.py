@@ -572,6 +572,40 @@ class Ideal:
 
             radius += 1
 
+    # Overloads over implementations that take and return any object, for the reason at __mul__. A number stands for its
+    #   principal ideal, as it does in I * x, which also lets sum() add up ideals (it starts from 0, the zero ideal).
+    @overload
+    def __add__(self, other: Ideal) -> Ideal: ...
+
+    @overload
+    def __add__(self, other: complex | int | float | QuadInt) -> Ideal: ...
+
+    def __add__(self, other: object) -> object:
+        """Return the sum I + J, the smallest ideal that holds both, which is their gcd in a maximal order."""
+        if isinstance(other, _IDEAL_OP_TYPES):
+            other = Ideal(self.ring, other)
+
+        if not isinstance(other, Ideal):
+            return NotImplemented
+
+        if self.ring is not other.ring:
+            raise TypeError("Cannot add ideals from different rings")
+
+        # Each basis spans its ideal as a lattice, so the two together span the sum
+        return Ideal(self.ring, _hnf=_lattice_hnf([_coords(x) for x in (*self.basis, *other.basis)]))
+
+    @overload
+    def __radd__(self, other: QuadInt) -> Ideal: ...
+
+    @overload
+    def __radd__(self, other: complex | int | float) -> Ideal: ...
+
+    def __radd__(self, other: object) -> object:
+        if isinstance(other, _IDEAL_OP_TYPES):
+            return Ideal(self.ring, other) + self
+
+        return NotImplemented
+
     # The overloads are what type checkers see. The implementations take and return any object, since compiled, a
     #   NotImplemented returned as an Ideal would fail mypyc's conversion to Ideal, and raise its own TypeError before
     #   the other operand's __rmul__ (or Python's usual message) got a turn. Unlike // and IdealClass's *, these can't
