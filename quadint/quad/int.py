@@ -382,8 +382,8 @@ class QuadInt:
 
                 base = ~self
             else:
-                # x^(-e) mod m == (x^{-1} mod m)^e mod m
-                base = ring._residue(self.inv_mod(mod), mod)
+                # x^(-e) mod m == (x^{-1} mod m)^e mod m, where inv_mod has reduced x^{-1} mod m already
+                base = self.inv_mod(mod)
 
             e = -e
         else:

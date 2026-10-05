@@ -2041,6 +2041,23 @@ class TestInvModAndNegativePow(QuadIntTests):
             right = pow(inv, e, m)
             assert left == right
 
+    @pytest.mark.parametrize("Q", [ZI, ZE, ZN19, Z2, Z5, Z69, QuadraticRing(23), QuadraticRing(71)], ids=str)
+    def test_inv_mod_is_reduced(self, Q: QuadraticRing):
+        """
+        inv_mod's result is reduced mod m already, and reducing it again changes nothing (see _round_div), which is
+            why pow(a, -e, m) takes its powers without another reduction
+        """
+        rng = random.Random(1_234)
+        for _ in range(60):
+            a = _rand_elem(rng, Q, 12)
+            m = _rand_elem(rng, Q, 6)
+            if not a or abs(abs(m)) <= 1 or Q.ideal(a, m) != Q.unit_ideal():
+                continue
+
+            inv = a.inv_mod(m)
+            assert pow(inv, 1, m) == inv, f"a={a}, m={m}"
+            assert pow(a, -1, m) == inv, f"a={a}, m={m}"
+
     def test_pow_negative_without_mod_raises(self):
         """A negative exponent without a modulus is still rejected for a non-unit, whose inverse is a fraction."""
         a = ZI(3, 2)
