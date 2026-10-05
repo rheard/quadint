@@ -352,38 +352,6 @@ def _key(z: tuple, factors: dict[QuadInt, int]):
     return z[2] not in factors, z[1], abs(z[0].b), abs(z[0].a)
 
 
-def _choose_best_in_neighborhood(
-    *,
-    A0: int,
-    B0_for_A: Callable,
-    score_for_AB: Callable,
-    den: int,
-    radius: int = 1,
-) -> tuple[int, int]:
-    """
-    Search (A0±radius) * (B0(A)±radius) and return best (A,B).
-
-    This is a tiny local lattice search used by all our divmod implementations.
-
-    Args:
-        A0: Initial guess for A.
-        B0_for_A: Given A, return an initial guess for B (may depend on A).
-        score_for_AB: Lexicographic score; smaller is better.
-        den: Ring denominator (1 or 2). If den==2, enforce parity constraint A ≡ B (mod 2).
-        radius: Search radius around the initial guess(es). radius=1 reproduces the old behavior.
-
-    Returns:
-        (bestA, bestB): Best candidate found.
-    """
-    search = _NeighborhoodSearch(
-        A0=A0,
-        B0_for_A=B0_for_A,
-        score_for_AB=score_for_AB,
-        den=den,
-    )
-    return search.expand_to(radius)
-
-
 class QuadraticRing:
     """
     The quadratic integer ring (order) with basis (1, sqrt(D)) and fixed denominator den in {1,2}.

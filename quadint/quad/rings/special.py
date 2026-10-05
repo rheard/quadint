@@ -7,7 +7,7 @@ from sympy.polys.domains import ZZ
 
 from quadint.quad.rings.base import (
     QuadraticRing,
-    _choose_best_in_neighborhood,
+    _NeighborhoodSearch,
     _round_div,
     _split_uv,
 )
@@ -57,12 +57,13 @@ class DualRing(QuadraticRing):
             r1 = x.b - A * d - B * c
             return r0 * r0, r1 * r1
 
-        best_a, best_b = _choose_best_in_neighborhood(
+        # The best of A0 +/- 1, each with B0_for_A(A) +/- 1
+        best_a, best_b = _NeighborhoodSearch(
             A0=A0,
             B0_for_A=B0_for_A,
             score_for_AB=score_for_AB,
             den=self.den,
-        )
+        ).expand_to(1)
 
         q = x._make(best_a, best_b)
         r = x - q * y
@@ -131,13 +132,13 @@ class SplitRing(QuadraticRing):
         # because we later divide (qu±qv)*self.den by 2.
         parity_den = 2 if self.den == 1 else 1
 
-        # Enforce qu ≡ qv (mod 2) so (qu+qv)/2 and (qu-qv)/2 are integers.
-        best_qu, best_qv = _choose_best_in_neighborhood(
+        # The best of qu0 +/- 1 and qv0 +/- 1 (those with qu ≡ qv (mod 2), when den=1)
+        best_qu, best_qv = _NeighborhoodSearch(
             A0=qu0,
             B0_for_A=B0_for_A,
             score_for_AB=score_for_AB,
             den=parity_den,
-        )
+        ).expand_to(1)
 
         # Convert back: a = den*(qu+qv)/2, b = den*(qu-qv)/2
         q = self._uv_to_ab(best_qu, best_qv)
