@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from itertools import product
 from math import gcd, isqrt, pi, prod, sqrt
-from typing import TYPE_CHECKING, ClassVar, NoReturn, overload
+from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from sympy import factorint, primerange
 from sympy.polys.domains import ZZ
@@ -572,15 +572,9 @@ class Ideal:
 
             radius += 1
 
-    # Overloads over implementations that take and return any object, for the reason at __mul__. A number stands for its
-    #   principal ideal, as it does in I * x, which also lets sum() add up ideals (it starts from 0, the zero ideal).
-    @overload
-    def __add__(self, other: Ideal) -> Ideal: ...
-
-    @overload
-    def __add__(self, other: complex | int | float | QuadInt) -> Ideal: ...
-
-    def __add__(self, other: object) -> object:
+    # No return type, for the reason at __mul__. A number stands for its principal ideal, as it does in I * x, which
+    #   also lets sum() add up ideals (it starts from 0, the zero ideal).
+    def __add__(self, other: complex | int | float | QuadInt | Ideal):
         """Return the sum I + J, the smallest ideal that holds both, which is their gcd in a maximal order."""
         if isinstance(other, _IDEAL_OP_TYPES):
             other = Ideal(self.ring, other)
@@ -594,29 +588,17 @@ class Ideal:
         # Each basis spans its ideal as a lattice, so the two together span the sum
         return Ideal(self.ring, _hnf=_lattice_hnf([_coords(x) for x in (*self.basis, *other.basis)]))
 
-    @overload
-    def __radd__(self, other: QuadInt) -> Ideal: ...
-
-    @overload
-    def __radd__(self, other: complex | int | float) -> Ideal: ...
-
-    def __radd__(self, other: object) -> object:
+    def __radd__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _IDEAL_OP_TYPES):
             return Ideal(self.ring, other) + self
 
         return NotImplemented
 
-    # The overloads are what type checkers see. The implementations take and return any object, since compiled, a
-    #   NotImplemented returned as an Ideal would fail mypyc's conversion to Ideal, and raise its own TypeError before
-    #   the other operand's __rmul__ (or Python's usual message) got a turn. Unlike // and IdealClass's *, these can't
-    #   have mypyc turn the other operand away first: they take Python complex numbers, which it only takes as objects.
-    @overload
-    def __mul__(self, other: Ideal) -> Ideal: ...
-
-    @overload
-    def __mul__(self, other: complex | int | float | QuadInt) -> Ideal: ...
-
-    def __mul__(self, other: object) -> object:
+    # No return type, like QuadInt's operators: compiled, a NotImplemented returned as a declared Ideal would fail
+    #   mypyc's conversion to Ideal, and raise its own TypeError before the other operand's __rmul__ (or Python's usual
+    #   message) got a turn. Unlike // and IdealClass's *, these can't have mypyc turn the other operand away first:
+    #   they take Python complex numbers, which it only takes as objects.
+    def __mul__(self, other: complex | int | float | QuadInt | Ideal):
         if isinstance(other, Ideal):
             if self.ring is not other.ring:
                 raise TypeError("Cannot multiply ideals from different rings")
@@ -639,13 +621,7 @@ class Ideal:
 
         return NotImplemented
 
-    @overload
-    def __rmul__(self, other: QuadInt) -> Ideal: ...
-
-    @overload
-    def __rmul__(self, other: complex | int | float) -> Ideal: ...
-
-    def __rmul__(self, other: object) -> object:
+    def __rmul__(self, other: complex | int | float | QuadInt):
         if isinstance(other, _IDEAL_OP_TYPES):
             scalar = _coerce(self.ring, other)
             return Ideal(self.ring, *(scalar * x for x in self.basis))
