@@ -558,6 +558,26 @@ class TestQuotient:
         with pytest.raises(TypeError, match="different rings"):
             left.exact_div(ZI.ideal(2))
 
+    def test_unsupported_operands(self):
+        """
+        // with anything but an ideal raises TypeError in both builds, on either side, and a type with its own
+            __rfloordiv__ gets to handle it (compiled, 5 // ideal used to recurse until RecursionError)
+        """
+
+        class WithRfloordiv:
+            def __rfloordiv__(self, _: object) -> str:
+                return "rfloordiv"
+
+        ideal = ZN5.ideal(3, ZN5(1, 1))
+        for other in (5, 2.5, None, "a", ZN5(1, 1), IdealClass(ideal)):
+            with pytest.raises(TypeError):
+                operator.floordiv(other, ideal)
+
+            with pytest.raises(TypeError):
+                operator.floordiv(ideal, other)
+
+        assert ideal // WithRfloordiv() == "rfloordiv"
+
 
 class TestIdealMath:
     """Tests for concrete mathematical facts about ideals."""
@@ -783,6 +803,27 @@ class TestIdealClassMath:
 
         with pytest.raises(TypeError):
             operator.ipow(ideal_class, ideal_class)
+
+    def test_unsupported_operands(self):
+        """
+        * with anything but an ideal class raises TypeError in both builds, on either side, and a type with its own
+            __rmul__ gets to handle it (compiled, 5 * cls used to recurse until RecursionError)
+        """
+
+        class WithRmul:
+            def __rmul__(self, _: object) -> str:
+                return "rmul"
+
+        ideal = ZN5.prime_ideals_over(2)[0]
+        ideal_class = IdealClass(ideal)
+        for other in (5, 2.5, None, "a", ZN5(1, 1), ideal):
+            with pytest.raises(TypeError):
+                operator.mul(other, ideal_class)
+
+            with pytest.raises(TypeError):
+                operator.mul(ideal_class, other)
+
+        assert ideal_class * WithRmul() == "rmul"
 
     def test_gaussian(self):
         """Prime ideals in the Gaussian integers should represent the trivial class."""

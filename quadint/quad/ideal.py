@@ -517,11 +517,17 @@ class Ideal:
 
         return quotient
 
-    def __floordiv__(self, other: object) -> Ideal:
+    # other is an Ideal rather than any object, so that the compiled build turns anything else away itself. Compiled,
+    #   returning NotImplemented from here would raise TypeError instead, converting it to the Ideal it has to return
+    def __floordiv__(self, other: Ideal) -> Ideal:
         """Return the exact integral ideal quotient."""
         if isinstance(other, Ideal):
             return self.exact_div(other)
 
+        return NotImplemented
+
+    def __rfloordiv__(self, other: NoReturn) -> object:
+        # Only an ideal divides an ideal. Without this, 5 // I recursed when compiled (see QuadInt.__rpow__)
         return NotImplemented
 
     def __contains__(self, x: object) -> bool:
@@ -799,7 +805,7 @@ class IdealClass:
         """Return the inverse ideal class."""
         return IdealClass(self.representative.conjugate())
 
-    def __mul__(self, other: object) -> IdealClass:
+    def __mul__(self, other: IdealClass) -> IdealClass:  # not any object, for the reason at Ideal.__floordiv__
         if not isinstance(other, IdealClass):
             return NotImplemented
 
@@ -814,6 +820,10 @@ class IdealClass:
         #   a product is the product of the norms: through ** or order, those would keep growing without end
         a, b, _ = _class_form(product)
         return IdealClass(_form_ideal(self.ring, a, b))
+
+    def __rmul__(self, other: NoReturn) -> object:
+        # Only a class multiplies a class. Without this, 5 * C recursed when compiled (see QuadInt.__rpow__)
+        return NotImplemented
 
     def __pow__(self, exp: int) -> IdealClass:
         if not isinstance(exp, int):
