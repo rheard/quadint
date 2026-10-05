@@ -1012,8 +1012,9 @@ class ClassGroup:
 
         return True
 
+    @property
     def class_number(self) -> int:
-        """Return the class number of the underlying quadratic order."""
+        """Return the class number of the underlying quadratic order (the same as order and QuadraticRing's)."""
         return self.order
 
     def __len__(self) -> int:

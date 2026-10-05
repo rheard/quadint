@@ -140,7 +140,7 @@ class TestTrivialGroups:
         group = ClassGroup(ring)
 
         assert group.order == 1
-        assert group.class_number() == 1
+        assert group.class_number == 1
         assert len(group) == 1
         assert group.classes == (IdealClass(ring.unit_ideal()),)
         assert group.generators == ()
@@ -201,7 +201,7 @@ class TestNontrivialGroups:
         assert group.ring.discriminant() == -20
         assert group.minkowski_bound == 3
         assert group.order == 2
-        assert group.class_number() == 2
+        assert group.class_number == 2
         assert len(group.classes) == 2
         assert len(group.generators) == 1
 
@@ -224,7 +224,7 @@ class TestNontrivialGroups:
         assert group.ring.discriminant() == 60
         assert group.minkowski_bound == 4
         assert group.order == 2
-        assert group.class_number() == 2
+        assert group.class_number == 2
         assert len(group.classes) == 2
         assert len(group.generators) == 1
 
