@@ -421,6 +421,36 @@ class TestOperations:
         assert left * 2 == ZN5.ideal(*(2 * x for x in left.basis))
         assert 2 * left == left * 2
 
+    def test_unsupported_multiplications(self):
+        """
+        * with anything but an ideal or a ring element raises Python's usual TypeError in both builds, on either side,
+            and a type with its own __rmul__ gets to handle it. Compiled, every one of these used to raise mypyc's
+            "Ideal object expected; got NotImplementedType" instead, before the other operand had a turn.
+        """
+
+        class WithRmul:
+            def __rmul__(self, _: object) -> str:
+                return "rmul"
+
+        ideal = ZN5.ideal(3, ZN5(1, 1))
+        for other in (None, IdealClass(ideal), ZN5.class_group):
+            with pytest.raises(TypeError, match="unsupported operand"):
+                operator.mul(ideal, other)
+
+            with pytest.raises(TypeError, match="unsupported operand"):
+                operator.mul(other, ideal)
+
+        # A sequence gets to try repeating itself, which the two builds word differently (compiled, the ideal looks
+        #   like it might be an index to CPython, as an ideal class did already)
+        for other in ("a", [2]):
+            with pytest.raises(TypeError):
+                operator.mul(ideal, other)
+
+            with pytest.raises(TypeError):
+                operator.mul(other, ideal)
+
+        assert ideal * WithRmul() == "rmul"
+
     def test_power(self):
         """Powers should use repeated ideal multiplication."""
         ideal = ZN5.ideal(3, ZN5(1, 1))

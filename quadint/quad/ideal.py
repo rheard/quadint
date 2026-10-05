@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from itertools import product
 from math import gcd, isqrt, pi, prod, sqrt
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+from typing import TYPE_CHECKING, ClassVar, NoReturn, overload
 
 from sympy import factorint, primerange
 from sympy.polys.domains import ZZ
@@ -572,7 +572,17 @@ class Ideal:
 
             radius += 1
 
-    def __mul__(self, other: object) -> Ideal:
+    # The overloads are what type checkers see. The implementations take and return any object, since compiled, a
+    #   NotImplemented returned as an Ideal would fail mypyc's conversion to Ideal, and raise its own TypeError before
+    #   the other operand's __rmul__ (or Python's usual message) got a turn. Unlike // and IdealClass's *, these can't
+    #   have mypyc turn the other operand away first: they take Python complex numbers, which it only takes as objects.
+    @overload
+    def __mul__(self, other: Ideal) -> Ideal: ...
+
+    @overload
+    def __mul__(self, other: complex | int | float | QuadInt) -> Ideal: ...
+
+    def __mul__(self, other: object) -> object:
         if isinstance(other, Ideal):
             if self.ring is not other.ring:
                 raise TypeError("Cannot multiply ideals from different rings")
@@ -595,7 +605,13 @@ class Ideal:
 
         return NotImplemented
 
-    def __rmul__(self, other: object) -> Ideal:
+    @overload
+    def __rmul__(self, other: QuadInt) -> Ideal: ...
+
+    @overload
+    def __rmul__(self, other: complex | int | float) -> Ideal: ...
+
+    def __rmul__(self, other: object) -> object:
         if isinstance(other, _IDEAL_OP_TYPES):
             scalar = _coerce(self.ring, other)
             return Ideal(self.ring, *(scalar * x for x in self.basis))
