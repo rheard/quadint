@@ -519,6 +519,61 @@ class TestDiv(QuadIntTests):
         assert x == q * y + r
         assert abs(abs(r)) < abs(abs(y))
 
+    # Every kind of division: imaginary and real norm-Euclidean (den 1 and 2), Clark's, Harper's with witness primes
+    #   and with generators, and the dual and split-complex integers
+    _DIVISION_RINGS = (
+        ZI,
+        ZN2,
+        ZE,
+        ZN7,
+        Z2,
+        Z5,
+        QuadraticRing(69),
+        QuadraticRing(23),
+        QuadraticRing(71),
+        QuadraticRing(0),
+        QuadraticRing(1, 1),
+        Z1,
+    )
+
+    @pytest.mark.parametrize("ring", _DIVISION_RINGS, ids=repr)
+    def test_remainder_only_depends_on_the_class(self, ring: QuadraticRing):
+        """
+        The remainder x % y is the same for every x of a class mod y, so reducing it again changes nothing, even when
+            x / y lies exactly between quotients (which small values hit all the time). It used to depend on x itself,
+            since the quotient search was centered on x / y with its halves rounded away from zero.
+        """
+        rng = random.Random(4242)
+        for _ in range(100):
+            x = self._rand_elem(rng, ring, 6)
+            y = self._rand_elem(rng, ring, 3)
+            h = self._rand_elem(rng, ring, 3)
+            if abs(y) == 0:
+                continue  # zero, or a zero divisor in the dual and split-complex integers
+
+            r = x % y
+            assert (x + h * y) % y == r, f"x={x}, y={y}, h={h}"
+            assert r % y == r, f"x={x}, y={y}"
+
+    @pytest.mark.parametrize("ring", _DIVISION_RINGS, ids=repr)
+    def test_pow_mod_is_the_remainder_of_the_power(self, ring: QuadraticRing):
+        """pow(x, e, m) == (x**e) % m as for an int, so pow(x, 1, m) == x % m, ties included (see the test above)"""
+        rng = random.Random(2424)
+        for _ in range(100):
+            x = self._rand_elem(rng, ring, 6)
+            m = self._rand_elem(rng, ring, 3)
+            if abs(m) == 0:
+                continue
+
+            e = rng.randint(0, 6)
+            try:
+                remainder, power_remainder = x % m, (x**e) % m
+            except NotImplementedError:
+                continue  # a Harper division that finds no phi-reducing quotient, where pow rounds x / m instead
+
+            assert pow(x, 1, m) == remainder, f"x={x}, m={m}"
+            assert pow(x, e, m) == power_remainder, f"x={x}, e={e}, m={m}"
+
 
 class TestPow:
     """Tests for what ** and pow() take as an exponent."""

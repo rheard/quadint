@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 from quadint.quad.rings.base import (
     QuadraticRing,
     _NeighborhoodSearch,
-    _round_div_ties_away_from_zero,
+    _round_div,
 )
 
 if TYPE_CHECKING:
@@ -120,8 +120,9 @@ class RealNormEuclidRing(QuadraticRing):
             if rA != 0 or rB != 0:
                 raise ArithmeticError("Non-integral product; check ring parameters / parity")
 
-        A0 = _round_div_ties_away_from_zero(num_a, y_norm)
-        B0 = _round_div_ties_away_from_zero(num_b, y_norm)
+        # Rounded so that x % y only depends on x's class mod y (see _round_div)
+        A0 = _round_div(num_a, y_norm)
+        B0 = _round_div(num_b, y_norm)
         if self.D < 0 and (self.den == 1 or not (A0 ^ B0) & 1):
             # An imaginary norm adds up the two coordinates' (weighted) squared errors, so rounding each one gives the
             #   quotient with the smallest remainder whenever that is in the ring (always when den=1). The search below

@@ -5,8 +5,9 @@ import random
 import warnings
 
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
+from fractions import Fraction
 from itertools import islice
-from math import gcd, isqrt, prod
+from math import floor, gcd, isqrt, prod
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ import quadint
 from quadint import Ideal, QuadInt, complexint, eisensteinint
 from quadint.quad import Factorization, QuadraticRing
 from quadint.quad.rings import HarperRing, RealNormEuclidRing
+from quadint.quad.rings.base import _round_div  # ruff: ignore[import-private-name]
 from quadint.quad.rings.harper import _POST_HARDCODED  # ruff: ignore[import-private-name]
 from quadint.quad.rings.norm_euclid import _hyperbola_branch_centers  # ruff: ignore[import-private-name]
 from tests.quad.test_int import QuadIntTests
@@ -558,6 +560,18 @@ class TestDivClark69:
         # a is the last nonzero remainder: it must divide the original inputs.
         x0 = Z69(36, 4)
         assert (x0 % a) == 0
+
+
+class TestRoundDiv:
+    """Tests for _round_div, which centers the quotient search of every division."""
+
+    def test_matches_fractions(self):
+        """It is floor(n/d + 1/2) exactly, whatever the signs, so it moves by k when n/d does (n + k*d over d)."""
+        for n in range(-60, 61):
+            for d in (*range(-12, 0), *range(1, 13)):
+                expected = floor(Fraction(n, d) + Fraction(1, 2))
+                assert _round_div(n, d) == expected, (n, d)
+                assert _round_div(n + 7 * d, d) == expected + 7, (n, d)
 
 
 class TestHarperHelpers:

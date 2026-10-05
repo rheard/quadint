@@ -193,15 +193,21 @@ def _check_den(den: int, D: int) -> int:
     return den0
 
 
-def _round_div_ties_away_from_zero(n: int, d: int) -> int:
-    """Round n/d to nearest int; ties go away from 0. d must be > 0."""
-    if d == 0:
-        raise ZeroDivisionError
+def _round_div(n: int, d: int) -> int:
+    """
+    Return the integer nearest to n/d, where halves round up (toward +infinity): floor(n/d + 1/2).
+
+    Unlike rounding halves away from zero, that commutes with adding an integer to n/d. Every division centers its
+        quotient search on these, and anything else it uses to choose is relative to that center, so shifting x by a
+        multiple of y shifts the quotient and leaves the very same remainder: x % y only depends on x's class mod y.
+
+    Returns:
+        int: The rounded quotient.
+    """
     if d < 0:
         n, d = -n, -d
-    if n >= 0:
-        return (n + d // 2) // d
-    return -((-n + d // 2) // d)
+
+    return (n + d // 2) // d  # floor((n + d/2) / d), even for odd d, since n is an integer
 
 
 def _nearest_quotient(x: QuadInt, y: QuadInt) -> QuadInt:
@@ -222,12 +228,8 @@ def _nearest_quotient(x: QuadInt, y: QuadInt) -> QuadInt:
     num_a = x.a * y.a - x.b * y.b * ring.D
     num_b = y.a * x.b - x.a * y.b
     scale = den * abs(y)
-    if scale < 0:
-        num_a, num_b, scale = -num_a, -num_b, -scale
-
-    # floor(v + 1/2), which (unlike rounding ties away from zero) commutes with adding an integer to v
-    A = (2 * num_a + scale) // (2 * scale)
-    B = (2 * num_b + scale) // (2 * scale)
+    A = _round_div(num_a, scale)
+    B = _round_div(num_b, scale)
     if den == 2 and ((A ^ B) & 1):
         B += 1  # any nearby lattice point is fine here
 
@@ -1130,7 +1132,8 @@ class QuadraticRing:
 
         This is the Euclidean remainder x % m whenever divmod finds one. But modular arithmetic only needs some element
             of x's class, so in a PID with no divmod, or when the quotient search gives up (some Harper-style divisions
-            have no quotient that reduces phi at all), this rounds x / m instead, which cannot fail.
+            have no quotient that reduces phi at all), this rounds x / m instead, which cannot fail. Either way the
+            result only depends on x's class mod m (see _round_div), so reducing it again leaves it as it is.
 
         Returns:
             QuadInt: An element congruent to x modulo m.

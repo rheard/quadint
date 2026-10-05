@@ -13,7 +13,7 @@ from quadint.quad.rings.base import (
     PrimeIdealData,
     QuadraticRing,
     _NeighborhoodSearch,
-    _round_div_ties_away_from_zero,
+    _round_div,
 )
 from quadint.quad.rings.norm_euclid import NORM_EUCLID_D, RealNormEuclidRing
 from quadint.utils import _is_squarefree
@@ -441,8 +441,8 @@ class HarperRing(RealNormEuclidRing):
             num_a //= self.den
             num_b //= self.den
 
-        A0 = _round_div_ties_away_from_zero(num_a, y_norm)
-        B0 = _round_div_ties_away_from_zero(num_b, y_norm)
+        A0 = _round_div(num_a, y_norm)  # so x % y only depends on x's class mod y (see _round_div)
+        B0 = _round_div(num_b, y_norm)
 
         def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return B0

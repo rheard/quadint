@@ -8,7 +8,7 @@ from sympy.polys.domains import ZZ
 from quadint.quad.rings.base import (
     QuadraticRing,
     _choose_best_in_neighborhood,
-    _round_div_ties_away_from_zero,
+    _round_div,
     _split_uv,
 )
 
@@ -44,12 +44,12 @@ class DualRing(QuadraticRing):
             # A multiple of ε only has multiples with no real part, so there is no remainder to make small
             raise ZeroDivisionError("division by a multiple of ε, which is a zero divisor (exact_div still works)")
 
-        A0 = _round_div_ties_away_from_zero(num.a, n)
+        A0 = _round_div(num.a, n)  # so x % y only depends on x's class mod y (see _round_div)
 
         c, d = y.a, y.b
 
         def B0_for_A(A: int) -> int:
-            return _round_div_ties_away_from_zero(x.b - A * d, c)
+            return _round_div(x.b - A * d, c)
 
         # Lexicographic "small remainder": minimize real remainder first, then ε remainder.
         def score_for_AB(A: int, B: int) -> tuple[int, ...]:
@@ -114,13 +114,9 @@ class SplitRing(QuadraticRing):
         if u2 == 0 or v2 == 0:
             raise ZeroDivisionError("division by zero divisor in split-complex integers (a=±b)")
 
-        qu0 = _round_div_ties_away_from_zero(u1, abs(u2))
-        if u2 < 0:
-            qu0 = -qu0
-
-        qv0 = _round_div_ties_away_from_zero(v1, abs(v2))
-        if v2 < 0:
-            qv0 = -qv0
+        # Rounded so that x % y only depends on x's class mod y (see _round_div)
+        qu0 = _round_div(u1, u2)
+        qv0 = _round_div(v1, v2)
 
         def B0_for_A(A: int) -> int:  # ruff: ignore[unused-function-argument]
             return qv0
