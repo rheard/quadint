@@ -202,7 +202,7 @@ print(J.norm, J.is_principal)                 # 2 False
 
 `I + J` is the smallest ideal holding both, which in a maximal order is their gcd. So two elements with no gcd in the ring, like `2` and `1 + √-5` here, still have one as ideals. A number stands for its principal ideal (`I + x`, like `I * x`), so `sum()` works on ideals too.
 
-Principal generators come from lattice reduction in imaginary rings and continued fractions in real ones, so this stays fast for large ideals. Class groups (`O.class_group`, `O.class_number`) are available for maximal orders, real and imaginary. Non-maximal orders such as `QuadraticRing(-3, den=1)` raise `NotImplementedError`.
+Principal generators come from lattice reduction in imaginary rings and continued fractions in real ones, so this stays fast for large ideals. Class groups (`O.class_group`, `O.class_number`) are available for maximal orders, real and imaginary. Each class (`IdealClass(I)`) is pinned down by a reduced form, the reduced binary quadratic form in imaginary rings and the smallest reduced ideal in the class in real ones, so classes compare and hash quickly, and products and powers of classes keep small representatives. Non-maximal orders such as `QuadraticRing(-3, den=1)` raise `NotImplementedError`.
 
 ---
 

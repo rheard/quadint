@@ -708,11 +708,12 @@ class Ideal:
 
 
 # region Binary quadratic forms
-#   In an imaginary quadratic order, an ideal's class can be pinned down by a binary quadratic form, which turns class
-#   comparisons into comparing three integers. A form a*x**2 + b*x*y + c*y**2 with b**2 - 4*a*c equal to the
-#   discriminant goes with the ideal [a, (-b + sqrt(disc))/2], and two ideals are in the same class exactly when their
-#   forms are properly equivalent: one becomes the other under a change of variables (x, y) -> (p*x + q*y, r*x + s*y)
-#   with p*s - q*r == 1. When the discriminant is negative, every equivalence class has exactly one reduced form.
+#   An ideal's class can be pinned down by a binary quadratic form, which turns class comparisons into comparing three
+#   integers. A form a*x**2 + b*x*y + c*y**2 with b**2 - 4*a*c equal to the discriminant goes with the ideal
+#   [a, (-b + sqrt(disc))/2]. In an imaginary order, two ideals are in the same class exactly when their forms are
+#   properly equivalent: one becomes the other under a change of variables (x, y) -> (p*x + q*y, r*x + s*y) with
+#   p*s - q*r == 1. When the discriminant is negative, every equivalence class has exactly one reduced form. A real
+#   class has a whole cycle of reduced ideals instead, and the smallest of them stands for the class (see _cycle_form).
 def _reduce_form(a: int, b: int, c: int) -> tuple[int, int, int]:
     """
     Return the reduced form properly equivalent to the positive definite form a*x**2 + b*x*y + c*y**2.
@@ -740,22 +741,72 @@ def _reduce_form(a: int, b: int, c: int) -> tuple[int, int, int]:
     return a, b, c
 
 
+def _cycle_form(a: int, b: int, c: int) -> tuple[int, int, int]:
+    """
+    Return the form that stands for the real ideal class of the indefinite form a*x**2 + b*x*y + c*y**2.
+
+    Up to a scalar, the ideals in the class of [a, (-b + sqrt(disc))/2] are the lattices [1, t] for every t that
+        GL2(Z) makes of theta = (-b + sqrt(disc))/(2*a). Those all have the same continued fraction from some point on
+        (Serret's theorem), which is periodic: a cycle of reduced (P + sqrt(disc))/Q, with theta > 1 and
+        -1 < conj(theta) < 0. Each of those is the ideal [Q/2, (P + sqrt(disc))/2] of the form (Q/2, -P, ...), so the
+        smallest of those forms is the same for every ideal in the class. The unit ideal's form has a == 1, which
+        nothing beats, so in the principal class this stops when it gets there.
+
+    Returns:
+        tuple[int, int, int]: The smallest (a, b, c) on the cycle.
+    """
+    disc = b * b - 4 * a * c
+    s = isqrt(disc)
+    P, Q = -b, 2 * a
+
+    # The continued fraction's steps, theta -> 1 / (theta - floor(theta)), until theta is reduced. Reduced means
+    #   P < sqrt(disc) < P + Q (for -1 < conj(theta) < 0) and sqrt(disc) > Q - P (for theta > 1).
+    while not (s - Q < P <= s and s >= Q - P):
+        q = (P + s + (1 if Q < 0 else 0)) // Q  # floor(theta), whichever sign Q has
+        P = q * Q - P
+        Q = (disc - P * P) // Q
+
+    # Then once around the cycle, which every later step stays on
+    start = (P, Q)
+    best = (Q // 2, -P)
+    while best[0] != 1:
+        q = (P + s) // Q
+        P = q * Q - P
+        Q = (disc - P * P) // Q
+        if start == (P, Q):
+            break
+
+        best = min(best, (Q // 2, -P))
+
+    a, b = best
+    return a, b, (b * b - disc) // (4 * a)
+
+
 def _class_form(ideal: Ideal) -> tuple[int, int, int]:
     """
-    Return the reduced form of a nonzero invertible ideal's class, in an imaginary quadratic order.
+    Return the form that stands for a nonzero invertible ideal's class (see _reduce_form and _cycle_form).
 
     The ideal is k*J for J = [m, z + w], which is in the same class. Writing z + w as (B + sqrt(disc))/2, the form that
         goes with J is (m, -B, (B**2 - disc)/(4*m)), so J is the ideal [a, (-b + sqrt(disc))/2] of that form.
 
     Returns:
-        tuple[int, int, int]: The reduced (a, b, c), the same one for every ideal in the class.
+        tuple[int, int, int]: The (a, b, c) of _reduce_form or _cycle_form, the same one for every ideal in the class.
+
+    Raises:
+        NotImplementedError: If D is a square, like the dual and split-complex integers, which have no ideal classes.
     """
     ring = ideal.ring
     a, b, k = ideal.hnf
     m, z = a // k, b // k
     B = 2 * z + ring.den - 1
     disc = ring.discriminant()
-    return _reduce_form(m, -B, (B * B - disc) // (4 * m))
+    if disc < 0:
+        return _reduce_form(m, -B, (B * B - disc) // (4 * m))
+
+    if isqrt(disc) ** 2 == disc:
+        raise NotImplementedError(f"ideal classes need a nonsquare D, got D={ring.D}")
+
+    return _cycle_form(m, -B, (B * B - disc) // (4 * m))
 
 
 def _form_ideal(ring: QuadraticRing, a: int, b: int) -> Ideal:
@@ -791,18 +842,26 @@ class IdealClass:
     """
     Ideal class represented by a nonzero integral ideal.
 
-    In imaginary orders, the classes that products and powers give back are represented by the ideal of their reduced
-        form (the one with the smallest norm in the class), instead of the product of the representatives.
+    Every class has a form that stands for it (see _class_form), so classes compare and hash by those. The classes that
+        products and powers give back are represented by the ideal of that form instead of the product of the
+        representatives: the one with the smallest norm in the class in imaginary orders, and in real ones the
+        smallest of the reduced ideals, whose norms are below sqrt(disc).
     """
 
     __slots__ = ("representative", "_order", "_form")
 
     representative: Ideal
     _order: int | None
-    _form: tuple[int, int, int] | None
+    _form: tuple[int, int, int]
 
-    def __init__(self, representative: Ideal) -> None:
-        """Create the ideal class represented by a nonzero, invertible integral ideal."""
+    def __init__(self, representative: Ideal, *, _form: tuple[int, int, int] | None = None) -> None:
+        """Create the ideal class represented by a nonzero, invertible integral ideal (with its form, if known)."""
+        self.representative = representative
+        self._order = None
+        if _form is not None:
+            self._form = _form  # from __mul__ or ClassGroup, which pass the form of an ideal they built from it
+            return
+
         ring = representative.ring
         norm = representative.norm
         if norm == 0:
@@ -815,11 +874,7 @@ class IdealClass:
         if gcd(norm, 2 * ring.D) > 1 and representative * representative.conjugate() != ring.ideal(norm):
             raise ValueError(f"{representative} is not invertible, so it does not define an ideal class")
 
-        self.representative = representative
-        self._order = None
-        # Real orders have no reduced form that is unique to the class (they come in cycles), so those still compare
-        #   classes by testing whether I * conj(J) is principal
-        self._form = _class_form(representative) if ring.D < 0 else None
+        self._form = _class_form(representative)
 
     @property
     def ring(self) -> QuadraticRing:
@@ -832,7 +887,7 @@ class IdealClass:
         if self._order is not None:
             return self._order
 
-        # Multiplying classes rather than ideals keeps the powers small in imaginary orders (see __mul__)
+        # Multiplying classes rather than ideals keeps the powers small (see __mul__)
         power = self
         order = 1
         while not power.is_trivial:
@@ -845,11 +900,8 @@ class IdealClass:
     @property
     def is_trivial(self) -> bool:
         """Is this the principal ideal class, the identity of the class group?"""
-        form = self._form
-        if form is not None:
-            return form[0] == 1  # the principal form (1, b, c) is the only reduced form with a == 1
-
-        return self.representative.is_principal
+        # a == 1 only for the unit ideal's form, which is the principal class's reduced form, or on its cycle when real
+        return self._form[0] == 1
 
     def __invert__(self) -> IdealClass:
         """Return the inverse ideal class."""
@@ -862,14 +914,10 @@ class IdealClass:
         if self.ring is not other.ring:
             raise TypeError("Cannot multiply ideal classes from different rings")
 
-        product = self.representative * other.representative
-        if self._form is None:
-            return IdealClass(product)
-
-        # The ideal of the reduced form is in the same class, and its norm is at most sqrt(|disc|/3), while the norm of
-        #   a product is the product of the norms: through ** or order, those would keep growing without end
-        a, b, _ = _class_form(product)
-        return IdealClass(_form_ideal(self.ring, a, b))
+        # The ideal of the product's form is in the same class, and its norm is below sqrt(|disc|), while the norm of a
+        #   product is the product of the norms: through ** or order, those would keep growing without end
+        form = _class_form(self.representative * other.representative)
+        return IdealClass(_form_ideal(self.ring, form[0], form[1]), _form=form)
 
     def __rmul__(self, other: NoReturn) -> object:
         # Only a class multiplies a class. Without this, 5 * C recursed when compiled (see QuadInt.__rpow__)
@@ -882,9 +930,6 @@ class IdealClass:
         e = int(exp)
         if e < 0:
             return (~self) ** -e
-
-        if self._form is None:
-            return IdealClass(self.representative**e)
 
         # Square and multiply on the classes rather than the ideals, so every step stays reduced (see __mul__)
         result = IdealClass(self.ring.unit_ideal())
@@ -907,20 +952,13 @@ class IdealClass:
         if not isinstance(other, IdealClass):
             return False
 
-        if self.ring is not other.ring:
-            return False
-
-        if self._form is not None:
-            return self._form == other._form
-
-        return (self.representative * other.representative.conjugate()).is_principal
+        return self.ring is other.ring and self._form == other._form
 
     def __ne__(self, other: object) -> bool:
         # This shouldn't be required but mypyc is really messing this up...
         return not self.__eq__(other)
 
     def __hash__(self) -> int:
-        # Without a reduced form (in real orders), every class of the ring hashes the same
         return hash((self.representative.ring, self._form))
 
     def __reduce__(self) -> tuple:
@@ -1023,7 +1061,7 @@ class ClassGroup:
             #   ideals. Each is represented by the ideal [a, (-b + sqrt(disc))/2] of its form, which has the smallest
             #   norm in its class.
             forms = _reduced_forms(ring.discriminant())
-            self._classes = tuple(IdealClass(_form_ideal(ring, a, b)) for a, b, _ in forms)
+            self._classes = tuple(IdealClass(_form_ideal(ring, form[0], form[1]), _form=form) for form in forms)
             return self._classes
 
         out = [IdealClass(ring.unit_ideal())]

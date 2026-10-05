@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import math
 import random
 
 import pytest
 
 from quadint import Ideal, QuadraticRing
-from quadint.quad.ideal import ClassGroup, IdealClass, _reduce_form, _reduced_forms  # ruff: ignore[import-private-name]
+from quadint.quad.ideal import ClassGroup, IdealClass, _class_form, _cycle_form, _reduce_form, _reduced_forms  # ruff: ignore[import-private-name]
 from quadint.utils import _is_squarefree  # ruff: ignore[import-private-name]
 from tests.quad.test_rings import _rand_elem
 
@@ -18,6 +19,33 @@ ZN5 = QuadraticRing(-5)
 Z5 = QuadraticRing(5)
 Z14 = QuadraticRing(14)
 Z15 = QuadraticRing(15)
+
+
+def _kronecker(a: int, n: int) -> int:
+    """Return the Kronecker symbol (a / n) for n > 0, from the reciprocity of the Jacobi symbol."""
+    result = 1
+    while n % 2 == 0:
+        if a % 2 == 0:
+            return 0
+
+        n //= 2
+        if a % 8 in {3, 5}:
+            result = -result
+
+    a %= n
+    while a:
+        while a % 2 == 0:
+            a //= 2
+            if n % 8 in {3, 5}:
+                result = -result
+
+        a, n = n, a
+        if a % 4 == 3 and n % 4 == 3:
+            result = -result
+
+        a %= n
+
+    return result if n == 1 else 0
 
 
 class TestConstruct:
@@ -263,6 +291,34 @@ class TestNontrivialGroups:
 
         assert found == known
 
+    @pytest.mark.parametrize(
+        ("D", "expected"),
+        [(10, 2), (79, 3), (82, 4), (226, 8), (401, 5), (3315, 8), (10001, 16)],
+    )
+    def test_real_class_numbers(self, D: int, expected: int):
+        """Real class numbers should match the known values, which take their classes' reduced cycles to tell apart."""
+        group = ClassGroup(QuadraticRing(D))
+
+        assert group.order == expected
+        assert len(set(group.classes)) == expected  # hashable, and distinct
+
+    def test_real_class_numbers_match_dirichlet(self):
+        """
+        Every real class number up to D=300 should match Dirichlet's class number formula, which needs no ideals:
+            h = -(sum of chi(k) * log(sin(pi*k / disc)) for 0 < k < disc) / (2 * log(eps)), with chi(k) = (disc / k)
+        """
+        for D in range(2, 300):
+            if not _is_squarefree(D):
+                continue
+
+            ring = QuadraticRing(D)
+            disc = ring.discriminant()
+            eps = ring.fundamental_unit()
+            log_eps = math.log((eps.a + eps.b * math.sqrt(D)) / ring.den)
+            total = sum(_kronecker(disc, k) * math.log(math.sin(math.pi * k / disc)) for k in range(1, disc))
+
+            assert ClassGroup(ring).order == round(-total / (2 * log_eps)), f"Wrong for D={D}"
+
 
 class TestGroupBehavior:
     """Tests for basic class group behavior."""
@@ -301,7 +357,7 @@ class TestGroupBehavior:
 
 
 class TestReducedForms:
-    """Tests for the reduced binary quadratic forms behind imaginary ideal classes."""
+    """Tests for the reduced binary quadratic forms behind ideal classes, imaginary and real."""
 
     @pytest.mark.parametrize(
         ("form", "expected"),
@@ -348,9 +404,38 @@ class TestReducedForms:
                 )
                 assert _reduce_form(*moved) == (a, b, c)
 
+    @pytest.mark.parametrize("D", [10, 79, 82, 145, 226, 229, 3315], ids=str)
+    def test_cycle_form_ignores_changes_of_variables(self, D: int):
+        """Every form properly equivalent to a real class's form should go back to it, and the classes' forms differ."""
+        rng = random.Random(D)
+        forms = [_class_form(cls.representative) for cls in ClassGroup(QuadraticRing(D))]
+        assert len(set(forms)) == len(forms)
+
+        for a, b, c in forms:
+            assert _cycle_form(a, b, c) == (a, b, c)
+
+            for _ in range(30):
+                # A random change of variables (x, y) -> (p*x + q*y, r*x + s*y) with p*s - q*r == 1, which can take a
+                #   negative a, since an indefinite form takes both signs
+                p, q, r, s = 1, 0, 0, 1
+                for _ in range(rng.randint(1, 8)):
+                    k = rng.randint(-5, 5)
+                    p, q, r, s = (q, -p + k * q, s, -r + k * s) if rng.random() < 0.5 else (p, q + k * p, r, s + k * r)
+
+                moved = (
+                    a * p * p + b * p * r + c * r * r,
+                    2 * a * p * q + b * (p * s + q * r) + 2 * c * r * s,
+                    a * q * q + b * q * s + c * s * s,
+                )
+                assert _cycle_form(*moved) == (a, b, c)
+
     @pytest.mark.parametrize(
         "ring",
-        [ZN5, ZN19, QuadraticRing(-23), QuadraticRing(-105), QuadraticRing(-15, den=1), QuadraticRing(-12)],
+        [
+            *(ZN5, ZN19, QuadraticRing(-23), QuadraticRing(-105), QuadraticRing(-15, den=1), QuadraticRing(-12)),
+            *(Z15, QuadraticRing(10), QuadraticRing(79), QuadraticRing(82), QuadraticRing(229)),
+            *(QuadraticRing(5, den=1), QuadraticRing(13, den=1), QuadraticRing(85, den=1)),
+        ],
         ids=str,
     )
     def test_class_equality_matches_principal_test(self, ring: QuadraticRing):
@@ -428,25 +513,43 @@ class TestReducedForms:
         assert huge == cls ** (10**18 % k)
         assert 3 * huge.representative.norm**2 <= 10007
 
-    def test_order_adds_nothing_to_the_generator_cache(self):
-        """Finding an imaginary class's order should compare reduced forms, not cache every power as an ideal."""
+    @pytest.mark.parametrize("D", [-10007, 10001], ids=str)
+    def test_order_adds_nothing_to_the_generator_cache(self, D: int):
+        """Finding a class's order should compare forms, not cache every power as an ideal (real ones used to)."""
         cache_info = Ideal.principal_generator.cache_info
-        group = ClassGroup(QuadraticRing(-10007))
         before = cache_info().currsize
+        group = ClassGroup(QuadraticRing(D))
 
         orders = [IdealClass(cls.representative).order for cls in group.classes]
 
         assert cache_info().currsize == before
         assert orders[0] == 1
-        assert all(77 % order == 0 for order in orders)  # Lagrange: every order divides the class number
+        assert all(group.order % order == 0 for order in orders)  # Lagrange: every order divides the class number
 
-    def test_real_products_are_unchanged(self):
-        """Real orders have no reduced form to shrink to, so products stay the products of the representatives."""
-        left = IdealClass(Z15.prime_ideals_over(2)[0])
-        right = IdealClass(Z15.prime_ideals_over(3)[0])
+    def test_real_products_and_powers_stay_reduced(self):
+        """Products and powers of real classes should land in the right class, with a reduced representative."""
+        ring = QuadraticRing(10001)  # class number 16, a cyclic group
+        disc = ring.discriminant()
+        group = ClassGroup(ring)
+        rng = random.Random(10001)
 
-        assert (left * right).representative == left.representative * right.representative
-        assert (left**3).representative == left.representative**3
+        for _ in range(100):
+            left, right = rng.choice(group.classes), rng.choice(group.classes)
+            product = left * right
+
+            assert product == IdealClass(left.representative * right.representative)
+            assert product.representative.norm**2 < disc  # a reduced ideal's norm is below sqrt(disc)
+
+        cls = next(cls for cls in group.classes if cls.order == 16)
+        assert cls**3 == cls * cls * cls == IdealClass(cls.representative**3)
+        assert cls**19 == cls**3
+        assert cls**-1 == ~cls
+        assert (cls**16).is_trivial
+
+        # Without reducing along the way, this representative would be an ideal whose norm has about 10**18 digits
+        huge = cls ** (10**18)
+        assert huge == cls ** (10**18 % 16)
+        assert huge.representative.norm**2 < disc
 
 
 class TestNonMaximalOrders:

@@ -840,6 +840,12 @@ class TestIdealClassConstruct:
         assert not ideal_class.is_trivial
         assert ideal_class.order == 2
 
+    @pytest.mark.parametrize("ring", [QuadraticRing(0), QuadraticRing(1), QuadraticRing(1, den=1)], ids=str)
+    def test_square_d(self, ring: QuadraticRing):
+        """A square D, like the dual and split-complex integers, has no ideal classes to compare at all."""
+        with pytest.raises(NotImplementedError, match="nonsquare"):
+            IdealClass(ring.unit_ideal())
+
 
 class TestIdealClassMath:
     """Tests for concrete ideal-class arithmetic."""
