@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from itertools import product
 from math import gcd, isqrt, pi, prod, sqrt
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from sympy import factorint, primerange
 from sympy.polys.domains import ZZ
@@ -616,6 +616,11 @@ class Ideal:
 
         return result
 
+    def __rpow__(self, other: NoReturn) -> object:
+        # Nothing takes an ideal as an exponent. This only works around the mypyc bug at QuadInt.__rpow__, which had
+        #   2 ** I and I ** I recurse until RecursionError when compiled
+        return NotImplemented
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Ideal):
             return False
@@ -833,6 +838,10 @@ class IdealClass:
                 base *= base
 
         return result
+
+    def __rpow__(self, other: NoReturn) -> object:
+        # Nothing takes an ideal class as an exponent (this only works around the mypyc bug at QuadInt.__rpow__)
+        return NotImplemented
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, IdealClass):

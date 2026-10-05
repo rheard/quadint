@@ -559,6 +559,23 @@ class TestPow:
 
         assert x ** WithRpow() == "rpow"
 
+    def test_quadint_exponents(self):
+        """
+        Nothing takes a QuadInt as an exponent, an integer one included, so whatever the base, ** and pow raise
+            TypeError in both builds (the compiled one used to recurse until RecursionError, see QuadInt.__rpow__)
+        """
+        x = ZI(1, 2)
+        for exp in (x, ZI(2, 0), Z5(1, 1), eisensteinint(2)):
+            for base in (x, ZI(2, 0), Z5(1, 1), 2, 2.5, 1j, None, "a"):
+                with pytest.raises(TypeError):
+                    operator.pow(base, exp)
+
+                with pytest.raises(TypeError):
+                    pow(base, exp, 5)
+
+            with pytest.raises(TypeError):
+                operator.ipow(x, exp)
+
 
 class TestUnits:
     """Tests for the units"""

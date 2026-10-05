@@ -451,6 +451,19 @@ class TestOperations:
         assert ideal**True == ideal
         assert ideal ** WithRpow() == "rpow"
 
+    def test_ideal_exponents(self):
+        """
+        Nothing takes an ideal as an exponent, so whatever the base, ** raises TypeError in both builds (the compiled
+            one used to recurse until RecursionError, see the TODO on QuadInt.__rpow__)
+        """
+        ideal = ZN5.ideal(3, ZN5(1, 1))
+        for base in (ideal, IdealClass(ideal), ZN5(1, 1), 2, 2.5, None, "a"):
+            with pytest.raises(TypeError):
+                operator.pow(base, ideal)
+
+        with pytest.raises(TypeError):
+            operator.ipow(ideal, ideal)
+
     def test_conjugate(self):
         """Conjugating a split prime ideal should produce its opposite factor."""
         left, right = ZN5.prime_ideals_over(3)
@@ -759,6 +772,17 @@ class TestIdealClassMath:
                 operator.pow(ideal_class, exp)
 
         assert ideal_class**True == ideal_class
+
+    def test_ideal_class_exponents(self):
+        """Nothing takes an ideal class as an exponent, so whatever the base, ** raises TypeError (like an ideal)."""
+        ideal = ZN5.prime_ideals_over(2)[0]
+        ideal_class = IdealClass(ideal)
+        for base in (ideal_class, ideal, ZN5(1, 1), 2, 2.5, None, "a"):
+            with pytest.raises(TypeError):
+                operator.pow(base, ideal_class)
+
+        with pytest.raises(TypeError):
+            operator.ipow(ideal_class, ideal_class)
 
     def test_gaussian(self):
         """Prime ideals in the Gaussian integers should represent the trivial class."""

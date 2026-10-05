@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 
 from math import gcd, isqrt
-from typing import TYPE_CHECKING, ClassVar, Iterator  # ruff: ignore[deprecated-import]
+from typing import TYPE_CHECKING, ClassVar, Iterator, NoReturn  # ruff: ignore[deprecated-import]
 
 from sympy import factorint, isprime
 
@@ -412,6 +412,15 @@ class QuadInt:
                 base = ring._residue(base * base, mod)
 
         return result
+
+    # TODO: This only works around a mypyc bug, and can go once that is fixed. When its type check rejects an argument,
+    #   mypyc's compiled __pow__ calls the right operand's __rpow__ itself, and without this, a QuadInt's is the wrapper
+    #   CPython adds for the slot __pow__ fills, which calls straight back. So 2 ** x, x ** x and None ** x recursed
+    #   until RecursionError, rather than raising TypeError. (Ideal and IdealClass have the same workaround.)
+    def __rpow__(self, other: NoReturn):
+        # Nothing takes a QuadInt as an exponent. NoReturn compiles to a plain object, but keeps 2 ** x a type error for
+        #   type checkers, where `other: object` would tell them it gives an object
+        return NotImplemented
 
     # region Euclidean-ish division (no Fraction; small neighborhood search in integer metric)
     def __divmod__(self, other: complex | int | float | QuadInt):
