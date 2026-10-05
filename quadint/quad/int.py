@@ -211,7 +211,7 @@ class QuadInt:
         # The only time b is not 0 is if self.den is 1 anyway... No need to multiply
         return self._make(a * self.ring.den, b)
 
-    def assert_same_ring(self, other: QuadInt):
+    def assert_same_ring(self, other: QuadInt) -> None:
         """Raise an error if other is not in the same ring as self"""
         if self.ring is not other.ring:
             raise TypeError("Cannot mix QuadInt from different rings")
@@ -227,7 +227,7 @@ class QuadInt:
         self.assert_same_ring(x)
         return x
 
-    def conjugate(self):
+    def conjugate(self) -> QuadInt:
         """(a + b√D)/den -> (a - b√D)/den."""
         return self._make(self.a, -self.b)
 

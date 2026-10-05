@@ -81,7 +81,7 @@ class RealNormEuclidRing(QuadraticRing):
         """
         return abs_norm
 
-    def divmod(self, x: QuadInt, y: QuadInt):
+    def divmod(self, x: QuadInt, y: QuadInt) -> tuple[QuadInt, QuadInt]:
         """
         Division that reduces the Euclidean function phi from _phi_from_abs_norm.
 
