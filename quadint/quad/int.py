@@ -425,9 +425,16 @@ class QuadInt:
     # region Euclidean-ish division (no Fraction; small neighborhood search in integer metric)
     def __divmod__(self, other: complex | int | float | QuadInt):
         """
-        Nearest-lattice division for D <= 0 (imaginary quadratic).
+        Euclidean division: the quotient q and remainder r with self == q*other + r, and r smaller than other.
 
-        Intended for Euclidean rings (e.g., D=-1, -2, -3, -7, -11 in the maximal order).
+        Smaller by the ring's Euclidean function: |N| in the norm-Euclidean rings (imaginary and real), a weighted |N|
+            in Clark's D=69 and the Harper rings, and in the dual and split-complex integers, the size of their parts.
+            The search for q starts from self / other with each part rounded (halves up), so r only depends on self
+            modulo other (see _round_div).
+
+        ring.supports_division() says which rings have it. The others raise NotImplementedError, as a Harper ring also
+            can when no quotient reduces its weighted norm, and dividing by 0 (or a zero divisor of the dual or
+            split-complex integers) raises ZeroDivisionError.
 
         Returns:
             tuple: The quotient and remainder of the division with other.
